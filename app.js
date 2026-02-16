@@ -801,6 +801,8 @@ async function generarPDF(presId) {
 // Helpers for View/Edit/Duplicate (Fetching Links)
 async function fetchBudgetDeepData(presId) {
     let client = {}, zona = {}, pago = '-';
+
+    // Header links - kept as is (3 calls)
     let clLinks = await apiGetLinks(TBL.presupuestos, 'canpten8owymbde', presId);
     if (clLinks.length > 0) client = clLinks[0];
 
@@ -810,38 +812,49 @@ async function fetchBudgetDeepData(presId) {
     let payLinks = await apiGetLinks(TBL.presupuestos, 'c3866164n9x7942', presId);
     if (payLinks.length > 0) pago = payLinks[0].Nombre;
 
-    // Refresh data to ensure we have latest items
+    // Refresh data to ensure we have latest items (O(1) calls)
     DATA.unidades = await apiGet(TBL.unidades);
     DATA.lineas = await apiGet(TBL.lineas);
 
     let presUnidades = [];
+
+    // Filter Units in Memory (O(N))
     for (let u of DATA.unidades) {
-        let links = await apiGetLinks(TBL.unidades, 'cm5xv0vmlne7r6u', u.Id);
-        if (links.some(l => l.Id == presId || l.id == presId)) {
-            // Resolve Product Link: Unidades -> Producto: 'co1b5kwpl8d2rya'
-            let pLinks = await apiGetLinks(TBL.unidades, 'co1b5kwpl8d2rya', u.Id);
-            u._productoId = pLinks.length > 0 ? (pLinks[0].Id || pLinks[0].id) : null;
-            u._productoNombre = pLinks.length > 0 ? (pLinks[0].Nombre || pLinks[0].Title) : '';
+        let pLink = resolveLink(u, 'Presupuesto');
+        if (pLink && (pLink.Id == presId || pLink.id == presId)) {
+            // Resolve Product Link from 'Producto' column
+            let prodLink = resolveLink(u, 'Producto') || resolveLink(u, 'Productos');
+            if (prodLink) {
+                u._productoId = prodLink.Id || prodLink.id;
+                u._productoNombre = prodLink.Nombre || prodLink.Title || '';
+            }
             presUnidades.push(u);
         }
     }
     presUnidades.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
 
     let presLineas = [];
+    // Filter Lines in Memory (O(N))
     for (let l of DATA.lineas) {
-        let links = await apiGetLinks(TBL.lineas, 'c4hnodnss6zlr32', l.Id);
-        if (links.some(p => p.Id == presId || p.id == presId)) {
-            // Resolve Unit Link: Líneas -> Unidad: 'cn9406tc3q1jmw0'
-            let uLinks = await apiGetLinks(TBL.lineas, 'cn9406tc3q1jmw0', l.Id);
-            l._unidadId = uLinks.length > 0 ? (uLinks[0].Id || uLinks[0].id) : null;
+        let pLink = resolveLink(l, 'Presupuesto');
+        let matchesPres = pLink && (pLink.Id == presId || pLink.id == presId);
 
-            // Resolve Component Link: Líneas -> Componente: 'czka6po5myr5wu6'
-            let cLinks = await apiGetLinks(TBL.lineas, 'czka6po5myr5wu6', l.Id);
-            l._componenteId = cLinks.length > 0 ? (cLinks[0].Id || cLinks[0].id) : null;
+        // Also check if matches any of the budget's units
+        let uLink = resolveLink(l, 'Unidad');
+        let uId = uLink ? (uLink.Id || uLink.id) : null;
+        let matchesUnit = uId && presUnidades.some(u => u.Id == uId);
 
+        if (matchesPres || matchesUnit) {
+            l._unidadId = uId;
+            // Resolve Component Link
+            let cLink = resolveLink(l, 'Componente') || resolveLink(l, 'Componentes');
+            if (cLink) {
+                l._componenteId = cLink.Id || cLink.id;
+            }
             presLineas.push(l);
         }
     }
+
     return { client, zona, pago, unidades: presUnidades, lineas: presLineas };
 }
 
