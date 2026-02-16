@@ -3,7 +3,7 @@ const TOKEN = 'dZMS2te8v6cf47Jlmlnk3S3ft9LT_QO8bjNdOcZZ';
 const BASE = 'pru2fsphj43juyr';
 const H = { 'xc-token': TOKEN, 'Content-Type': 'application/json' };
 const TBL = { clientes: 'mwby85581fhjy27', propiedades: 'm0dwlr7ccoim1kf', historial: 'mimh9lp8bkew4t0', categorias: 'mulo5ve82d9ex7q', productos: 'mdr6mo695g0qz6d', componentes: 'mgh9e1zivvhpg26', prod_comp: 'mmjzqw7v4que9q3', tc: 'mhj9fovlmv9036x', zonas: 'mottig5nmj5e3kx', presupuestos: 'mn1yyjyovvoyxme', lineas: 'mv1e9trh23j0q3o', servicios: 'mz8qrki3hz4y7iv', formas_pago: 'm2t4fnjie88gfo0', unidades: 'mix059xkpsz15um', anchos: 'mayai71j546g3as' };
-let DATA = { clientes: [], zonas: [], componentes: [], productos: [], prod_comp: [], presupuestos: [], lineas: [], unidades: [], formas_pago: [], tc: null, anchos: [] };
+let DATA = { clientes: [], propiedades: [], zonas: [], componentes: [], productos: [], prod_comp: [], presupuestos: [], lineas: [], unidades: [], formas_pago: [], tc: null, anchos: [] };
 let unidadCount = 0;
 async function apiGet(tid, params = '') { let r = await fetch(API + '/api/v2/tables/' + tid + '/records?limit=200' + params, { headers: H }); if (!r.ok) return []; let d = await r.json(); return d.list || []; }
 async function apiGetLinks(tid, colId, rowId) { let r = await fetch(API + '/api/v2/tables/' + tid + '/links/' + colId + '/records/' + rowId + '?limit=10', { headers: H }); if (!r.ok) return []; let d = await r.json(); return d.list || []; }
@@ -32,10 +32,12 @@ async function loadAll() {
     DATA.lineas = await apiGet(TBL.lineas);
     DATA.unidades = await apiGet(TBL.unidades);
     DATA.formas_pago = await apiGet(TBL.formas_pago);
+    DATA.propiedades = await apiGet(TBL.propiedades);
     DATA.anchos = await apiGet(TBL.anchos);
     for (let p of DATA.presupuestos) {
         try { let cl = await apiGetLinks(TBL.presupuestos, 'canpten8owymbde', p.Id); if (cl.length > 0) p._clienteNombre = cl[0].Nombre || cl[0].Title || '-'; else p._clienteNombre = '-'; } catch (e) { p._clienteNombre = '-'; }
         try { let zl = await apiGetLinks(TBL.presupuestos, 'cr3s0ox51qopwl4', p.Id); if (zl.length > 0) p._zonaNombre = zl[0].Nombre || zl[0].Title || '-'; else p._zonaNombre = '-'; } catch (e) { p._zonaNombre = '-'; }
+        try { let pl = await apiGetLinks(TBL.presupuestos, 'c9pkiok73yxowj5', p.Id); if (pl.length > 0) p._propiedadDir = (pl[0].Direccion || '-') + ' - ' + (pl[0].Localidad || '-'); else p._propiedadDir = '-'; } catch (e) { p._propiedadDir = '-'; }
     }
     loadDashboard();
 }
@@ -59,6 +61,7 @@ function loadPresupuestos() {
     tb.innerHTML = '';
     DATA.presupuestos.forEach(p => {
         let cliName = cleanLabel(p._clienteNombre) || '-';
+        let propDir = cleanLabel(p._propiedadDir) || '-';
         let zonaName = cleanLabel(p._zonaNombre) || '-';
         let iva = (p.IVA_21 || 0) + (p.IVA_105 || 0);
         let id = p.Id || p.id;
@@ -73,7 +76,7 @@ function loadPresupuestos() {
             '<option value="Vencido" ' + (p.Estado == 'Vencido' ? 'selected' : '') + '>Vencido</option>' +
             '</select>';
 
-        tb.innerHTML += '<tr><td><strong>' + (p.Numero || '-') + '</strong></td><td>' + (p.Fecha || '-') + '</td><td>' + cliName + '</td><td>' + zonaName + '</td><td>' + fmt(p.Subtotal_neto || p.Subtotal_items) + '</td><td>' + fmt(iva) + '</td><td><strong>' + fmt(p.Total_con_IVA || p.Total) + '</strong></td><td>' + badgeHtml(p.Estado || 'Borrador') + '</td><td>' + actions + '</td></tr>';
+        tb.innerHTML += '<tr><td><strong>' + (p.Numero || '-') + '</strong></td><td>' + (p.Fecha || '-') + '</td><td>' + cliName + '</td><td>' + propDir + '</td><td>' + zonaName + '</td><td>' + fmt(p.Subtotal_neto || p.Subtotal_items) + '</td><td>' + fmt(iva) + '</td><td><strong>' + fmt(p.Total_con_IVA || p.Total) + '</strong></td><td>' + badgeHtml(p.Estado || 'Borrador') + '</td><td>' + actions + '</td></tr>';
     });
 }
 function loadPrecios() {
@@ -206,61 +209,90 @@ async function openNewPres(presData = null) {
         ps.innerHTML += '<option value="' + f.Id + '" ' + sel + '>' + cleanLabel(f.Nombre) + '</option>';
     });
 
-    document.getElementById('np-canal').value = presData ? (presData.Canal || 'Manual') : 'Manual';
-    document.getElementById('np-factura').checked = presData ? (presData.Quiere_factura || false) : false;
+    loadPropiedadesSelect(presData);
+}
 
-    document.getElementById('np-unidades').innerHTML = '';
-    document.getElementById('np-resumen').style.display = 'none';
-    unidadCount = 0;
+function updatePropiedadesSelect() {
+    loadPropiedadesSelect();
+}
 
-    if (presData && presData._unidades && presData._unidades.length > 0) {
-        // Load existing units
-        for (let u of presData._unidades) {
-            unidadCount++;
-            let n = unidadCount;
-            addUnidadUI(n, u); // u now has _productoId
+function loadPropiedadesSelect(presData) {
+    let cliId = document.getElementById('np-cliente').value;
+    let ps = document.getElementById('np-propiedad');
+    ps.innerHTML = '<option value="">Seleccionar propiedad...</option>';
+    if (!cliId) return;
 
-            // Load lines
-            let lines = [];
-            if (presData._lineas) {
-                lines = presData._lineas.filter(l => l._unidadId == u.Id);
-            }
-            lines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
-            lines.forEach(l => {
-                // Use the resolved component ID if available
-                let compId = l._componenteId;
-                let comp = null;
+    let props = DATA.propiedades.filter(p => {
+        let link = resolveLink(p, 'Clientes');
+        return link && (link.Id == cliId || link.id == cliId);
+    });
 
-                if (compId) {
-                    comp = DATA.componentes.find(c => c.Id == compId);
-                } else {
-                    // Fallback to name match
-                    comp = DATA.componentes.find(c => c.Nombre === l.Descripcion_pdf);
-                }
-
-                if (comp) {
-                    addCompRowWithData(n, comp, l.Cantidad, l.Id);
-                } else {
-                    // Custom component or not found
-                    let mockComp = {
-                        Id: null,
-                        Nombre: l.Descripcion_pdf,
-                        Costo_unitario: l.Costo_unit_orig,
-                        Moneda_costo: l.Moneda_costo_orig,
-                        Margen_default: l.Margen_pct,
-                        Alicuota_IVA_venta: l.Alicuota_IVA || '21'
-                    };
-                    addCompRowWithData(n, mockComp, l.Cantidad, l.Id);
-                }
-            });
-            recalcUnidad(n);
-        }
-    } else {
-        addUnidad();
+    let selectedPropId = null;
+    if (presData && presData.Id) {
+        let pLink = resolveLink(presData, 'Propiedades');
+        if (pLink) selectedPropId = pLink.Id || pLink.id;
     }
 
-    recalcTotal();
-    document.getElementById('modal-pres').classList.add('show');
+    props.forEach(p => {
+        let sel = (selectedPropId && (p.Id == selectedPropId)) ? 'selected' : (props.length === 1 ? 'selected' : '');
+        ps.innerHTML += '<option value="' + p.Id + '" ' + sel + '>' + cleanLabel(p.Direccion) + ' - ' + cleanLabel(p.Localidad) + '</option>';
+    });
+}
+
+document.getElementById('np-canal').value = presData ? (presData.Canal || 'Manual') : 'Manual';
+document.getElementById('np-factura').checked = presData ? (presData.Quiere_factura || false) : false;
+
+document.getElementById('np-unidades').innerHTML = '';
+document.getElementById('np-resumen').style.display = 'none';
+unidadCount = 0;
+
+if (presData && presData._unidades && presData._unidades.length > 0) {
+    // Load existing units
+    for (let u of presData._unidades) {
+        unidadCount++;
+        let n = unidadCount;
+        addUnidadUI(n, u);
+
+        let lines = [];
+        if (presData._lineas) {
+            lines = presData._lineas.filter(l => l._unidadId == u.Id);
+        }
+        lines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
+        lines.forEach(l => {
+            // Use the resolved component ID if available
+            let compId = l._componenteId;
+            let comp = null;
+
+            if (compId) {
+                comp = DATA.componentes.find(c => c.Id == compId);
+            } else {
+                // Fallback to name match
+                comp = DATA.componentes.find(c => c.Nombre === l.Descripcion_pdf);
+            }
+
+            if (comp) {
+                addCompRowWithData(n, comp, l.Cantidad, l.Id);
+            } else {
+                // Custom component or not found
+                let mockComp = {
+                    Id: null,
+                    Nombre: l.Descripcion_pdf,
+                    Costo_unitario: l.Costo_unit_orig,
+                    Moneda_costo: l.Moneda_costo_orig,
+                    Margen_default: l.Margen_pct,
+                    Alicuota_IVA_venta: l.Alicuota_IVA || '21'
+                };
+                addCompRowWithData(n, mockComp, l.Cantidad, l.Id);
+            }
+        });
+        recalcUnidad(n);
+    }
+} else {
+    addUnidad();
+}
+
+recalcTotal();
+document.getElementById('modal-pres').classList.add('show');
 }
 
 function addUnidad() {
@@ -451,6 +483,8 @@ async function savePres() {
         });
         await apiLink(TBL.presupuestos, 'canpten8owymbde', editPresId, [{ Id: parseInt(clienteId) }]);
         await apiLink(TBL.presupuestos, 'cr3s0ox51qopwl4', editPresId, [{ Id: parseInt(zonaId) }]);
+        let propId = document.getElementById('np-propiedad').value;
+        if (propId) await apiLink(TBL.presupuestos, 'c9pkiok73yxowj5', editPresId, [{ Id: propId }]);
     } else {
         // CREATE New
         let year = new Date().getFullYear();
@@ -461,6 +495,8 @@ async function savePres() {
         if (!presId) { alert('Error creando presupuesto'); return; }
         await apiLink(TBL.presupuestos, 'canpten8owymbde', presId, [{ Id: parseInt(clienteId) }]);
         await apiLink(TBL.presupuestos, 'cr3s0ox51qopwl4', presId, [{ Id: parseInt(zonaId) }]);
+        let propId = document.getElementById('np-propiedad').value;
+        if (propId) await apiLink(TBL.presupuestos, 'c9pkiok73yxowj5', presId, [{ Id: propId }]);
         let pagoId = document.getElementById('np-pago').value;
         if (pagoId) await apiLink(TBL.presupuestos, 'c3866164n9x7942', presId, [{ Id: parseInt(pagoId) }]);
     }
@@ -880,13 +916,33 @@ async function viewPresupuesto(presId) {
     let client = res.client;
     let zona = res.zona;
     let pago = res.pago;
+    let propAddr = '-';
+    if (pres._propiedadDir && pres._propiedadDir !== '-') {
+        propAddr = pres._propiedadDir;
+    } else {
+        let pLink = resolveLink(pres, 'Propiedades');
+        if (pLink) {
+            let pData = DATA.propiedades.find(x => x.Id == (pLink.Id || pLink.id));
+            if (pData) propAddr = (pData.Direccion || '-') + ' - ' + (pData.Localidad || '-');
+        }
+    }
 
     document.getElementById('vp-titulo').textContent = 'Presupuesto #' + pres.Numero;
     document.getElementById('vp-fecha').textContent = new Date(pres.Fecha).toLocaleDateString();
     document.getElementById('vp-cliente').textContent = cleanLabel(client.Nombre) || '-';
+    document.getElementById('vp-propiedad').textContent = cleanLabel(propAddr) || '-';
     document.getElementById('vp-zona').textContent = cleanLabel(zona.Nombre) || '-';
     document.getElementById('vp-estado').innerHTML = badgeHtml(pres.Estado);
     document.getElementById('vp-pago').textContent = cleanLabel(pago);
+
+    // Add Address to viewPresupuesto modal - need to check if there is a place for it in modal structure
+    // Since I don't want to change index.html too much, I'll inject it or replace something
+    // Let's assume index.html has a place or I just add to a div.
+    // Looking at index.html, it has:
+    // <p><strong>Cliente:</strong> <span id="vp-cliente">-</span></p>
+    // <p><strong>Zona:</strong> <span id="vp-zona">-</span></p>
+    // I will add a new <p> for Direction after Cliente or similar.
+
 
     // Build Content Table
     let html = '';
