@@ -627,7 +627,7 @@ async function generarPDF(presId) {
         `;
 
         // 3. Render and Print
-        let container = document.getElementById('pdf-container');
+        let container = document.getElementById('pdf-content');
         container.innerHTML = html;
 
         let opt = {
