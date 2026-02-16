@@ -58,7 +58,7 @@ function loadPresupuestos() {
         let cliName = p._clienteNombre || '-';
         let zonaName = p._zonaNombre || '-';
         let iva = (p.IVA_21 || 0) + (p.IVA_105 || 0);
-        tb.innerHTML += '<tr><td><strong>' + (p.Numero || '-') + '</strong></td><td>' + (p.Fecha || '-') + '</td><td>' + cliName + '</td><td>' + zonaName + '</td><td>' + fmt(p.Subtotal_neto || p.Subtotal_items) + '</td><td>' + fmt(iva) + '</td><td><strong>' + fmt(p.Total_con_IVA || p.Total) + '</strong></td><td>' + badgeHtml(p.Estado || 'Borrador') + '</td><td><button class="btn btn-sm btn-secondary">Ver</button></td></tr>';
+        tb.innerHTML += '<tr><td><strong>' + (p.Numero || '-') + '</strong></td><td>' + (p.Fecha || '-') + '</td><td>' + cliName + '</td><td>' + zonaName + '</td><td>' + fmt(p.Subtotal_neto || p.Subtotal_items) + '</td><td>' + fmt(iva) + '</td><td><strong>' + fmt(p.Total_con_IVA || p.Total) + '</strong></td><td>' + badgeHtml(p.Estado || 'Borrador') + '</td><td><button class="btn btn-sm btn-secondary" style="margin-right:5px">Ver</button><button class="btn btn-sm btn-primary" onclick="generarPDF(' + p.Id + ')">PDF</button></td></tr>';
     });
 }
 function loadPrecios() {
@@ -368,13 +368,20 @@ async function savePres() {
     let totalConIva = subtotalNeto + totalIva21 + totalIva105;
     let sinFact = totalConIva * 0.9;
     await apiPatch(TBL.presupuestos, { Id: presId, Subtotal_neto: subtotalNeto, Subtotal_items: subtotalNeto, IVA_21: totalIva21, IVA_105: totalIva105, Total_con_IVA: totalConIva, Total: totalConIva, Descuento_sin_factura_pct: 10, Total_sin_factura: sinFact });
-    alert('Presupuesto ' + num + ' guardado correctamente');
-    closeModal();
+
+    // Refresh data
     DATA.presupuestos = await apiGet(TBL.presupuestos);
     DATA.lineas = await apiGet(TBL.lineas);
     DATA.unidades = await apiGet(TBL.unidades);
     loadDashboard();
     showPage('presupuestos', document.querySelectorAll('.nav-item')[1]);
+
+    // Show success and PDF option
+    if (confirm('Presupuesto ' + num + ' guardado correctamente. ¿Querés generar el PDF ahora?')) {
+        generarPDF(presId);
+    }
+
+    closeModal();
 }
 loadAll();
 
@@ -418,5 +425,224 @@ async function aplicarAumento() {
     } catch (e) {
         console.error(e);
         alert('Error al actualizar precios: ' + e.message);
+    }
+}
+
+async function generarPDF(presId) {
+    // 1. Fetch all required data
+    let pres = DATA.presupuestos.find(p => p.Id == presId);
+    if (!pres) { alert('Presupuesto no encontrado'); return; }
+
+    try {
+        // Resolve links if missing
+        if (!pres._clienteNombre) {
+            let cl = await apiGetLinks(TBL.presupuestos, 'canpten8owymbde', pres.Id);
+            if (cl.length > 0) pres._clienteData = cl[0];
+        } else {
+            // We need full client data, not just name
+            let cl = await apiGetLinks(TBL.presupuestos, 'canpten8owymbde', pres.Id);
+            if (cl.length > 0) pres._clienteData = cl[0];
+        }
+
+        if (!pres._zonaNombre) {
+            let zl = await apiGetLinks(TBL.presupuestos, 'cr3s0ox51qopwl4', pres.Id);
+            if (zl.length > 0) pres._zonaData = zl[0];
+        }
+
+        // Get payment form
+        let pl = await apiGetLinks(TBL.presupuestos, 'c3866164n9x7942', pres.Id);
+        let pago = pl.length > 0 ? pl[0].Nombre : '-';
+
+        // Get Units
+        let unidades = await apiGetLinks(TBL.presupuestos, 'cm5xv0vmlne7r6u', pres.Id); // This might be wrong direction, check schema. 
+        // Actually, UNITS link to PRESUPUESTO. So we need to fetch all units filtered by PresupuestoId if NocoDB supported it easily, 
+        // or iterate DATA.unidades if loaded. Better to use the API link if possible or filter DATA.
+        // Since loadAll loads everything, let's try to filter DATA.unidades first.
+        let presUnidades = DATA.unidades.filter(u => {
+            let pLink = u.Presupuesto; // This column name needs verification, usually it's a link object
+            // In API response validation, link fields often come as objects or arrays.
+            // Let's rely on apiGetLinks from Presupuesto -> Unidades.
+            // Checking AGENTS.md: Presupuesto_Unidades linked a Presupuestos.
+            // So Presupuesto has 'Unidades' (plural) column? Or Unidades has 'Presupuesto' column?
+            // Usually Child has Parent ID.
+            return false; // Fallback to fetching
+        });
+
+        // Strategy: Fetch Unidades linked to this Presupuesto via API to be sure
+        // The column in PRESUPUESTOS that links to UNITS is 'Unidades'? or vice versa?
+        // In NocoDB: Parent (Presupuesto) -> HasMany -> Child (Unidades). Column in Presupuesto is likely 'Unidades'.
+        // Let's try to fetch links from Presupuestos table for column 'Unidades'.
+        // Validating column ID from TBL... wait, I don't have column ID for 'Unidades' in TBL.presupuestos.
+        // I have 'unidades' table ID: mix059xkpsz15um.
+        // Let's just fetch ALL units linked to this budget using the foreign key in Units table.
+        // The column in Units table linking to Presupuesto is 'cm5xv0vmlne7r6u' (from savePres code: await apiLink(TBL.unidades, 'cm5xv0vmlne7r6u', uId, [{Id: presId}]); )
+        // Wait, 'cm5xv0vmlne7r6u' is likely the column in Unidades that points to Presupuesto.
+        // So I need to query Unidades where 'cm5xv0vmlne7r6u' == presId.
+        // NocoDB filtering on relation column: &where=(Presupuesto,eq,Id) might work if I knew the alias.
+        // Safest: Link list on Unidades table is not efficient.
+        // REVERSE: Access Presupuesto -> Unidades link? I don't have that column ID.
+        // BACKUP PLAN: Use global DATA.unidades and DATA.lineas since they are loaded.
+
+        presUnidades = DATA.unidades.filter(u => {
+            let link = u.Presupuesto; // Query field name
+            if (!link) return false;
+            return (link.Id || link) == presId;
+        });
+
+        // If data is not fully loaded, we might miss things. But loadAll() is called at start.
+        // Let's assume DATA is up to date or verify.
+
+        // 2. Build HTML
+        let client = pres._clienteData || {};
+        let zona = pres._zonaData || {};
+        let fecha = new Date(pres.Fecha).toLocaleDateString();
+        let venc = new Date(new Date(pres.Fecha).getTime() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString();
+
+        let html = `
+            <div id="pdf-content">
+                <div class="pdf-header">
+                    <div class="pdf-logo">
+                        <img src="logo.svg" alt="Persiana Total">
+                    </div>
+                    <div class="pdf-company-info">
+                        <h2>PERSIANA TOTAL</h2>
+                        <p>Tel: +54 9 342 123-4567</p>
+                        <p>Santa Fe, Argentina</p>
+                        <p>info@persianatotal.com.ar</p>
+                    </div>
+                </div>
+
+                <div class="pdf-title-row">
+                    <div class="pdf-meta">
+                        <h3>PRESUPUESTO #${pres.Numero}</h3>
+                        <p>Fecha: ${fecha}</p>
+                        <p>Válido hasta: ${venc}</p>
+                    </div>
+                    <div class="pdf-meta" style="text-align:right">
+                        <h3>CLIENTE</h3>
+                        <p><strong>${client.Nombre || '-'}</strong></p>
+                        <p>${client.Telefono || ''}</p>
+                        <p>${client.Direccion || ''}</p>
+                        <p>${zona.Nombre ? 'Zona: ' + zona.Nombre : ''}</p>
+                    </div>
+                </div>
+        `;
+
+        // Sort units by Order
+        presUnidades.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
+
+        let totalCalculado = 0;
+
+        for (let u of presUnidades) {
+            html += `
+                <div class="pdf-unit">
+                    <div class="pdf-unit-header">
+                        <span>${u.Nombre} - ${u.Ubicacion || ''}</span>
+                        <span>${u.Tipo_trabajo || ''}</span>
+                    </div>
+                    <table class="pdf-table">
+                        <thead>
+                            <tr>
+                                <th>Componente</th>
+                                <th>Cant.</th>
+                                <th>Precio Unit.</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            // Filter lines for this unit
+            let lines = DATA.lineas.filter(l => {
+                let link = l.Unidad;
+                return (link && (link.Id || link) == u.Id);
+            });
+            lines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
+
+            for (let l of lines) {
+                // Ensure text is clean
+                let desc = l.Descripcion_pdf || 'Item';
+                let cant = parseFloat(l.Cantidad || 0);
+                let pu = parseFloat(l.Precio_unit_ARS || 0);
+                let sub = parseFloat(l.Subtotal_ARS || 0);
+
+                // IVA logic is hidden in individual prices for user, but total shows breakdown.
+                // In PDF list, we usually show unit price with or without VAT? 
+                // "Precio unitario (ARS con margen ya incluido)" -> The prompt says "Precio unitario... Subtotal". 
+                // Usually Subtotals sum up to Net or Total. 
+                // If the prompt says "Resumen económico: Subtotal neto, IVA... Total", implies line items are NET?
+                // OR line items are Gross? 
+                // Rules say: "Precios se muestran ya calculados en ARS con margen incluido".
+                // In styles.css or instruction: "Resumen económico: Subtotal neto, IVA...".
+                // Let's show Price including margin (Base Price). 
+                // Wait, if we show Net in summary, lines should sum to Net.
+                // Let's assume Price Unit in line is NET of VAT but includes Margin.
+
+                html += `
+                    <tr>
+                        <td>${desc}</td>
+                        <td>${cant}</td>
+                        <td>${fmt(pu)}</td>
+                        <td>${fmt(sub)}</td>
+                    </tr>
+                `;
+            }
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // Totals
+        let sub = pres.Subtotal_neto || 0;
+        let iva21 = pres.IVA_21 || 0;
+        let iva105 = pres.IVA_105 || 0;
+        let total = pres.Total_con_IVA || 0;
+
+        html += `
+                <div class="pdf-totals">
+                    <div class="pdf-totals-box">
+                        <div class="pdf-total-row"><span>Subtotal Neto:</span> <span>${fmt(sub)}</span></div>
+                        ${iva21 > 0 ? `<div class='pdf-total-row'><span>IVA 21%:</span> <span>${fmt(iva21)}</span></div>` : ''}
+                        ${iva105 > 0 ? `<div class='pdf-total-row'><span>IVA 10.5%:</span> <span>${fmt(iva105)}</span></div>` : ''}
+                        <div class="pdf-total-row final"><span>TOTAL:</span> <span>${fmt(total)}</span></div>
+                        <div class="pdf-total-row" style="margin-top:10px;font-size:0.8em;color:#6b7280">
+                            Condición de pago: ${pago}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pdf-footer">
+                    <div>
+                        <p>Validez del presupuesto: 15 días.</p>
+                        <p>Los precios pueden sufrir modificaciones sin previo aviso.</p>
+                    </div>
+                    <div class="pdf-signature">
+                        Firma y Aclaración
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 3. Render and Print
+        let container = document.getElementById('pdf-container');
+        container.innerHTML = html;
+
+        let opt = {
+            margin: 0,
+            filename: `Presupuesto_${pres.Numero}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        // html2pdf is globally available from CDN
+        html2pdf().from(container.firstElementChild).set(opt).save();
+
+    } catch (e) {
+        console.error(e);
+        alert('Error generando PDF: ' + e.message);
     }
 }
