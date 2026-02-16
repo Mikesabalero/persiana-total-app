@@ -12,7 +12,7 @@ async function apiPatch(tid, body) { let r = await fetch(API + '/api/v2/tables/'
 async function apiDelete(tid, id) { let r = await fetch(API + '/api/v2/tables/' + tid + '/records', { method: 'DELETE', headers: H, body: JSON.stringify({ Id: id }) }); return r.json(); }
 async function apiLink(tid, colId, rowId, linked) { let r = await fetch(API + '/api/v2/tables/' + tid + '/links/' + colId + '/records/' + rowId, { method: 'POST', headers: H, body: JSON.stringify(linked) }); return r.json(); }
 function fmt(n) { if (n == null) return '$0'; return '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
-function badgeHtml(estado) { let c = { 'Borrador': 'borrador', 'Enviado': 'enviado', 'Aprobado': 'aprobado', 'Rechazado': 'rechazado', 'Vencido': 'vencido', 'Facturado': 'facturado' }; return '<span class="badge badge-' + (c[estado] || 'borrador') + '">' + estado + '</span>'; }
+function badgeHtml(estado) { let c = { 'Borrador': 'borrador', 'Enviado': 'enviado', 'Aprobado': 'aprobado', 'Rechazado': 'rechazado', 'Vencido': 'vencido', 'Facturado': 'facturado' }; return '<span class="badge badge-' + (c[estado] || 'borrador') + '">' + cleanLabel(estado) + '</span>'; }
 function showPage(id, btn) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById('page-' + id).classList.add('active'); document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active')); if (btn) btn.classList.add('active'); if (id === 'dashboard') loadDashboard(); if (id === 'presupuestos') loadPresupuestos(); if (id === 'precios') loadPrecios(); if (id === 'clientes') loadClientes(); if (id === 'config') loadConfig(); }
 function showConfigTab(id, btn) { document.querySelectorAll('.config-section').forEach(s => s.style.display = 'none'); document.getElementById('config-' + id).style.display = 'block'; document.querySelectorAll('.config-tab').forEach(t => t.classList.remove('active')); btn.classList.add('active'); }
 function closeModal() { document.getElementById('modal-pres').classList.remove('show'); }
@@ -20,6 +20,7 @@ function closeDetail() { document.getElementById('panel-cliente').classList.remo
 function closeVerPres() { document.getElementById('modal-ver-pres').classList.remove('show'); }
 function resolveLink(row, field) { let v = row[field]; if (!v) return null; if (typeof v === 'object' && Array.isArray(v) && v.length > 0) return v[0]; if (typeof v === 'object' && v.Id) return v; return null; }
 function resolveName(row, field, list, idField) { let link = resolveLink(row, field); if (!link) return '-'; let id = link.Id || link.id || link; let found = list.find(i => i.Id == id); return found ? found.Nombre || found.Title || '-' : '-'; }
+function cleanLabel(text) { if (!text || typeof text !== 'string') return text || ''; return text.replace(/_/g, ' '); }
 async function loadAll() {
     DATA.tc = (await apiGet(TBL.tc, '&where=(Vigente,eq,true)'))[0] || { Dolar_oficial: 1150 };
     DATA.clientes = await apiGet(TBL.clientes);
@@ -49,7 +50,7 @@ function loadDashboard() {
     let tb = document.getElementById('dash-table');
     tb.innerHTML = '';
     ps.slice(-5).reverse().forEach(p => {
-        let cliName = p._clienteNombre || '-';
+        let cliName = cleanLabel(p._clienteNombre) || '-';
         tb.innerHTML += '<tr><td><strong>' + (p.Numero || '-') + '</strong></td><td>' + (p.Fecha || '-') + '</td><td>' + cliName + '</td><td>' + fmt(p.Total_con_IVA || p.Total) + '</td><td>' + badgeHtml(p.Estado || 'Borrador') + '</td></tr>';
     });
 }
@@ -57,8 +58,8 @@ function loadPresupuestos() {
     let tb = document.getElementById('pres-table');
     tb.innerHTML = '';
     DATA.presupuestos.forEach(p => {
-        let cliName = p._clienteNombre || '-';
-        let zonaName = p._zonaNombre || '-';
+        let cliName = cleanLabel(p._clienteNombre) || '-';
+        let zonaName = cleanLabel(p._zonaNombre) || '-';
         let iva = (p.IVA_21 || 0) + (p.IVA_105 || 0);
         let id = p.Id || p.id;
         let actions = '<button class="btn btn-sm btn-secondary" style="margin-right:5px" onclick="viewPresupuesto(' + id + ')">Ver</button>';
@@ -84,7 +85,7 @@ function loadPrecios() {
         let costo = c.Costo_unitario || 0;
         let margen = c.Margen_default || 0;
         let precioArs = c.Moneda_costo === 'USD' ? costo * tc * (1 + margen / 100) : costo * (1 + margen / 100);
-        tb.innerHTML += '<tr><td><strong>' + c.Nombre + '</strong></td><td>' + (c.Tipo_componente || '-') + '</td><td class="hide-margin">' + Number(costo).toFixed(2) + '</td><td class="hide-margin">' + (c.Moneda_costo || '-') + '</td><td class="hide-margin">' + margen + '%</td><td><strong>' + fmt(precioArs) + '</strong></td><td class="hide-margin">' + (c.Alicuota_IVA_compra || '-') + '%</td><td class="hide-margin">' + (c.Alicuota_IVA_venta || '-') + '%</td><td>' + (c.Proveedor || '-') + '</td></tr>';
+        tb.innerHTML += '<tr><td><strong>' + cleanLabel(c.Nombre) + '</strong></td><td>' + cleanLabel(c.Tipo_componente || '-') + '</td><td class="hide-margin">' + Number(costo).toFixed(2) + '</td><td class="hide-margin">' + (c.Moneda_costo || '-') + '</td><td class="hide-margin">' + margen + '%</td><td><strong>' + fmt(precioArs) + '</strong></td><td class="hide-margin">' + (c.Alicuota_IVA_compra || '-') + '%</td><td class="hide-margin">' + (c.Alicuota_IVA_venta || '-') + '%</td><td>' + cleanLabel(c.Proveedor || '-') + '</td></tr>';
     });
 }
 function filterComp() {
@@ -105,7 +106,7 @@ function loadClientes() {
         let presCount = 0;
         let pl = c.Presupuestos;
         if (Array.isArray(pl)) presCount = pl.length;
-        tb.innerHTML += '<tr style="cursor:pointer" onclick="showClientDetail(' + c.Id + ')"><td><strong>' + c.Nombre + '</strong></td><td>' + (c.Telefono || '-') + '</td><td>' + (c.Mail || '-') + '</td><td>' + (c.Tipo || '-') + '</td><td>' + (c.Condicion_fiscal || '-') + '</td><td>' + (c.CUIT_CUIL_DNI || '-') + '</td><td>' + presCount + '</td></tr>';
+        tb.innerHTML += '<tr style="cursor:pointer" onclick="showClientDetail(' + c.Id + ')"><td><strong>' + cleanLabel(c.Nombre) + '</strong></td><td>' + (c.Telefono || '-') + '</td><td>' + (c.Mail || '-') + '</td><td>' + cleanLabel(c.Tipo || '-') + '</td><td>' + cleanLabel(c.Condicion_fiscal || '-') + '</td><td>' + (c.CUIT_CUIL_DNI || '-') + '</td><td>' + presCount + '</td></tr>';
     });
 }
 function filterCli() {
@@ -134,15 +135,15 @@ function filterPres() {
 function showClientDetail(id) {
     let c = DATA.clientes.find(x => x.Id === id);
     if (!c) return;
-    let html = '<h2 style="margin-bottom:4px">' + c.Nombre + '</h2><span class="badge badge-enviado">' + (c.Tipo || 'Particular') + '</span>';
+    let html = '<h2 style="margin-bottom:4px">' + cleanLabel(c.Nombre) + '</h2><span class="badge badge-enviado">' + cleanLabel(c.Tipo || 'Particular') + '</span>';
     html += '<div class="detail-section" style="margin-top:20px"><h4>Contacto</h4>';
     html += '<div class="detail-field"><span>Teléfono</span><span>' + (c.Telefono || '-') + '</span></div>';
     html += '<div class="detail-field"><span>Mail</span><span>' + (c.Mail || '-') + '</span></div></div>';
     html += '<div class="detail-section"><h4>Información Fiscal</h4>';
     html += '<div class="detail-field"><span>CUIT/DNI</span><span>' + (c.CUIT_CUIL_DNI || '-') + '</span></div>';
-    html += '<div class="detail-field"><span>Cond. Fiscal</span><span>' + (c.Condicion_fiscal || '-') + '</span></div>';
-    html += '<div class="detail-field"><span>Tipo Factura</span><span>' + (c.Tipo_factura || '-') + '</span></div>';
-    html += '<div class="detail-field"><span>Razón Social</span><span>' + (c.Razon_social || '-') + '</span></div></div>';
+    html += '<div class="detail-field"><span>Cond. Fiscal</span><span>' + cleanLabel(c.Condicion_fiscal || '-') + '</span></div>';
+    html += '<div class="detail-field"><span>Tipo Factura</span><span>' + cleanLabel(c.Tipo_factura || '-') + '</span></div>';
+    html += '<div class="detail-field"><span>Razón Social</span><span>' + cleanLabel(c.Razon_social || '-') + '</span></div></div>';
     document.getElementById('detail-content').innerHTML = html;
     document.getElementById('panel-cliente').classList.add('open');
 }
@@ -152,12 +153,12 @@ function loadConfig() {
     let zt = document.getElementById('cfg-zonas-table');
     zt.innerHTML = '';
     DATA.zonas.forEach(z => {
-        zt.innerHTML += '<tr><td><strong>' + z.Nombre + '</strong></td><td>' + fmt(z.Costo_viatico) + '</td><td>' + fmt(z.Costo_transporte) + '</td><td>' + fmt(z.Costo_traslado_service) + '</td></tr>';
+        zt.innerHTML += '<tr><td><strong>' + cleanLabel(z.Nombre) + '</strong></td><td>' + fmt(z.Costo_viatico) + '</td><td>' + fmt(z.Costo_transporte) + '</td><td>' + fmt(z.Costo_traslado_service) + '</td></tr>';
     });
     let pt = document.getElementById('cfg-pagos-table');
     pt.innerHTML = '';
     DATA.formas_pago.forEach(f => {
-        pt.innerHTML += '<tr><td><strong>' + f.Nombre + '</strong></td><td>' + (f.Recargo_pct || 0) + '%</td><td>' + (f.Descuento_pct || 0) + '%</td><td>' + (f.Plazo_dias || 0) + '</td><td>' + (f.Activo ? 'Si' : 'No') + '</td></tr>';
+        pt.innerHTML += '<tr><td><strong>' + cleanLabel(f.Nombre) + '</strong></td><td>' + (f.Recargo_pct || 0) + '%</td><td>' + (f.Descuento_pct || 0) + '%</td><td>' + (f.Plazo_dias || 0) + '</td><td>' + (f.Activo ? 'Si' : 'No') + '</td></tr>';
     });
     let at = document.getElementById('cfg-anchos-table');
     at.innerHTML = '';
@@ -187,14 +188,14 @@ async function openNewPres(presData = null) {
     cs.innerHTML = '<option value="">Seleccionar cliente...</option>';
     DATA.clientes.forEach(c => {
         let sel = (presData && presData._clienteData && (presData._clienteData.Id == c.Id)) ? 'selected' : '';
-        cs.innerHTML += '<option value="' + c.Id + '" ' + sel + '>' + c.Nombre + ' - ' + (c.Telefono || '') + '</option>';
+        cs.innerHTML += '<option value="' + c.Id + '" ' + sel + '>' + cleanLabel(c.Nombre) + ' - ' + (c.Telefono || '') + '</option>';
     });
 
     let zs = document.getElementById('np-zona');
     zs.innerHTML = '<option value="">Seleccionar zona...</option>';
     DATA.zonas.forEach(z => {
         let sel = (presData && presData._zonaData && (presData._zonaData.Id == z.Id)) ? 'selected' : '';
-        zs.innerHTML += '<option value="' + z.Id + '" ' + sel + '>' + z.Nombre + '</option>';
+        zs.innerHTML += '<option value="' + z.Id + '" ' + sel + '>' + cleanLabel(z.Nombre) + '</option>';
     });
 
     let ps = document.getElementById('np-pago');
@@ -202,7 +203,7 @@ async function openNewPres(presData = null) {
     let pagoNombre = presData ? presData._pagoNombre : null;
     DATA.formas_pago.forEach(f => {
         let sel = (pagoNombre && f.Nombre == pagoNombre) ? 'selected' : '';
-        ps.innerHTML += '<option value="' + f.Id + '" ' + sel + '>' + f.Nombre + '</option>';
+        ps.innerHTML += '<option value="' + f.Id + '" ' + sel + '>' + cleanLabel(f.Nombre) + '</option>';
     });
 
     document.getElementById('np-canal').value = presData ? (presData.Canal || 'Manual') : 'Manual';
@@ -274,7 +275,7 @@ function addUnidadUI(n, uData) {
 
     DATA.productos.forEach(p => {
         let sel = (selectedProd && p.Id == selectedProd) ? 'selected' : '';
-        prodOpts += '<option value="' + p.Id + '" ' + sel + '>' + p.Nombre + '</option>';
+        prodOpts += '<option value="' + p.Id + '" ' + sel + '>' + cleanLabel(p.Nombre) + '</option>';
     });
 
     let nombre = uData ? uData.Nombre : '';
@@ -286,7 +287,7 @@ function addUnidadUI(n, uData) {
     let html = '<div class="unidad-card" id="unidad-' + n + '" data-db-id="' + uId + '"><div class="unidad-header"><h3>Unidad ' + n + '</h3><div style="display:flex;gap:8px;align-items:center"><span class="unidad-subtotal" id="sub-u-' + n + '">$0</span><button class="btn-remove" onclick="removeUnidad(' + n + ')" title="Eliminar">🗑</button></div></div>';
     html += '<div class="form-row-4"><div class="form-group"><label>Ambiente</label><input id="u-' + n + '-nombre" placeholder="Ej: Dormitorio principal" value="' + nombre + '"></div>';
     html += '<div class="form-group"><label>Ubicación</label><input id="u-' + n + '-ubic" placeholder="Ej: Contra frente" value="' + ubic + '"></div>';
-    html += '<div class="form-group"><label>Tipo Trabajo</label><select id="u-' + n + '-tipo" value="' + tipo + '"><option ' + (tipo == 'Instalacion_nueva' ? 'selected' : '') + '>Instalacion_nueva</option><option ' + (tipo == 'Cambio_pano' ? 'selected' : '') + '>Cambio_pano</option><option ' + (tipo == 'Motorizacion' ? 'selected' : '') + '>Motorizacion</option><option ' + (tipo == 'Cambio_guias' ? 'selected' : '') + '>Cambio_guias</option><option ' + (tipo == 'Reparacion' ? 'selected' : '') + '>Reparacion</option><option ' + (tipo == 'Service' ? 'selected' : '') + '>Service</option><option ' + (tipo == 'Otro' ? 'selected' : '') + '>Otro</option></select></div>';
+    html += '<div class="form-group"><label>Tipo Trabajo</label><select id="u-' + n + '-tipo" value="' + tipo + '"><option value="Instalacion_nueva" ' + (tipo == 'Instalacion_nueva' ? 'selected' : '') + '>Instalacion nueva</option><option value="Cambio_pano" ' + (tipo == 'Cambio_pano' ? 'selected' : '') + '>Cambio pano</option><option value="Motorizacion" ' + (tipo == 'Motorizacion' ? 'selected' : '') + '>Motorizacion</option><option value="Cambio_guias" ' + (tipo == 'Cambio_guias' ? 'selected' : '') + '>Cambio guias</option><option value="Reparacion" ' + (tipo == 'Reparacion' ? 'selected' : '') + '>Reparacion</option><option value="Service" ' + (tipo == 'Service' ? 'selected' : '') + '>Service</option><option value="Otro" ' + (tipo == 'Otro' ? 'selected' : '') + '>Otro</option></select></div>';
     html += '<div class="form-group"><label>Producto Base</label><select id="u-' + n + '-prod" onchange="loadCompSugeridos(' + n + ')">' + prodOpts + '</select></div></div>';
     html += '<div class="form-row" style="grid-template-columns:1fr 1fr 2fr"><div class="form-group"><label>Ancho (m)</label><input type="number" id="u-' + n + '-ancho" step="0.01" oninput="recalcUnidad(' + n + ')" value="' + ancho + '"></div>';
     html += '<div class="form-group"><label>Alto (m)</label><input type="number" id="u-' + n + '-alto" step="0.01" oninput="recalcUnidad(' + n + ')" value="' + alto + '"></div><div></div></div>';
@@ -331,7 +332,7 @@ function loadCompSugeridos(n) {
 }
 function addCompRow(n) {
     let compOpts = '<option value="">Seleccionar...</option>';
-    DATA.componentes.forEach(c => { compOpts += '<option value="' + c.Id + '">' + c.Nombre + '</option>'; });
+    DATA.componentes.forEach(c => { compOpts += '<option value="' + c.Id + '">' + cleanLabel(c.Nombre) + '</option>'; });
     let tbody = document.getElementById('comps-u-' + n);
     let row = document.createElement('tr');
     row.innerHTML = '<td><select onchange="compSelected(this,' + n + ')" style="min-width:160px">' + compOpts + '</select></td><td><input type="number" value="1" step="0.01" style="width:60px" oninput="recalcUnidad(' + n + ')"></td><td class="c-costo hide-margin">0</td><td class="c-moneda hide-margin">-</td><td class="hide-margin"><input type="number" value="40" style="width:60px" oninput="recalcUnidad(' + n + ')"></td><td class="c-precio">$0</td><td class="c-subtotal">$0</td><td class="c-iva">21%</td><td><button class="btn-remove" onclick="this.closest(\'tr\').remove();recalcUnidad(' + n + ')">✕</button></td>';
@@ -351,10 +352,10 @@ function addCompRowWithData(n, comp, qty, lineId = null) {
     // Current requirement: "Por cada componente: Nombre...".
     // For now, if comp.Id is valid we select it.
     if (comp.Id) {
-        DATA.componentes.forEach(c => { compOpts += '<option value="' + c.Id + '"' + (c.Id === comp.Id ? ' selected' : '') + '>' + c.Nombre + '</option>'; });
+        DATA.componentes.forEach(c => { compOpts += '<option value="' + c.Id + '"' + (c.Id === comp.Id ? ' selected' : '') + '>' + cleanLabel(c.Nombre) + '</option>'; });
     } else {
-        compOpts = '<option value="" selected>' + comp.Nombre + ' (Custom)</option>';
-        DATA.componentes.forEach(c => { compOpts += '<option value="' + c.Id + '">' + c.Nombre + '</option>'; });
+        compOpts = '<option value="" selected>' + cleanLabel(comp.Nombre) + ' (Custom)</option>';
+        DATA.componentes.forEach(c => { compOpts += '<option value="' + c.Id + '">' + cleanLabel(c.Nombre) + '</option>'; });
     }
 
     let tbody = document.getElementById('comps-u-' + n);
@@ -621,7 +622,7 @@ async function aplicarAumento() {
     let pct = parseFloat(pctVal);
     if (pct === 0) return;
 
-    if (!confirm('¿Estás seguro de aumentar ' + pct + '% a ' + cat + '?')) return;
+    if (!confirm('¿Estás seguro de aumentar ' + pct + '% a ' + cleanLabel(cat) + '?')) return;
 
     let toUpdate = DATA.componentes.filter(c => {
         if (cat === 'Todos') return true;
@@ -647,7 +648,7 @@ async function aplicarAumento() {
 
         // Add to history
         let tbody = document.getElementById('aumento-historial');
-        let row = '<tr><td>' + new Date().toLocaleString() + '</td><td>' + pct + '%</td><td>' + cat + '</td><td>' + patchData.length + '</td></tr>';
+        let row = '<tr><td>' + new Date().toLocaleString() + '</td><td>' + pct + '%</td><td>' + cleanLabel(cat) + '</td><td>' + patchData.length + '</td></tr>';
         tbody.insertAdjacentHTML('afterbegin', row);
 
         document.getElementById('aumento-pct').value = '';
@@ -690,15 +691,15 @@ async function generarPDF(presId) {
                         <h3>PRESUPUESTO #${pres.Numero || '-'}</h3>
                         <p>Fecha: ${fecha}</p>
                         <p>Válido hasta: ${venc}</p>
-                        <p>Estado: ${pres.Estado || '-'}</p>
+                        <p>Estado: ${badgeHtml(pres.Estado)}</p>
                     </div>
                     <div class="pdf-meta" style="text-align:right">
                         <h3>CLIENTE</h3>
-                        <p><strong>${client.Nombre || '-'}</strong></p>
+                        <p><strong>${cleanLabel(client.Nombre) || '-'}</strong></p>
                         <p>${client.Telefono || ''}</p>
                         <p>${client.Email || ''}</p>
                         <p>${client.Direccion || ''}</p>
-                        <p>${zona.Nombre ? 'Zona: ' + zona.Nombre : ''}</p>
+                        <p>${zona.Nombre ? 'Zona: ' + cleanLabel(zona.Nombre) : ''}</p>
                     </div>
                 </div>
         `;
@@ -707,8 +708,8 @@ async function generarPDF(presId) {
             html += `
                 <div class="pdf-unit">
                     <div class="pdf-unit-header">
-                        <span>${u.Nombre} - ${u.Ubicacion || ''}</span>
-                        <span>${u.Tipo_trabajo || ''}</span>
+                        <span>${cleanLabel(u.Nombre)} - ${cleanLabel(u.Ubicacion) || ''}</span>
+                        <span>${cleanLabel(u.Tipo_trabajo) || ''}</span>
                     </div>
                     <table class="pdf-table">
                         <thead>
@@ -733,7 +734,7 @@ async function generarPDF(presId) {
 
                 html += `
                     <tr>
-                        <td>${desc}</td>
+                        <td>${cleanLabel(desc)}</td>
                         <td>${cant}</td>
                         <td>${fmt(pu)}</td>
                         <td>${fmt(sub)}</td>
@@ -761,7 +762,7 @@ async function generarPDF(presId) {
                         ${iva105 > 0 ? `<div class='pdf-total-row'><span>IVA 10.5%:</span> <span>${fmt(iva105)}</span></div>` : ''}
                         <div class="pdf-total-row final"><span>TOTAL:</span> <span>${fmt(total)}</span></div>
                         <div class="pdf-total-row" style="margin-top:10px;font-size:0.8em;color:#6b7280">
-                            Condición de pago: ${pago}
+                            Condición de pago: ${cleanLabel(pago)}
                         </div>
                     </div>
                 </div>
@@ -882,10 +883,10 @@ async function viewPresupuesto(presId) {
 
     document.getElementById('vp-titulo').textContent = 'Presupuesto #' + pres.Numero;
     document.getElementById('vp-fecha').textContent = new Date(pres.Fecha).toLocaleDateString();
-    document.getElementById('vp-cliente').textContent = client.Nombre || '-';
-    document.getElementById('vp-zona').textContent = zona.Nombre || '-';
+    document.getElementById('vp-cliente').textContent = cleanLabel(client.Nombre) || '-';
+    document.getElementById('vp-zona').textContent = cleanLabel(zona.Nombre) || '-';
     document.getElementById('vp-estado').innerHTML = badgeHtml(pres.Estado);
-    document.getElementById('vp-pago').textContent = pago;
+    document.getElementById('vp-pago').textContent = cleanLabel(pago);
 
     // Build Content Table
     let html = '';
@@ -897,11 +898,11 @@ async function viewPresupuesto(presId) {
         }
 
         html += `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:12px">
-            <h4 style="margin:0 0 4px 0;color:var(--grad1)">${u.Nombre}</h4>
+            <h4 style="margin:0 0 4px 0;color:var(--grad1)">${cleanLabel(u.Nombre)}</h4>
             <div style="font-size:0.9em;color:#6b7280;margin-bottom:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
-                <span><strong>Ubicación:</strong> ${u.Ubicacion || '-'}</span>
-                <span><strong>Tipo:</strong> ${u.Tipo_trabajo || '-'}</span>
-                <span><strong>Producto:</strong> ${prodName || '-'}</span>
+                <span><strong>Ubicación:</strong> ${cleanLabel(u.Ubicacion) || '-'}</span>
+                <span><strong>Tipo:</strong> ${cleanLabel(u.Tipo_trabajo) || '-'}</span>
+                <span><strong>Producto:</strong> ${cleanLabel(prodName) || '-'}</span>
                 <span><strong>Medidas:</strong> ${u.Ancho_m || '-'} x ${u.Alto_m || '-'} m</span>
             </div>
             <table class="pdf-table" style="font-size:0.9em">
