@@ -429,73 +429,48 @@ async function aplicarAumento() {
 }
 
 async function generarPDF(presId) {
-    // 1. Fetch all required data
+    // 1. Fetch budget data
     let pres = DATA.presupuestos.find(p => p.Id == presId);
     if (!pres) { alert('Presupuesto no encontrado'); return; }
 
     try {
-        // Resolve links if missing
-        if (!pres._clienteNombre) {
-            let cl = await apiGetLinks(TBL.presupuestos, 'canpten8owymbde', pres.Id);
-            if (cl.length > 0) pres._clienteData = cl[0];
-        } else {
-            // We need full client data, not just name
-            let cl = await apiGetLinks(TBL.presupuestos, 'canpten8owymbde', pres.Id);
-            if (cl.length > 0) pres._clienteData = cl[0];
+        // Resolve links for Header
+        let client = {}, zona = {}, pago = '-';
+
+        let clLinks = await apiGetLinks(TBL.presupuestos, 'canpten8owymbde', pres.Id);
+        if (clLinks.length > 0) client = clLinks[0];
+
+        let zoneLinks = await apiGetLinks(TBL.presupuestos, 'cr3s0ox51qopwl4', pres.Id);
+        if (zoneLinks.length > 0) zona = zoneLinks[0];
+
+        let payLinks = await apiGetLinks(TBL.presupuestos, 'c3866164n9x7942', pres.Id);
+        if (payLinks.length > 0) pago = payLinks[0].Nombre;
+
+        // 2. Resolve Units (Unidades -> Presupuesto: cm5xv0vmlne7r6u)
+        let presUnidades = [];
+        for (let u of DATA.unidades) {
+            let links = await apiGetLinks(TBL.unidades, 'cm5xv0vmlne7r6u', u.Id);
+            if (links.some(l => l.Id == presId || l.id == presId)) {
+                presUnidades.push(u);
+            }
+        }
+        presUnidades.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
+
+        // 3. Resolve Lines (Lineas -> Presupuesto: c4hnodnss6zlr32)
+        let presLineas = [];
+        for (let l of DATA.lineas) {
+            let links = await apiGetLinks(TBL.lineas, 'c4hnodnss6zlr32', l.Id);
+            if (links.some(p => p.Id == presId || p.id == presId)) {
+                // Find unit
+                let uLinks = await apiGetLinks(TBL.lineas, 'cn9406tc3q1jmw0', l.Id);
+                let uId = uLinks.length > 0 ? (uLinks[0].Id || uLinks[0].id) : null;
+                l._unidadId = uId;
+                presLineas.push(l);
+            }
         }
 
-        if (!pres._zonaNombre) {
-            let zl = await apiGetLinks(TBL.presupuestos, 'cr3s0ox51qopwl4', pres.Id);
-            if (zl.length > 0) pres._zonaData = zl[0];
-        }
-
-        // Get payment form
-        let pl = await apiGetLinks(TBL.presupuestos, 'c3866164n9x7942', pres.Id);
-        let pago = pl.length > 0 ? pl[0].Nombre : '-';
-
-        // Get Units
-        let unidades = await apiGetLinks(TBL.presupuestos, 'cm5xv0vmlne7r6u', pres.Id); // This might be wrong direction, check schema. 
-        // Actually, UNITS link to PRESUPUESTO. So we need to fetch all units filtered by PresupuestoId if NocoDB supported it easily, 
-        // or iterate DATA.unidades if loaded. Better to use the API link if possible or filter DATA.
-        // Since loadAll loads everything, let's try to filter DATA.unidades first.
-        let presUnidades = DATA.unidades.filter(u => {
-            let pLink = u.Presupuesto; // This column name needs verification, usually it's a link object
-            // In API response validation, link fields often come as objects or arrays.
-            // Let's rely on apiGetLinks from Presupuesto -> Unidades.
-            // Checking AGENTS.md: Presupuesto_Unidades linked a Presupuestos.
-            // So Presupuesto has 'Unidades' (plural) column? Or Unidades has 'Presupuesto' column?
-            // Usually Child has Parent ID.
-            return false; // Fallback to fetching
-        });
-
-        // Strategy: Fetch Unidades linked to this Presupuesto via API to be sure
-        // The column in PRESUPUESTOS that links to UNITS is 'Unidades'? or vice versa?
-        // In NocoDB: Parent (Presupuesto) -> HasMany -> Child (Unidades). Column in Presupuesto is likely 'Unidades'.
-        // Let's try to fetch links from Presupuestos table for column 'Unidades'.
-        // Validating column ID from TBL... wait, I don't have column ID for 'Unidades' in TBL.presupuestos.
-        // I have 'unidades' table ID: mix059xkpsz15um.
-        // Let's just fetch ALL units linked to this budget using the foreign key in Units table.
-        // The column in Units table linking to Presupuesto is 'cm5xv0vmlne7r6u' (from savePres code: await apiLink(TBL.unidades, 'cm5xv0vmlne7r6u', uId, [{Id: presId}]); )
-        // Wait, 'cm5xv0vmlne7r6u' is likely the column in Unidades that points to Presupuesto.
-        // So I need to query Unidades where 'cm5xv0vmlne7r6u' == presId.
-        // NocoDB filtering on relation column: &where=(Presupuesto,eq,Id) might work if I knew the alias.
-        // Safest: Link list on Unidades table is not efficient.
-        // REVERSE: Access Presupuesto -> Unidades link? I don't have that column ID.
-        // BACKUP PLAN: Use global DATA.unidades and DATA.lineas since they are loaded.
-
-        presUnidades = DATA.unidades.filter(u => {
-            let link = u.Presupuesto; // Query field name
-            if (!link) return false;
-            return (link.Id || link) == presId;
-        });
-
-        // If data is not fully loaded, we might miss things. But loadAll() is called at start.
-        // Let's assume DATA is up to date or verify.
-
-        // 2. Build HTML
-        let client = pres._clienteData || {};
-        let zona = pres._zonaData || {};
-        let fecha = new Date(pres.Fecha).toLocaleDateString();
+        // 4. Build HTML
+        let fecha = new Date(pres.Fecha).toLocaleDateString() || '-';
         let venc = new Date(new Date(pres.Fecha).getTime() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString();
 
         let html = `
@@ -514,24 +489,21 @@ async function generarPDF(presId) {
 
                 <div class="pdf-title-row">
                     <div class="pdf-meta">
-                        <h3>PRESUPUESTO #${pres.Numero}</h3>
+                        <h3>PRESUPUESTO #${pres.Numero || '-'}</h3>
                         <p>Fecha: ${fecha}</p>
                         <p>Válido hasta: ${venc}</p>
+                        <p>Estado: ${pres.Estado || '-'}</p>
                     </div>
                     <div class="pdf-meta" style="text-align:right">
                         <h3>CLIENTE</h3>
                         <p><strong>${client.Nombre || '-'}</strong></p>
                         <p>${client.Telefono || ''}</p>
+                        <p>${client.Email || ''}</p>
                         <p>${client.Direccion || ''}</p>
                         <p>${zona.Nombre ? 'Zona: ' + zona.Nombre : ''}</p>
                     </div>
                 </div>
         `;
-
-        // Sort units by Order
-        presUnidades.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
-
-        let totalCalculado = 0;
 
         for (let u of presUnidades) {
             html += `
@@ -552,31 +524,14 @@ async function generarPDF(presId) {
                         <tbody>
             `;
 
-            // Filter lines for this unit
-            let lines = DATA.lineas.filter(l => {
-                let link = l.Unidad;
-                return (link && (link.Id || link) == u.Id);
-            });
-            lines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
+            let unitLines = presLineas.filter(l => l._unidadId == u.Id);
+            unitLines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
 
-            for (let l of lines) {
-                // Ensure text is clean
+            for (let l of unitLines) {
                 let desc = l.Descripcion_pdf || 'Item';
                 let cant = parseFloat(l.Cantidad || 0);
                 let pu = parseFloat(l.Precio_unit_ARS || 0);
                 let sub = parseFloat(l.Subtotal_ARS || 0);
-
-                // IVA logic is hidden in individual prices for user, but total shows breakdown.
-                // In PDF list, we usually show unit price with or without VAT? 
-                // "Precio unitario (ARS con margen ya incluido)" -> The prompt says "Precio unitario... Subtotal". 
-                // Usually Subtotals sum up to Net or Total. 
-                // If the prompt says "Resumen económico: Subtotal neto, IVA... Total", implies line items are NET?
-                // OR line items are Gross? 
-                // Rules say: "Precios se muestran ya calculados en ARS con margen incluido".
-                // In styles.css or instruction: "Resumen económico: Subtotal neto, IVA...".
-                // Let's show Price including margin (Base Price). 
-                // Wait, if we show Net in summary, lines should sum to Net.
-                // Let's assume Price Unit in line is NET of VAT but includes Margin.
 
                 html += `
                     <tr>
@@ -616,7 +571,7 @@ async function generarPDF(presId) {
 
                 <div class="pdf-footer">
                     <div>
-                        <p>Validez del presupuesto: 15 días.</p>
+                        <p>Presupuesto válido por 15 días.</p>
                         <p>Los precios pueden sufrir modificaciones sin previo aviso.</p>
                     </div>
                     <div class="pdf-signature">
@@ -626,8 +581,9 @@ async function generarPDF(presId) {
             </div>
         `;
 
-        // 3. Render and Print
+        // Render
         let container = document.getElementById('pdf-content');
+        if (!container) { alert('Error: Contenedor PDF no encontrado'); return; }
         container.innerHTML = html;
 
         let opt = {
@@ -638,7 +594,6 @@ async function generarPDF(presId) {
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
-        // html2pdf is globally available from CDN
         html2pdf().from(container.firstElementChild).set(opt).save();
 
     } catch (e) {
