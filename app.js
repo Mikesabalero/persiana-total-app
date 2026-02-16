@@ -802,7 +802,7 @@ async function generarPDF(presId) {
 async function fetchBudgetDeepData(presId) {
     let client = {}, zona = {}, pago = '-';
 
-    // Header links - kept as is (3 calls)
+    // Header links
     let clLinks = await apiGetLinks(TBL.presupuestos, 'canpten8owymbde', presId);
     if (clLinks.length > 0) client = clLinks[0];
 
@@ -812,18 +812,26 @@ async function fetchBudgetDeepData(presId) {
     let payLinks = await apiGetLinks(TBL.presupuestos, 'c3866164n9x7942', presId);
     if (payLinks.length > 0) pago = payLinks[0].Nombre;
 
-    // Refresh data to ensure we have latest items (O(1) calls)
+    // Refresh data
     DATA.unidades = await apiGet(TBL.unidades);
     DATA.lineas = await apiGet(TBL.lineas);
 
+    /* 
+    DIAGNOSTICS (User requested):
+    console.log('DATA.unidades total:', DATA.unidades.length);
+    if(DATA.unidades.length > 0) console.log('Primera unidad:', JSON.stringify(DATA.unidades[0]));
+    console.log('DATA.lineas total:', DATA.lineas.length);
+    if(DATA.lineas.length > 0) console.log('Primera linea:', JSON.stringify(DATA.lineas[0]));
+    */
+
     let presUnidades = [];
 
-    // Filter Units in Memory (O(N))
+    // Filter Units - Correct Column: 'Presupuestos' (plural)
     for (let u of DATA.unidades) {
-        let pLink = resolveLink(u, 'Presupuesto');
+        let pLink = resolveLink(u, 'Presupuestos');
         if (pLink && (pLink.Id == presId || pLink.id == presId)) {
-            // Resolve Product Link from 'Producto' column
-            let prodLink = resolveLink(u, 'Producto') || resolveLink(u, 'Productos');
+            // Correct Column: 'Producto_base'
+            let prodLink = resolveLink(u, 'Producto_base');
             if (prodLink) {
                 u._productoId = prodLink.Id || prodLink.id;
                 u._productoNombre = prodLink.Nombre || prodLink.Title || '';
@@ -834,20 +842,21 @@ async function fetchBudgetDeepData(presId) {
     presUnidades.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
 
     let presLineas = [];
-    // Filter Lines in Memory (O(N))
+    // Filter Lines
     for (let l of DATA.lineas) {
-        let pLink = resolveLink(l, 'Presupuesto');
+        // Correct Column: 'Presupuestos'
+        let pLink = resolveLink(l, 'Presupuestos');
         let matchesPres = pLink && (pLink.Id == presId || pLink.id == presId);
 
-        // Also check if matches any of the budget's units
-        let uLink = resolveLink(l, 'Unidad');
+        // Correct Column: 'Presupuesto_Unidades'
+        let uLink = resolveLink(l, 'Presupuesto_Unidades');
         let uId = uLink ? (uLink.Id || uLink.id) : null;
         let matchesUnit = uId && presUnidades.some(u => u.Id == uId);
 
         if (matchesPres || matchesUnit) {
             l._unidadId = uId;
-            // Resolve Component Link
-            let cLink = resolveLink(l, 'Componente') || resolveLink(l, 'Componentes');
+            // Correct Column: 'Componentes'
+            let cLink = resolveLink(l, 'Componentes');
             if (cLink) {
                 l._componenteId = cLink.Id || cLink.id;
             }
