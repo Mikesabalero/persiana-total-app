@@ -199,7 +199,6 @@ async function openNewPres(presData = null) {
 
     let ps = document.getElementById('np-pago');
     ps.innerHTML = '<option value="">Seleccionar...</option>';
-    // If presData has payment info, use it. Payment is a Link.
     let pagoNombre = presData ? presData._pagoNombre : null;
     DATA.formas_pago.forEach(f => {
         let sel = (pagoNombre && f.Nombre == pagoNombre) ? 'selected' : '';
@@ -218,28 +217,40 @@ async function openNewPres(presData = null) {
         for (let u of presData._unidades) {
             unidadCount++;
             let n = unidadCount;
-            addUnidadUI(n, u);
+            addUnidadUI(n, u); // u now has _productoId
+
             // Load lines
-            // Filter lines safely
             let lines = [];
             if (presData._lineas) {
                 lines = presData._lineas.filter(l => l._unidadId == u.Id);
             }
             lines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
             lines.forEach(l => {
-                let comp = DATA.componentes.find(c => c.Nombre === l.Descripcion_pdf); // Best effort matching
-                let compId = comp ? comp.Id : null;
-                // If compId not found but Descripcion exists, we keep text.
-                // We construct a mock comp object if standard not found, or just pass IDs.
-                let mockComp = {
-                    Id: compId,
-                    Nombre: l.Descripcion_pdf,
-                    Costo_unitario: l.Costo_unit_orig,
-                    Moneda_costo: l.Moneda_costo_orig,
-                    Margen_default: l.Margen_pct,
-                    Alicuota_IVA_venta: l.Alicuota_IVA || '21'
-                };
-                addCompRowWithData(n, mockComp, l.Cantidad, l.Id); // Pass Line ID
+                // Use the resolved component ID if available
+                let compId = l._componenteId;
+                let comp = null;
+
+                if (compId) {
+                    comp = DATA.componentes.find(c => c.Id == compId);
+                } else {
+                    // Fallback to name match
+                    comp = DATA.componentes.find(c => c.Nombre === l.Descripcion_pdf);
+                }
+
+                if (comp) {
+                    addCompRowWithData(n, comp, l.Cantidad, l.Id);
+                } else {
+                    // Custom component or not found
+                    let mockComp = {
+                        Id: null,
+                        Nombre: l.Descripcion_pdf,
+                        Costo_unitario: l.Costo_unit_orig,
+                        Moneda_costo: l.Moneda_costo_orig,
+                        Margen_default: l.Margen_pct,
+                        Alicuota_IVA_venta: l.Alicuota_IVA || '21'
+                    };
+                    addCompRowWithData(n, mockComp, l.Cantidad, l.Id);
+                }
             });
             recalcUnidad(n);
         }
@@ -259,8 +270,11 @@ function addUnidad() {
 function addUnidadUI(n, uData) {
     let uId = uData ? uData.Id : '';
     let prodOpts = '<option value="">Seleccionar producto...</option>';
+    let selectedProd = uData ? uData._productoId : '';
+
     DATA.productos.forEach(p => {
-        prodOpts += '<option value="' + p.Id + '">' + p.Nombre + '</option>';
+        let sel = (selectedProd && p.Id == selectedProd) ? 'selected' : '';
+        prodOpts += '<option value="' + p.Id + '" ' + sel + '>' + p.Nombre + '</option>';
     });
 
     let nombre = uData ? uData.Nombre : '';
@@ -279,6 +293,9 @@ function addUnidadUI(n, uData) {
     html += '<table class="comp-table"><thead><tr><th>Componente</th><th>Cant.</th><th class="hide-margin">Costo</th><th class="hide-margin">Moneda</th><th class="hide-margin">Margen%</th><th>Precio Unit.</th><th>Subtotal</th><th>IVA%</th><th></th></tr></thead><tbody id="comps-u-' + n + '"></tbody></table>';
     html += '<button class="btn-add-comp" onclick="addCompRow(' + n + ')">+ Agregar componente</button></div>';
     document.getElementById('np-unidades').insertAdjacentHTML('beforeend', html);
+
+    // Explicitly set select values in case attribute didn't work (for select value attr)
+    if (tipo) document.getElementById('u-' + n + '-tipo').value = tipo;
 }
 
 function removeUnidad(n) { document.getElementById('unidad-' + n)?.remove(); recalcTotal(); }
@@ -793,11 +810,18 @@ async function fetchBudgetDeepData(presId) {
     let payLinks = await apiGetLinks(TBL.presupuestos, 'c3866164n9x7942', presId);
     if (payLinks.length > 0) pago = payLinks[0].Nombre;
 
+    // Refresh data to ensure we have latest items
+    DATA.unidades = await apiGet(TBL.unidades);
+    DATA.lineas = await apiGet(TBL.lineas);
+
     let presUnidades = [];
-    // Only get units for this budget
     for (let u of DATA.unidades) {
         let links = await apiGetLinks(TBL.unidades, 'cm5xv0vmlne7r6u', u.Id);
         if (links.some(l => l.Id == presId || l.id == presId)) {
+            // Resolve Product Link: Unidades -> Producto: 'co1b5kwpl8d2rya'
+            let pLinks = await apiGetLinks(TBL.unidades, 'co1b5kwpl8d2rya', u.Id);
+            u._productoId = pLinks.length > 0 ? (pLinks[0].Id || pLinks[0].id) : null;
+            u._productoNombre = pLinks.length > 0 ? (pLinks[0].Nombre || pLinks[0].Title) : '';
             presUnidades.push(u);
         }
     }
@@ -807,9 +831,14 @@ async function fetchBudgetDeepData(presId) {
     for (let l of DATA.lineas) {
         let links = await apiGetLinks(TBL.lineas, 'c4hnodnss6zlr32', l.Id);
         if (links.some(p => p.Id == presId || p.id == presId)) {
+            // Resolve Unit Link: Líneas -> Unidad: 'cn9406tc3q1jmw0'
             let uLinks = await apiGetLinks(TBL.lineas, 'cn9406tc3q1jmw0', l.Id);
-            let uId = uLinks.length > 0 ? (uLinks[0].Id || uLinks[0].id) : null;
-            l._unidadId = uId;
+            l._unidadId = uLinks.length > 0 ? (uLinks[0].Id || uLinks[0].id) : null;
+
+            // Resolve Component Link: Líneas -> Componente: 'czka6po5myr5wu6'
+            let cLinks = await apiGetLinks(TBL.lineas, 'czka6po5myr5wu6', l.Id);
+            l._componenteId = cLinks.length > 0 ? (cLinks[0].Id || cLinks[0].id) : null;
+
             presLineas.push(l);
         }
     }
@@ -819,6 +848,10 @@ async function fetchBudgetDeepData(presId) {
 async function viewPresupuesto(presId) {
     let pres = DATA.presupuestos.find(p => p.Id == presId);
     if (!pres) return;
+
+    // Show loading state?
+    document.getElementById('vp-contenido').innerHTML = '<p style="text-align:center;padding:20px">Cargando detalles...</p>';
+    document.getElementById('modal-ver-pres').classList.add('show');
 
     let res = await fetchBudgetDeepData(presId);
     let client = res.client;
@@ -835,15 +868,27 @@ async function viewPresupuesto(presId) {
     // Build Content Table
     let html = '';
     res.unidades.forEach(u => {
+        let prodName = u._productoNombre || '';
+        if (!prodName && u._productoId) {
+            let prod = DATA.productos.find(p => p.Id == u._productoId);
+            if (prod) prodName = prod.Nombre;
+        }
+
         html += `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:12px">
-            <h4 style="margin:0 0 8px 0;color:var(--grad1)">${u.Nombre} <small style="color:#6b7280">(${u.Tipo_trabajo})</small></h4>
+            <h4 style="margin:0 0 4px 0;color:var(--grad1)">${u.Nombre}</h4>
+            <div style="font-size:0.9em;color:#6b7280;margin-bottom:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <span><strong>Ubicación:</strong> ${u.Ubicacion || '-'}</span>
+                <span><strong>Tipo:</strong> ${u.Tipo_trabajo || '-'}</span>
+                <span><strong>Producto:</strong> ${prodName || '-'}</span>
+                <span><strong>Medidas:</strong> ${u.Ancho_m || '-'} x ${u.Alto_m || '-'} m</span>
+            </div>
             <table class="pdf-table" style="font-size:0.9em">
-                <thead><tr><th>Componente</th><th>Cant.</th><th>Subtotal</th></tr></thead>
+                <thead><tr><th>Componente</th><th>Cant.</th><th>$ Unit.</th><th>Subtotal</th></tr></thead>
                 <tbody>`;
         let lines = res.lineas.filter(l => l._unidadId == u.Id);
         lines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
         lines.forEach(l => {
-            html += `<tr><td>${l.Descripcion_pdf}</td><td>${l.Cantidad}</td><td>${fmt(l.Subtotal_ARS)}</td></tr>`;
+            html += `<tr><td>${l.Descripcion_pdf}</td><td>${l.Cantidad}</td><td>${fmt(l.Precio_unit_ARS)}</td><td>${fmt(l.Subtotal_ARS)}</td></tr>`;
         });
         html += `</tbody></table></div>`;
     });
@@ -853,22 +898,18 @@ async function viewPresupuesto(presId) {
     document.getElementById('vp-iva').textContent = fmt((pres.IVA_21 || 0) + (pres.IVA_105 || 0));
     document.getElementById('vp-total').textContent = fmt(pres.Total_con_IVA);
 
-    // Bind Edit Button
     let btnEdit = document.getElementById('vp-btn-editar');
     btnEdit.onclick = function () {
         closeVerPres();
-        // Prepare data for Edit: We need the full object structure
         pres._clienteData = client;
         pres._zonaData = zona;
-        pres._pagoNombre = pago; // Only name available here? We need ID for select logic. openNewPres handles name matching.
+        pres._pagoNombre = pago;
         pres._unidades = res.unidades;
         pres._lineas = res.lineas;
         openNewPres(pres);
     };
 
     document.getElementById('vp-btn-pdf').onclick = function () { generarPDF(presId); };
-
-    document.getElementById('modal-ver-pres').classList.add('show');
 }
 
 async function changeStatus(presId, newStatus) {
