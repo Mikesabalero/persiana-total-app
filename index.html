@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Persiana Total - Gestión</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<button class="mobile-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+<aside class="sidebar">
+<div class="sidebar-logo"><img src="logo.svg" alt="Persiana Total"></div>
+<nav class="sidebar-nav">
+<button class="nav-item active" onclick="showPage('dashboard',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard</button>
+<button class="nav-item" onclick="showPage('presupuestos',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8M10 9H8"/></svg>Presupuestos</button>
+<button class="nav-item" onclick="showPage('precios',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>Precios</button>
+<button class="nav-item" onclick="showPage('clientes',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>Clientes</button>
+<button class="nav-item" onclick="showPage('config',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>Configuración</button>
+</nav>
+<div class="sidebar-footer">Persiana Total v2.0 © 2026</div>
+</aside>
+<main class="main">
+<!-- DASHBOARD -->
+<div id="page-dashboard" class="page active">
+<div class="page-header"><h1>Dashboard</h1><p>Resumen general del negocio</p></div>
+<div class="stats-row">
+<div class="stat-card"><div class="stat-icon blue">📋</div><div class="stat-info"><h3 id="dash-total-pres">-</h3><p>Presupuestos</p></div></div>
+<div class="stat-card"><div class="stat-icon green">💰</div><div class="stat-info"><h3 id="dash-facturado">-</h3><p>Monto Total</p></div></div>
+<div class="stat-card"><div class="stat-icon orange">⏳</div><div class="stat-info"><h3 id="dash-pendientes">-</h3><p>Pendientes</p></div></div>
+<div class="stat-card"><div class="stat-icon teal">$</div><div class="stat-info"><h3 id="dash-tc">-</h3><p>USD / ARS</p></div></div>
+</div>
+<div class="card">
+<div class="card-header"><h2>Últimos Presupuestos</h2><button class="btn btn-primary btn-sm" onclick="showPage('presupuestos',document.querySelectorAll('.nav-item')[1])">Ver todos</button></div>
+<table><thead><tr><th>Nro</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Estado</th></tr></thead><tbody id="dash-table"></tbody></table>
+</div>
+</div>
+<!-- PRESUPUESTOS -->
+<div id="page-presupuestos" class="page">
+<div class="page-header" style="display:flex;justify-content:space-between;align-items:center"><div><h1>Presupuestos</h1><p>Gestión de presupuestos</p></div><button class="btn btn-primary" onclick="openNewPres()">+ Nuevo Presupuesto</button></div>
+<div class="filters">
+<input type="text" id="pres-search" placeholder="Buscar por número o cliente..." oninput="filterPres()">
+<select id="pres-filter-estado" onchange="filterPres()"><option value="">Todos los estados</option><option>Borrador</option><option>Enviado</option><option>Aprobado</option><option>Rechazado</option><option>Vencido</option><option>Facturado</option></select>
+</div>
+<div class="card">
+<table><thead><tr><th>Nro</th><th>Fecha</th><th>Cliente</th><th>Zona</th><th>Subtotal</th><th>IVA</th><th>Total</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="pres-table"></tbody></table>
+</div>
+</div>
+<!-- PRECIOS -->
+<div id="page-precios" class="page">
+<div class="page-header" style="display:flex;justify-content:space-between;align-items:center"><div><h1>Lista de Precios</h1><p>Componentes y costos actualizados</p></div><div style="display:flex;gap:12px;align-items:center"><span id="precios-tc" style="font-weight:600;color:var(--grad1)"></span></div></div>
+<div class="filters">
+<input type="text" id="comp-search" placeholder="Buscar componente..." oninput="filterComp()">
+<select id="comp-filter-tipo" onchange="filterComp()"><option value="">Todos los tipos</option><option>Material</option><option>Herraje</option><option>Motor</option><option>Accesorio</option><option>Mano_obra</option><option>Logistica</option><option>Repuesto</option></select>
+</div>
+<div class="card" style="overflow-x:auto">
+<table><thead><tr><th>Nombre</th><th>Tipo</th><th class="hide-margin">Costo</th><th class="hide-margin">Moneda</th><th class="hide-margin">Margen%</th><th>Precio ARS</th><th class="hide-margin">IVA C.</th><th class="hide-margin">IVA V.</th><th>Proveedor</th></tr></thead><tbody id="precios-table"></tbody></table>
+</div>
+</div>
+<!-- CLIENTES -->
+<div id="page-clientes" class="page">
+<div class="page-header"><h1>Clientes</h1><p>Base de clientes y datos fiscales</p></div>
+<div class="filters">
+<input type="text" id="cli-search" placeholder="Buscar cliente..." oninput="filterCli()">
+<select id="cli-filter-tipo" onchange="filterCli()"><option value="">Todos los tipos</option><option>Particular</option><option>Inquilino</option><option>Inmobiliaria</option><option>Arquitecto</option><option>Empresa</option></select>
+</div>
+<div class="card">
+<table><thead><tr><th>Nombre</th><th>Teléfono</th><th>Mail</th><th>Tipo</th><th>Cond. Fiscal</th><th>CUIT/DNI</th><th>Presup.</th></tr></thead><tbody id="cli-table"></tbody></table>
+</div>
+</div>
+<!-- CONFIG -->
+<div id="page-config" class="page">
+<div class="page-header"><h1>Configuración</h1><p>Parámetros del sistema</p></div>
+<div class="config-tabs">
+<button class="config-tab active" onclick="showConfigTab('tc',this)">Tipo de Cambio</button>
+<button class="config-tab" onclick="showConfigTab('zonas',this)">Zonas</button>
+<button class="config-tab" onclick="showConfigTab('pagos',this)">Formas de Pago</button>
+<button class="config-tab" onclick="showConfigTab('anchos',this)">Anchos PVC</button>
+</div>
+<div id="config-tc" class="config-section">
+<div class="card">
+<h2 style="margin-bottom:16px">Tipo de Cambio USD/ARS</h2>
+<div class="form-row">
+<div class="form-group"><label>Valor 1 USD</label><input type="number" id="cfg-tc-valor" step="0.01"></div>
+<div class="form-group"><label>Fecha</label><input type="date" id="cfg-tc-fecha"></div>
+</div>
+<button class="btn btn-primary" onclick="saveTc()">Guardar Tipo de Cambio</button>
+</div>
+</div>
+<div id="config-zonas" class="config-section" style="display:none">
+<div class="card"><h2 style="margin-bottom:16px">Zonas de Logística</h2><table><thead><tr><th>Zona</th><th>Viáticos $</th><th>Transporte $</th><th>Traslado Serv. $</th></tr></thead><tbody id="cfg-zonas-table"></tbody></table></div>
+</div>
+<div id="config-pagos" class="config-section" style="display:none">
+<div class="card"><h2 style="margin-bottom:16px">Formas de Pago</h2><table><thead><tr><th>Nombre</th><th>Recargo %</th><th>Descuento %</th><th>Plazo días</th><th>Activo</th></tr></thead><tbody id="cfg-pagos-table"></tbody></table></div>
+</div>
+<div id="config-anchos" class="config-section" style="display:none">
+<div class="card"><h2 style="margin-bottom:16px">Anchos Estándar PVC</h2><table><thead><tr><th>Ancho solicitado hasta (m)</th><th>Ancho real paño (m)</th><th>Notas</th></tr></thead><tbody id="cfg-anchos-table"></tbody></table></div>
+</div>
+</div>
+</main>
+<!-- MODAL NUEVO PRESUPUESTO -->
+<div class="modal-overlay" id="modal-pres">
+<div class="modal">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+<h2>Nuevo Presupuesto</h2>
+<button onclick="closeModal()" style="background:none;border:none;font-size:1.5em;cursor:pointer;color:var(--text-light)">✕</button>
+</div>
+<div class="form-row-3">
+<div class="form-group"><label>Cliente</label><select id="np-cliente"></select></div>
+<div class="form-group"><label>Zona</label><select id="np-zona"></select></div>
+<div class="form-group"><label>Forma de Pago</label><select id="np-pago"></select></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>Canal</label><select id="np-canal"><option>Manual</option><option>ChatBot_WhatsApp</option><option>ChatBot_Web</option></select></div>
+<div class="form-group" style="display:flex;align-items:end;gap:12px"><label><input type="checkbox" id="np-factura"> Requiere Factura Oficial</label></div>
+</div>
+<hr style="margin:20px 0;border-color:var(--border)">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+<h3 style="font-size:1em">Unidades (Ambientes)</h3>
+<button class="btn btn-sm btn-primary" onclick="addUnidad()">+ Agregar Unidad</button>
+</div>
+<div id="np-unidades"></div>
+<div id="np-resumen" class="resumen-box" style="display:none">
+<h3 style="font-size:1em;margin-bottom:12px;color:var(--grad1)">Resumen del Presupuesto</h3>
+<div class="resumen-line"><span>Subtotal neto</span><span id="np-subtotal">$0</span></div>
+<div class="resumen-line"><span>IVA 21%</span><span id="np-iva21">$0</span></div>
+<div class="resumen-line"><span>IVA 10.5%</span><span id="np-iva105">$0</span></div>
+<div class="resumen-line total"><span>TOTAL CON IVA</span><span id="np-total">$0</span></div>
+<div class="resumen-line sin-fact" style="display:none"><span>Sin factura (-10%)</span><span id="np-sinfact">$0</span></div>
+</div>
+<div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px">
+<button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+<button class="btn btn-primary" onclick="savePres()">Guardar Presupuesto</button>
+</div>
+</div>
+</div>
+<!-- PANEL DETALLE CLIENTE -->
+<div class="detail-panel" id="panel-cliente">
+<button class="detail-close" onclick="closeDetail()">✕</button>
+<div id="detail-content"></div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
