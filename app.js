@@ -179,6 +179,33 @@ async function saveTc() {
     loadDashboard();
 }
 
+function updatePropiedadesSelect() {
+    loadPropiedadesSelect();
+}
+
+function loadPropiedadesSelect(presData) {
+    let cliId = document.getElementById('np-cliente').value;
+    let ps = document.getElementById('np-propiedad');
+    ps.innerHTML = '<option value="">Seleccionar propiedad...</option>';
+    if (!cliId) return;
+
+    let props = DATA.propiedades.filter(p => {
+        let link = resolveLink(p, 'Clientes');
+        return link && (link.Id == cliId || link.id == cliId);
+    });
+
+    let selectedPropId = null;
+    if (presData && presData.Id) {
+        let pLink = resolveLink(presData, 'Propiedades');
+        if (pLink) selectedPropId = pLink.Id || pLink.id;
+    }
+
+    props.forEach(p => {
+        let sel = (selectedPropId && (p.Id == selectedPropId)) ? 'selected' : (props.length === 1 ? 'selected' : '');
+        ps.innerHTML += '<option value="' + p.Id + '" ' + sel + '>' + cleanLabel(p.Direccion) + ' - ' + cleanLabel(p.Localidad) + '</option>';
+    });
+}
+
 async function openNewPres(presData = null) {
     if (DATA.clientes.length === 0) await loadAll();
 
@@ -210,89 +237,61 @@ async function openNewPres(presData = null) {
     });
 
     loadPropiedadesSelect(presData);
-}
 
-function updatePropiedadesSelect() {
-    loadPropiedadesSelect();
-}
+    document.getElementById('np-canal').value = presData ? (presData.Canal || 'Manual') : 'Manual';
+    document.getElementById('np-factura').checked = presData ? (presData.Quiere_factura || false) : false;
 
-function loadPropiedadesSelect(presData) {
-    let cliId = document.getElementById('np-cliente').value;
-    let ps = document.getElementById('np-propiedad');
-    ps.innerHTML = '<option value="">Seleccionar propiedad...</option>';
-    if (!cliId) return;
+    document.getElementById('np-unidades').innerHTML = '';
+    document.getElementById('np-resumen').style.display = 'none';
+    unidadCount = 0;
 
-    let props = DATA.propiedades.filter(p => {
-        let link = resolveLink(p, 'Clientes');
-        return link && (link.Id == cliId || link.id == cliId);
-    });
+    if (presData && presData._unidades && presData._unidades.length > 0) {
+        // Load existing units
+        for (let u of presData._unidades) {
+            unidadCount++;
+            let n = unidadCount;
+            addUnidadUI(n, u);
 
-    let selectedPropId = null;
-    if (presData && presData.Id) {
-        let pLink = resolveLink(presData, 'Propiedades');
-        if (pLink) selectedPropId = pLink.Id || pLink.id;
-    }
+            let lines = [];
+            if (presData._lineas) {
+                lines = presData._lineas.filter(l => l._unidadId == u.Id);
+            }
+            lines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
+            lines.forEach(l => {
+                // Use the resolved component ID if available
+                let compId = l._componenteId;
+                let comp = null;
 
-    props.forEach(p => {
-        let sel = (selectedPropId && (p.Id == selectedPropId)) ? 'selected' : (props.length === 1 ? 'selected' : '');
-        ps.innerHTML += '<option value="' + p.Id + '" ' + sel + '>' + cleanLabel(p.Direccion) + ' - ' + cleanLabel(p.Localidad) + '</option>';
-    });
-}
+                if (compId) {
+                    comp = DATA.componentes.find(c => c.Id == compId);
+                } else {
+                    // Fallback to name match
+                    comp = DATA.componentes.find(c => c.Nombre === l.Descripcion_pdf);
+                }
 
-document.getElementById('np-canal').value = presData ? (presData.Canal || 'Manual') : 'Manual';
-document.getElementById('np-factura').checked = presData ? (presData.Quiere_factura || false) : false;
-
-document.getElementById('np-unidades').innerHTML = '';
-document.getElementById('np-resumen').style.display = 'none';
-unidadCount = 0;
-
-if (presData && presData._unidades && presData._unidades.length > 0) {
-    // Load existing units
-    for (let u of presData._unidades) {
-        unidadCount++;
-        let n = unidadCount;
-        addUnidadUI(n, u);
-
-        let lines = [];
-        if (presData._lineas) {
-            lines = presData._lineas.filter(l => l._unidadId == u.Id);
+                if (comp) {
+                    addCompRowWithData(n, comp, l.Cantidad, l.Id);
+                } else {
+                    // Custom component or not found
+                    let mockComp = {
+                        Id: null,
+                        Nombre: l.Descripcion_pdf,
+                        Costo_unitario: l.Costo_unit_orig,
+                        Moneda_costo: l.Moneda_costo_orig,
+                        Margen_default: l.Margen_pct,
+                        Alicuota_IVA_venta: l.Alicuota_IVA || '21'
+                    };
+                    addCompRowWithData(n, mockComp, l.Cantidad, l.Id);
+                }
+            });
+            recalcUnidad(n);
         }
-        lines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
-        lines.forEach(l => {
-            // Use the resolved component ID if available
-            let compId = l._componenteId;
-            let comp = null;
-
-            if (compId) {
-                comp = DATA.componentes.find(c => c.Id == compId);
-            } else {
-                // Fallback to name match
-                comp = DATA.componentes.find(c => c.Nombre === l.Descripcion_pdf);
-            }
-
-            if (comp) {
-                addCompRowWithData(n, comp, l.Cantidad, l.Id);
-            } else {
-                // Custom component or not found
-                let mockComp = {
-                    Id: null,
-                    Nombre: l.Descripcion_pdf,
-                    Costo_unitario: l.Costo_unit_orig,
-                    Moneda_costo: l.Moneda_costo_orig,
-                    Margen_default: l.Margen_pct,
-                    Alicuota_IVA_venta: l.Alicuota_IVA || '21'
-                };
-                addCompRowWithData(n, mockComp, l.Cantidad, l.Id);
-            }
-        });
-        recalcUnidad(n);
+    } else {
+        addUnidad();
     }
-} else {
-    addUnidad();
-}
 
-recalcTotal();
-document.getElementById('modal-pres').classList.add('show');
+    recalcTotal();
+    document.getElementById('modal-pres').classList.add('show');
 }
 
 function addUnidad() {
