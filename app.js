@@ -9,6 +9,7 @@ async function apiGet(tid, params = '') { let r = await fetch(API + '/api/v2/tab
 async function apiGetLinks(tid, colId, rowId) { let r = await fetch(API + '/api/v2/tables/' + tid + '/links/' + colId + '/records/' + rowId + '?limit=10', { headers: H }); if (!r.ok) return []; let d = await r.json(); return d.list || []; }
 async function apiPost(tid, body) { let r = await fetch(API + '/api/v2/tables/' + tid + '/records', { method: 'POST', headers: H, body: JSON.stringify(body) }); return r.json(); }
 async function apiPatch(tid, body) { let r = await fetch(API + '/api/v2/tables/' + tid + '/records', { method: 'PATCH', headers: H, body: JSON.stringify(body) }); return r.json(); }
+async function apiDelete(tid, id) { let r = await fetch(API + '/api/v2/tables/' + tid + '/records', { method: 'DELETE', headers: H, body: JSON.stringify({ Id: id }) }); return r.json(); }
 async function apiLink(tid, colId, rowId, linked) { let r = await fetch(API + '/api/v2/tables/' + tid + '/links/' + colId + '/records/' + rowId, { method: 'POST', headers: H, body: JSON.stringify(linked) }); return r.json(); }
 function fmt(n) { if (n == null) return '$0'; return '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
 function badgeHtml(estado) { let c = { 'Borrador': 'borrador', 'Enviado': 'enviado', 'Aprobado': 'aprobado', 'Rechazado': 'rechazado', 'Vencido': 'vencido', 'Facturado': 'facturado' }; return '<span class="badge badge-' + (c[estado] || 'borrador') + '">' + estado + '</span>'; }
@@ -16,6 +17,7 @@ function showPage(id, btn) { document.querySelectorAll('.page').forEach(p => p.c
 function showConfigTab(id, btn) { document.querySelectorAll('.config-section').forEach(s => s.style.display = 'none'); document.getElementById('config-' + id).style.display = 'block'; document.querySelectorAll('.config-tab').forEach(t => t.classList.remove('active')); btn.classList.add('active'); }
 function closeModal() { document.getElementById('modal-pres').classList.remove('show'); }
 function closeDetail() { document.getElementById('panel-cliente').classList.remove('open'); }
+function closeVerPres() { document.getElementById('modal-ver-pres').classList.remove('show'); }
 function resolveLink(row, field) { let v = row[field]; if (!v) return null; if (typeof v === 'object' && Array.isArray(v) && v.length > 0) return v[0]; if (typeof v === 'object' && v.Id) return v; return null; }
 function resolveName(row, field, list, idField) { let link = resolveLink(row, field); if (!link) return '-'; let id = link.Id || link.id || link; let found = list.find(i => i.Id == id); return found ? found.Nombre || found.Title || '-' : '-'; }
 async function loadAll() {
@@ -58,7 +60,19 @@ function loadPresupuestos() {
         let cliName = p._clienteNombre || '-';
         let zonaName = p._zonaNombre || '-';
         let iva = (p.IVA_21 || 0) + (p.IVA_105 || 0);
-        tb.innerHTML += '<tr><td><strong>' + (p.Numero || '-') + '</strong></td><td>' + (p.Fecha || '-') + '</td><td>' + cliName + '</td><td>' + zonaName + '</td><td>' + fmt(p.Subtotal_neto || p.Subtotal_items) + '</td><td>' + fmt(iva) + '</td><td><strong>' + fmt(p.Total_con_IVA || p.Total) + '</strong></td><td>' + badgeHtml(p.Estado || 'Borrador') + '</td><td><button class="btn btn-sm btn-secondary" style="margin-right:5px">Ver</button><button class="btn btn-sm btn-primary" onclick="generarPDF(' + p.Id + ')">PDF</button></td></tr>';
+        let id = p.Id || p.id;
+        let actions = '<button class="btn btn-sm btn-secondary" style="margin-right:5px" onclick="viewPresupuesto(' + id + ')">Ver</button>';
+        actions += '<button class="btn btn-sm btn-secondary" style="margin-right:5px" onclick="duplicatePresupuesto(' + id + ')" title="Duplicar">📑</button>';
+        actions += '<select onchange="changeStatus(' + id + ', this.value)" style="padding:2px;font-size:12px">' +
+            '<option value="Borrador" ' + (p.Estado == 'Borrador' ? 'selected' : '') + '>Borrador</option>' +
+            '<option value="Enviado" ' + (p.Estado == 'Enviado' ? 'selected' : '') + '>Enviado</option>' +
+            '<option value="Aprobado" ' + (p.Estado == 'Aprobado' ? 'selected' : '') + '>Aprobado</option>' +
+            '<option value="Rechazado" ' + (p.Estado == 'Rechazado' ? 'selected' : '') + '>Rechazado</option>' +
+            '<option value="Facturado" ' + (p.Estado == 'Facturado' ? 'selected' : '') + '>Facturado</option>' +
+            '<option value="Vencido" ' + (p.Estado == 'Vencido' ? 'selected' : '') + '>Vencido</option>' +
+            '</select>';
+
+        tb.innerHTML += '<tr><td><strong>' + (p.Numero || '-') + '</strong></td><td>' + (p.Fecha || '-') + '</td><td>' + cliName + '</td><td>' + zonaName + '</td><td>' + fmt(p.Subtotal_neto || p.Subtotal_items) + '</td><td>' + fmt(iva) + '</td><td><strong>' + fmt(p.Total_con_IVA || p.Total) + '</strong></td><td>' + badgeHtml(p.Estado || 'Borrador') + '</td><td>' + actions + '</td></tr>';
     });
 }
 function loadPrecios() {
@@ -160,40 +174,115 @@ async function saveTc() {
     alert('Tipo de cambio actualizado');
     loadDashboard();
 }
-async function openNewPres() {
+
+async function openNewPres(presData = null) {
     if (DATA.clientes.length === 0) await loadAll();
+
+    // Reset Modal
+    document.getElementById('modal-title').textContent = presData ? ('Editar Presupuesto ' + presData.Numero) : 'Nuevo Presupuesto';
+    document.querySelector('#modal-pres .modal').setAttribute('data-db-id', presData ? presData.Id : '');
+
+    // Populate Selects
     let cs = document.getElementById('np-cliente');
     cs.innerHTML = '<option value="">Seleccionar cliente...</option>';
-    DATA.clientes.forEach(c => { cs.innerHTML += '<option value="' + c.Id + '">' + c.Nombre + ' - ' + (c.Telefono || '') + '</option>'; });
+    DATA.clientes.forEach(c => {
+        let sel = (presData && presData._clienteData && (presData._clienteData.Id == c.Id)) ? 'selected' : '';
+        cs.innerHTML += '<option value="' + c.Id + '" ' + sel + '>' + c.Nombre + ' - ' + (c.Telefono || '') + '</option>';
+    });
+
     let zs = document.getElementById('np-zona');
     zs.innerHTML = '<option value="">Seleccionar zona...</option>';
-    DATA.zonas.forEach(z => { zs.innerHTML += '<option value="' + z.Id + '">' + z.Nombre + '</option>'; });
+    DATA.zonas.forEach(z => {
+        let sel = (presData && presData._zonaData && (presData._zonaData.Id == z.Id)) ? 'selected' : '';
+        zs.innerHTML += '<option value="' + z.Id + '" ' + sel + '>' + z.Nombre + '</option>';
+    });
+
     let ps = document.getElementById('np-pago');
-    ps.innerHTML = '';
-    DATA.formas_pago.forEach(f => { ps.innerHTML += '<option value="' + f.Id + '">' + f.Nombre + '</option>'; });
+    ps.innerHTML = '<option value="">Seleccionar...</option>';
+    // If presData has payment info, use it. Payment is a Link.
+    let pagoNombre = presData ? presData._pagoNombre : null;
+    DATA.formas_pago.forEach(f => {
+        let sel = (pagoNombre && f.Nombre == pagoNombre) ? 'selected' : '';
+        ps.innerHTML += '<option value="' + f.Id + '" ' + sel + '>' + f.Nombre + '</option>';
+    });
+
+    document.getElementById('np-canal').value = presData ? (presData.Canal || 'Manual') : 'Manual';
+    document.getElementById('np-factura').checked = presData ? (presData.Quiere_factura || false) : false;
+
     document.getElementById('np-unidades').innerHTML = '';
     document.getElementById('np-resumen').style.display = 'none';
     unidadCount = 0;
-    addUnidad();
+
+    if (presData && presData._unidades && presData._unidades.length > 0) {
+        // Load existing units
+        for (let u of presData._unidades) {
+            unidadCount++;
+            let n = unidadCount;
+            addUnidadUI(n, u);
+            // Load lines
+            // Filter lines safely
+            let lines = [];
+            if (presData._lineas) {
+                lines = presData._lineas.filter(l => l._unidadId == u.Id);
+            }
+            lines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
+            lines.forEach(l => {
+                let comp = DATA.componentes.find(c => c.Nombre === l.Descripcion_pdf); // Best effort matching
+                let compId = comp ? comp.Id : null;
+                // If compId not found but Descripcion exists, we keep text.
+                // We construct a mock comp object if standard not found, or just pass IDs.
+                let mockComp = {
+                    Id: compId,
+                    Nombre: l.Descripcion_pdf,
+                    Costo_unitario: l.Costo_unit_orig,
+                    Moneda_costo: l.Moneda_costo_orig,
+                    Margen_default: l.Margen_pct,
+                    Alicuota_IVA_venta: l.Alicuota_IVA || '21'
+                };
+                addCompRowWithData(n, mockComp, l.Cantidad, l.Id); // Pass Line ID
+            });
+            recalcUnidad(n);
+        }
+    } else {
+        addUnidad();
+    }
+
+    recalcTotal();
     document.getElementById('modal-pres').classList.add('show');
 }
+
 function addUnidad() {
     unidadCount++;
-    let n = unidadCount;
+    addUnidadUI(unidadCount, null);
+}
+
+function addUnidadUI(n, uData) {
+    let uId = uData ? uData.Id : '';
     let prodOpts = '<option value="">Seleccionar producto...</option>';
-    DATA.productos.forEach(p => { prodOpts += '<option value="' + p.Id + '">' + p.Nombre + '</option>'; });
-    let html = '<div class="unidad-card" id="unidad-' + n + '"><div class="unidad-header"><h3>Unidad ' + n + '</h3><div style="display:flex;gap:8px;align-items:center"><span class="unidad-subtotal" id="sub-u-' + n + '">$0</span><button class="btn-remove" onclick="removeUnidad(' + n + ')" title="Eliminar">🗑</button></div></div>';
-    html += '<div class="form-row-4"><div class="form-group"><label>Ambiente</label><input id="u-' + n + '-nombre" placeholder="Ej: Dormitorio principal"></div>';
-    html += '<div class="form-group"><label>Ubicación</label><input id="u-' + n + '-ubic" placeholder="Ej: Contra frente"></div>';
-    html += '<div class="form-group"><label>Tipo Trabajo</label><select id="u-' + n + '-tipo"><option>Instalacion_nueva</option><option>Cambio_pano</option><option>Motorizacion</option><option>Cambio_guias</option><option>Reparacion</option><option>Service</option><option>Otro</option></select></div>';
+    DATA.productos.forEach(p => {
+        prodOpts += '<option value="' + p.Id + '">' + p.Nombre + '</option>';
+    });
+
+    let nombre = uData ? uData.Nombre : '';
+    let ubic = uData ? uData.Ubicacion || '' : '';
+    let tipo = uData ? uData.Tipo_trabajo || 'Instalacion_nueva' : 'Instalacion_nueva';
+    let ancho = uData ? (uData.Ancho_m || '') : '';
+    let alto = uData ? (uData.Alto_m || '') : '';
+
+    let html = '<div class="unidad-card" id="unidad-' + n + '" data-db-id="' + uId + '"><div class="unidad-header"><h3>Unidad ' + n + '</h3><div style="display:flex;gap:8px;align-items:center"><span class="unidad-subtotal" id="sub-u-' + n + '">$0</span><button class="btn-remove" onclick="removeUnidad(' + n + ')" title="Eliminar">🗑</button></div></div>';
+    html += '<div class="form-row-4"><div class="form-group"><label>Ambiente</label><input id="u-' + n + '-nombre" placeholder="Ej: Dormitorio principal" value="' + nombre + '"></div>';
+    html += '<div class="form-group"><label>Ubicación</label><input id="u-' + n + '-ubic" placeholder="Ej: Contra frente" value="' + ubic + '"></div>';
+    html += '<div class="form-group"><label>Tipo Trabajo</label><select id="u-' + n + '-tipo" value="' + tipo + '"><option ' + (tipo == 'Instalacion_nueva' ? 'selected' : '') + '>Instalacion_nueva</option><option ' + (tipo == 'Cambio_pano' ? 'selected' : '') + '>Cambio_pano</option><option ' + (tipo == 'Motorizacion' ? 'selected' : '') + '>Motorizacion</option><option ' + (tipo == 'Cambio_guias' ? 'selected' : '') + '>Cambio_guias</option><option ' + (tipo == 'Reparacion' ? 'selected' : '') + '>Reparacion</option><option ' + (tipo == 'Service' ? 'selected' : '') + '>Service</option><option ' + (tipo == 'Otro' ? 'selected' : '') + '>Otro</option></select></div>';
     html += '<div class="form-group"><label>Producto Base</label><select id="u-' + n + '-prod" onchange="loadCompSugeridos(' + n + ')">' + prodOpts + '</select></div></div>';
-    html += '<div class="form-row" style="grid-template-columns:1fr 1fr 2fr"><div class="form-group"><label>Ancho (m)</label><input type="number" id="u-' + n + '-ancho" step="0.01" oninput="recalcUnidad(' + n + ')"></div>';
-    html += '<div class="form-group"><label>Alto (m)</label><input type="number" id="u-' + n + '-alto" step="0.01" oninput="recalcUnidad(' + n + ')"></div><div></div></div>';
+    html += '<div class="form-row" style="grid-template-columns:1fr 1fr 2fr"><div class="form-group"><label>Ancho (m)</label><input type="number" id="u-' + n + '-ancho" step="0.01" oninput="recalcUnidad(' + n + ')" value="' + ancho + '"></div>';
+    html += '<div class="form-group"><label>Alto (m)</label><input type="number" id="u-' + n + '-alto" step="0.01" oninput="recalcUnidad(' + n + ')" value="' + alto + '"></div><div></div></div>';
     html += '<table class="comp-table"><thead><tr><th>Componente</th><th>Cant.</th><th class="hide-margin">Costo</th><th class="hide-margin">Moneda</th><th class="hide-margin">Margen%</th><th>Precio Unit.</th><th>Subtotal</th><th>IVA%</th><th></th></tr></thead><tbody id="comps-u-' + n + '"></tbody></table>';
     html += '<button class="btn-add-comp" onclick="addCompRow(' + n + ')">+ Agregar componente</button></div>';
     document.getElementById('np-unidades').insertAdjacentHTML('beforeend', html);
 }
+
 function removeUnidad(n) { document.getElementById('unidad-' + n)?.remove(); recalcTotal(); }
+
 function loadCompSugeridos(n) {
     let prodId = document.getElementById('u-' + n + '-prod').value;
     let tbody = document.getElementById('comps-u-' + n);
@@ -231,7 +320,7 @@ function addCompRow(n) {
     row.innerHTML = '<td><select onchange="compSelected(this,' + n + ')" style="min-width:160px">' + compOpts + '</select></td><td><input type="number" value="1" step="0.01" style="width:60px" oninput="recalcUnidad(' + n + ')"></td><td class="c-costo hide-margin">0</td><td class="c-moneda hide-margin">-</td><td class="hide-margin"><input type="number" value="40" style="width:60px" oninput="recalcUnidad(' + n + ')"></td><td class="c-precio">$0</td><td class="c-subtotal">$0</td><td class="c-iva">21%</td><td><button class="btn-remove" onclick="this.closest(\'tr\').remove();recalcUnidad(' + n + ')">✕</button></td>';
     tbody.appendChild(row);
 }
-function addCompRowWithData(n, comp, qty) {
+function addCompRowWithData(n, comp, qty, lineId = null) {
     let tc = DATA.tc.Dolar_oficial || 1150;
     let costo = comp.Costo_unitario || 0;
     let moneda = comp.Moneda_costo || 'ARS';
@@ -240,10 +329,22 @@ function addCompRowWithData(n, comp, qty) {
     let precio = costoArs * (1 + margen / 100);
     let iva = comp.Alicuota_IVA_venta || '21';
     let compOpts = '';
-    DATA.componentes.forEach(c => { compOpts += '<option value="' + c.Id + '"' + (c.Id === comp.Id ? ' selected' : '') + '>' + c.Nombre + '</option>'; });
+    // If we have an ID, we select it. If not (text only), we just show all and maybe select none or first?
+    // Better: if comp.Id is null (custom item), we should perhaps have a free text input?
+    // Current requirement: "Por cada componente: Nombre...".
+    // For now, if comp.Id is valid we select it.
+    if (comp.Id) {
+        DATA.componentes.forEach(c => { compOpts += '<option value="' + c.Id + '"' + (c.Id === comp.Id ? ' selected' : '') + '>' + c.Nombre + '</option>'; });
+    } else {
+        compOpts = '<option value="" selected>' + comp.Nombre + ' (Custom)</option>';
+        DATA.componentes.forEach(c => { compOpts += '<option value="' + c.Id + '">' + c.Nombre + '</option>'; });
+    }
+
     let tbody = document.getElementById('comps-u-' + n);
     let row = document.createElement('tr');
-    row.innerHTML = '<td><select onchange="compSelected(this,' + n + ')" style="min-width:160px">' + compOpts + '</select></td><td><input type="number" value="' + qty + '" step="0.01" style="width:60px" oninput="recalcUnidad(' + n + ')"></td><td class="c-costo hide-margin">' + costo.toFixed(2) + '</td><td class="c-moneda hide-margin">' + moneda + '</td><td class="hide-margin"><input type="number" value="' + margen + '" style="width:60px" oninput="recalcUnidad(' + n + ')"></td><td class="c-precio">' + fmt(precio) + '</td><td class="c-subtotal">' + fmt(precio * qty) + '</td><td class="c-iva">' + iva + '%</td><td><button class="btn-remove" onclick="this.closest(\'tr\').remove();recalcUnidad(' + n + ')">✕</button></td>';
+    if (lineId) row.setAttribute('data-db-id', lineId);
+
+    row.innerHTML = '<td><select onchange="compSelected(this,' + n + ')" style="min-width:160px">' + compOpts + '</select></td><td><input type="number" value="' + qty + '" step="0.01" style="width:60px" oninput="recalcUnidad(' + n + ')"></td><td class="c-costo hide-margin">' + Number(costo).toFixed(2) + '</td><td class="c-moneda hide-margin">' + moneda + '</td><td class="hide-margin"><input type="number" value="' + margen + '" style="width:60px" oninput="recalcUnidad(' + n + ')"></td><td class="c-precio">' + fmt(precio) + '</td><td class="c-subtotal">' + fmt(precio * qty) + '</td><td class="c-iva">' + iva + '%</td><td><button class="btn-remove" onclick="this.closest(\'tr\').remove();recalcUnidad(' + n + ')">✕</button></td>';
     tbody.appendChild(row);
 }
 function compSelected(sel, n) {
@@ -307,39 +408,94 @@ function recalcTotal() {
     document.getElementById('np-sinfact').textContent = fmt(sinFact);
     document.getElementById('np-resumen').style.display = subtotal > 0 ? 'block' : 'none';
 }
+
 async function savePres() {
+    let modal = document.querySelector('#modal-pres .modal');
+    let editPresId = modal.getAttribute('data-db-id');
+
     let clienteId = document.getElementById('np-cliente').value;
     let zonaId = document.getElementById('np-zona').value;
     if (!clienteId) { alert('Seleccioná un cliente'); return; }
     if (!zonaId) { alert('Seleccioná una zona'); return; }
     let tc = DATA.tc.Dolar_oficial || 1150;
-    let year = new Date().getFullYear();
-    let num = year + '-' + (String(DATA.presupuestos.length + 1).padStart(4, '0'));
-    let presData = { Numero: num, Fecha: new Date().toISOString().split('T')[0], Estado: 'Borrador', TC_usado: tc, Canal: document.getElementById('np-canal').value, Quiere_factura: document.getElementById('np-factura').checked, Incluye_instalacion: true };
-    let pres = await apiPost(TBL.presupuestos, presData);
-    let presId = pres.Id || pres.id;
-    if (!presId) { alert('Error creando presupuesto'); return; }
-    await apiLink(TBL.presupuestos, 'canpten8owymbde', presId, [{ Id: parseInt(clienteId) }]);
-    await apiLink(TBL.presupuestos, 'cr3s0ox51qopwl4', presId, [{ Id: parseInt(zonaId) }]);
+
+    let presId = editPresId;
+    let num = '';
+
+    if (editPresId) {
+        // UPDATE Existing
+        let oldP = DATA.presupuestos.find(p => p.Id == editPresId);
+        num = oldP.Numero;
+        await apiPatch(TBL.presupuestos, {
+            Id: editPresId,
+            Canal: document.getElementById('np-canal').value,
+            Quiere_factura: document.getElementById('np-factura').checked
+        });
+        await apiLink(TBL.presupuestos, 'canpten8owymbde', editPresId, [{ Id: parseInt(clienteId) }]);
+        await apiLink(TBL.presupuestos, 'cr3s0ox51qopwl4', editPresId, [{ Id: parseInt(zonaId) }]);
+    } else {
+        // CREATE New
+        let year = new Date().getFullYear();
+        num = year + '-' + (String(DATA.presupuestos.length + 1).padStart(4, '0'));
+        let presData = { Numero: num, Fecha: new Date().toISOString().split('T')[0], Estado: 'Borrador', TC_usado: tc, Canal: document.getElementById('np-canal').value, Quiere_factura: document.getElementById('np-factura').checked, Incluye_instalacion: true };
+        let pres = await apiPost(TBL.presupuestos, presData);
+        presId = pres.Id || pres.id;
+        if (!presId) { alert('Error creando presupuesto'); return; }
+        await apiLink(TBL.presupuestos, 'canpten8owymbde', presId, [{ Id: parseInt(clienteId) }]);
+        await apiLink(TBL.presupuestos, 'cr3s0ox51qopwl4', presId, [{ Id: parseInt(zonaId) }]);
+        let pagoId = document.getElementById('np-pago').value;
+        if (pagoId) await apiLink(TBL.presupuestos, 'c3866164n9x7942', presId, [{ Id: parseInt(pagoId) }]);
+    }
+
     let subtotalNeto = 0, totalIva21 = 0, totalIva105 = 0;
     let unidadCards = document.querySelectorAll('[id^="unidad-"]');
+
+    // Deletion Logic
+    let processedUnitIds = [];
+
     for (let card of unidadCards) {
         let n = card.id.split('-')[1];
-        let uData = { Nombre: document.getElementById('u-' + n + '-nombre')?.value || 'Unidad ' + n, Ubicacion: document.getElementById('u-' + n + '-ubic')?.value || '', Tipo_trabajo: document.getElementById('u-' + n + '-tipo')?.value || 'Otro', Ancho_m: parseFloat(document.getElementById('u-' + n + '-ancho')?.value) || null, Alto_m: parseFloat(document.getElementById('u-' + n + '-alto')?.value) || null, Orden: parseInt(n) };
+        let cardDbId = card.getAttribute('data-db-id');
+
+        let uData = {
+            Nombre: document.getElementById('u-' + n + '-nombre')?.value || 'Unidad ' + n,
+            Ubicacion: document.getElementById('u-' + n + '-ubic')?.value || '',
+            Tipo_trabajo: document.getElementById('u-' + n + '-tipo')?.value || 'Otro',
+            Ancho_m: parseFloat(document.getElementById('u-' + n + '-ancho')?.value) || null,
+            Alto_m: parseFloat(document.getElementById('u-' + n + '-alto')?.value) || null,
+            Orden: parseInt(n)
+        };
         let ancho = uData.Ancho_m || 0;
         let alto = uData.Alto_m || 0;
         if (ancho && alto) uData.M2_calculados = ancho * alto;
-        let unidad = await apiPost(TBL.unidades, uData);
-        let uId = unidad.Id || unidad.id;
-        if (uId) {
+
+        let uId = null;
+        if (cardDbId) {
+            await apiPatch(TBL.unidades, { Id: cardDbId, ...uData });
+            uId = cardDbId;
+            processedUnitIds.push(uId);
+        } else {
+            let unidad = await apiPost(TBL.unidades, uData);
+            uId = unidad.Id || unidad.id;
             await apiLink(TBL.unidades, 'cm5xv0vmlne7r6u', uId, [{ Id: presId }]);
-            let prodId = document.getElementById('u-' + n + '-prod')?.value;
-            if (prodId) await apiLink(TBL.unidades, 'co1b5kwpl8d2rya', uId, [{ Id: parseInt(prodId) }]);
         }
+
         let rows = document.querySelectorAll('#comps-u-' + n + ' tr');
         let orden = 0;
+        // Lines deletion needs logic: get all current lines for unit in DB, compare with filtered processed.
+        // It's easier to fetch *all* possible lines for this unit if updating, but we only have global DATA.lineas which is a snapshot.
+        let originalLinesForUnit = [];
+        if (cardDbId) {
+            originalLinesForUnit = DATA.lineas.filter(l => {
+                let link = l.Unidad;
+                return (link && (link.Id || link) == cardDbId);
+            });
+        }
+        let processedLineIds = [];
+
         for (let r of rows) {
             orden++;
+            let rowDbId = r.getAttribute('data-db-id');
             let sel = r.querySelector('select');
             let compId = sel ? sel.value : null;
             let costo = parseFloat(r.querySelector('.c-costo')?.textContent) || 0;
@@ -352,19 +508,78 @@ async function savePres() {
             let precioUnit = costoArs * (1 + margen / 100);
             let sub = precioUnit * qty;
             let montoIva = iva === '10.5' ? sub * 0.105 : sub * 0.21;
-            let lineaData = { Descripcion_pdf: sel ? sel.options[sel.selectedIndex]?.text : 'Item', Ancho_m: parseFloat(document.getElementById('u-' + n + '-ancho')?.value) || null, Alto_m: parseFloat(document.getElementById('u-' + n + '-alto')?.value) || null, Cantidad: qty, M2_calculados: uData.M2_calculados || null, Moneda_costo_orig: moneda, Costo_unit_orig: costo, TC_aplicado: moneda === 'USD' ? tc : null, Costo_unit_ARS: costoArs, Margen_pct: margen, Precio_unit_ARS: precioUnit, Subtotal_ARS: sub, Alicuota_IVA: iva, Monto_IVA: montoIva, Subtotal_con_IVA: sub + montoIva, Orden: orden, Visible_pdf: true };
-            let linea = await apiPost(TBL.lineas, lineaData);
-            let lineaId = linea.Id || linea.id;
-            if (lineaId) {
-                await apiLink(TBL.lineas, 'c4hnodnss6zlr32', lineaId, [{ Id: presId }]);
-                if (compId) await apiLink(TBL.lineas, 'czka6po5myr5wu6', lineaId, [{ Id: parseInt(compId) }]);
-                if (uId) await apiLink(TBL.lineas, 'cn9406tc3q1jmw0', lineaId, [{ Id: uId }]);
+
+            let lineaData = {
+                Descripcion_pdf: sel ? sel.options[sel.selectedIndex]?.text : 'Item',
+                Ancho_m: parseFloat(document.getElementById('u-' + n + '-ancho')?.value) || null,
+                Alto_m: parseFloat(document.getElementById('u-' + n + '-alto')?.value) || null,
+                Cantidad: qty,
+                M2_calculados: uData.M2_calculados || null,
+                Moneda_costo_orig: moneda,
+                Costo_unit_orig: costo,
+                TC_aplicado: moneda === 'USD' ? tc : null,
+                Costo_unit_ARS: costoArs,
+                Margen_pct: margen,
+                Precio_unit_ARS: precioUnit,
+                Subtotal_ARS: sub,
+                Alicuota_IVA: iva,
+                Monto_IVA: montoIva,
+                Subtotal_con_IVA: sub + montoIva,
+                Orden: orden,
+                Visible_pdf: true
+            };
+
+            if (rowDbId) {
+                await apiPatch(TBL.lineas, { Id: rowDbId, ...lineaData });
+                processedLineIds.push(rowDbId);
+            } else {
+                let linea = await apiPost(TBL.lineas, lineaData);
+                let lineaId = linea.Id || linea.id;
+                if (lineaId) {
+                    await apiLink(TBL.lineas, 'c4hnodnss6zlr32', lineaId, [{ Id: presId }]);
+                    if (compId) await apiLink(TBL.lineas, 'czka6po5myr5wu6', lineaId, [{ Id: parseInt(compId) }]);
+                    if (uId) await apiLink(TBL.lineas, 'cn9406tc3q1jmw0', lineaId, [{ Id: uId }]);
+                }
             }
             subtotalNeto += sub;
             if (iva === '10.5') totalIva105 += montoIva;
             else totalIva21 += montoIva;
         }
+
+        // Delete removed lines (only if unit existed)
+        if (cardDbId) {
+            for (let ol of originalLinesForUnit) {
+                let imid = ol.Id || ol.id;
+                if (!processedLineIds.includes(imid)) {
+                    await apiDelete(TBL.lineas, imid);
+                }
+            }
+        }
     }
+
+    // Delete removed Units
+    if (editPresId) {
+        // Get original units for this budget
+        let originalUnits = DATA.unidades.filter(u => {
+            let link = u.Presupuesto;
+            return (link && (link.Id || link) == editPresId);
+        });
+
+        for (let ou of originalUnits) {
+            let ouId = ou.Id || ou.id;
+            if (!processedUnitIds.includes(ouId)) {
+                // Cascading delete lines? Safe to delete lines first if we can find them.
+                // Assuming DATA.lineas is current snapshot.
+                let uLines = DATA.lineas.filter(l => {
+                    let link = l.Unidad;
+                    return (link && (link.Id || link) == ouId);
+                });
+                for (let l of uLines) await apiDelete(TBL.lineas, l.Id || l.id);
+                await apiDelete(TBL.unidades, ouId);
+            }
+        }
+    }
+
     let totalConIva = subtotalNeto + totalIva21 + totalIva105;
     let sinFact = totalConIva * 0.9;
     await apiPatch(TBL.presupuestos, { Id: presId, Subtotal_neto: subtotalNeto, Subtotal_items: subtotalNeto, IVA_21: totalIva21, IVA_105: totalIva105, Total_con_IVA: totalConIva, Total: totalConIva, Descuento_sin_factura_pct: 10, Total_sin_factura: sinFact });
@@ -376,14 +591,11 @@ async function savePres() {
     loadDashboard();
     showPage('presupuestos', document.querySelectorAll('.nav-item')[1]);
 
-    // Show success and PDF option
-    if (confirm('Presupuesto ' + num + ' guardado correctamente. ¿Querés generar el PDF ahora?')) {
-        generarPDF(presId);
-    }
-
     closeModal();
+    if (confirm('Presupuesto ' + num + ' guardado. ¿Ver ahora?')) {
+        viewPresupuesto(presId);
+    }
 }
-loadAll();
 
 async function aplicarAumento() {
     let pctVal = document.getElementById('aumento-pct').value;
@@ -429,47 +641,16 @@ async function aplicarAumento() {
 }
 
 async function generarPDF(presId) {
-    // 1. Fetch budget data
     let pres = DATA.presupuestos.find(p => p.Id == presId);
     if (!pres) { alert('Presupuesto no encontrado'); return; }
-
     try {
-        // Resolve links for Header
-        let client = {}, zona = {}, pago = '-';
+        let res = await fetchBudgetDeepData(presId);
+        let client = res.client || {};
+        let zona = res.zona || {};
+        let pago = res.pago || '-';
+        let presUnidades = res.unidades;
+        let presLineas = res.lineas;
 
-        let clLinks = await apiGetLinks(TBL.presupuestos, 'canpten8owymbde', pres.Id);
-        if (clLinks.length > 0) client = clLinks[0];
-
-        let zoneLinks = await apiGetLinks(TBL.presupuestos, 'cr3s0ox51qopwl4', pres.Id);
-        if (zoneLinks.length > 0) zona = zoneLinks[0];
-
-        let payLinks = await apiGetLinks(TBL.presupuestos, 'c3866164n9x7942', pres.Id);
-        if (payLinks.length > 0) pago = payLinks[0].Nombre;
-
-        // 2. Resolve Units (Unidades -> Presupuesto: cm5xv0vmlne7r6u)
-        let presUnidades = [];
-        for (let u of DATA.unidades) {
-            let links = await apiGetLinks(TBL.unidades, 'cm5xv0vmlne7r6u', u.Id);
-            if (links.some(l => l.Id == presId || l.id == presId)) {
-                presUnidades.push(u);
-            }
-        }
-        presUnidades.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
-
-        // 3. Resolve Lines (Lineas -> Presupuesto: c4hnodnss6zlr32)
-        let presLineas = [];
-        for (let l of DATA.lineas) {
-            let links = await apiGetLinks(TBL.lineas, 'c4hnodnss6zlr32', l.Id);
-            if (links.some(p => p.Id == presId || p.id == presId)) {
-                // Find unit
-                let uLinks = await apiGetLinks(TBL.lineas, 'cn9406tc3q1jmw0', l.Id);
-                let uId = uLinks.length > 0 ? (uLinks[0].Id || uLinks[0].id) : null;
-                l._unidadId = uId;
-                presLineas.push(l);
-            }
-        }
-
-        // 4. Build HTML
         let fecha = new Date(pres.Fecha).toLocaleDateString() || '-';
         let venc = new Date(new Date(pres.Fecha).getTime() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString();
 
@@ -550,7 +731,6 @@ async function generarPDF(presId) {
             `;
         }
 
-        // Totals
         let sub = pres.Subtotal_neto || 0;
         let iva21 = pres.IVA_21 || 0;
         let iva105 = pres.IVA_105 || 0;
@@ -581,7 +761,6 @@ async function generarPDF(presId) {
             </div>
         `;
 
-        // Render
         let container = document.getElementById('pdf-content');
         if (!container) { alert('Error: Contenedor PDF no encontrado'); return; }
         container.innerHTML = html;
@@ -601,3 +780,206 @@ async function generarPDF(presId) {
         alert('Error generando PDF: ' + e.message);
     }
 }
+
+// Helpers for View/Edit/Duplicate (Fetching Links)
+async function fetchBudgetDeepData(presId) {
+    let client = {}, zona = {}, pago = '-';
+    let clLinks = await apiGetLinks(TBL.presupuestos, 'canpten8owymbde', presId);
+    if (clLinks.length > 0) client = clLinks[0];
+
+    let zoneLinks = await apiGetLinks(TBL.presupuestos, 'cr3s0ox51qopwl4', presId);
+    if (zoneLinks.length > 0) zona = zoneLinks[0];
+
+    let payLinks = await apiGetLinks(TBL.presupuestos, 'c3866164n9x7942', presId);
+    if (payLinks.length > 0) pago = payLinks[0].Nombre;
+
+    let presUnidades = [];
+    // Only get units for this budget
+    for (let u of DATA.unidades) {
+        let links = await apiGetLinks(TBL.unidades, 'cm5xv0vmlne7r6u', u.Id);
+        if (links.some(l => l.Id == presId || l.id == presId)) {
+            presUnidades.push(u);
+        }
+    }
+    presUnidades.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
+
+    let presLineas = [];
+    for (let l of DATA.lineas) {
+        let links = await apiGetLinks(TBL.lineas, 'c4hnodnss6zlr32', l.Id);
+        if (links.some(p => p.Id == presId || p.id == presId)) {
+            let uLinks = await apiGetLinks(TBL.lineas, 'cn9406tc3q1jmw0', l.Id);
+            let uId = uLinks.length > 0 ? (uLinks[0].Id || uLinks[0].id) : null;
+            l._unidadId = uId;
+            presLineas.push(l);
+        }
+    }
+    return { client, zona, pago, unidades: presUnidades, lineas: presLineas };
+}
+
+async function viewPresupuesto(presId) {
+    let pres = DATA.presupuestos.find(p => p.Id == presId);
+    if (!pres) return;
+
+    let res = await fetchBudgetDeepData(presId);
+    let client = res.client;
+    let zona = res.zona;
+    let pago = res.pago;
+
+    document.getElementById('vp-titulo').textContent = 'Presupuesto #' + pres.Numero;
+    document.getElementById('vp-fecha').textContent = new Date(pres.Fecha).toLocaleDateString();
+    document.getElementById('vp-cliente').textContent = client.Nombre || '-';
+    document.getElementById('vp-zona').textContent = zona.Nombre || '-';
+    document.getElementById('vp-estado').innerHTML = badgeHtml(pres.Estado);
+    document.getElementById('vp-pago').textContent = pago;
+
+    // Build Content Table
+    let html = '';
+    res.unidades.forEach(u => {
+        html += `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:12px">
+            <h4 style="margin:0 0 8px 0;color:var(--grad1)">${u.Nombre} <small style="color:#6b7280">(${u.Tipo_trabajo})</small></h4>
+            <table class="pdf-table" style="font-size:0.9em">
+                <thead><tr><th>Componente</th><th>Cant.</th><th>Subtotal</th></tr></thead>
+                <tbody>`;
+        let lines = res.lineas.filter(l => l._unidadId == u.Id);
+        lines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
+        lines.forEach(l => {
+            html += `<tr><td>${l.Descripcion_pdf}</td><td>${l.Cantidad}</td><td>${fmt(l.Subtotal_ARS)}</td></tr>`;
+        });
+        html += `</tbody></table></div>`;
+    });
+
+    document.getElementById('vp-contenido').innerHTML = html;
+    document.getElementById('vp-subtotal').textContent = fmt(pres.Subtotal_neto);
+    document.getElementById('vp-iva').textContent = fmt((pres.IVA_21 || 0) + (pres.IVA_105 || 0));
+    document.getElementById('vp-total').textContent = fmt(pres.Total_con_IVA);
+
+    // Bind Edit Button
+    let btnEdit = document.getElementById('vp-btn-editar');
+    btnEdit.onclick = function () {
+        closeVerPres();
+        // Prepare data for Edit: We need the full object structure
+        pres._clienteData = client;
+        pres._zonaData = zona;
+        pres._pagoNombre = pago; // Only name available here? We need ID for select logic. openNewPres handles name matching.
+        pres._unidades = res.unidades;
+        pres._lineas = res.lineas;
+        openNewPres(pres);
+    };
+
+    document.getElementById('vp-btn-pdf').onclick = function () { generarPDF(presId); };
+
+    document.getElementById('modal-ver-pres').classList.add('show');
+}
+
+async function changeStatus(presId, newStatus) {
+    if (!confirm('¿Cambiar estado a ' + newStatus + '?')) {
+        loadPresupuestos(); // Revert selection
+        return;
+    }
+    await apiPatch(TBL.presupuestos, { Id: presId, Estado: newStatus });
+    let p = DATA.presupuestos.find(x => x.Id == presId);
+    if (p) p.Estado = newStatus;
+    loadPresupuestos();
+}
+
+async function duplicatePresupuesto(presId) {
+    if (!confirm('¿Duplicar este presupuesto?')) return;
+    let oldP = DATA.presupuestos.find(p => p.Id == presId);
+    if (!oldP) return;
+
+    // Fetch deep data
+    let res = await fetchBudgetDeepData(presId);
+
+    // Create new Presupuesto
+    let year = new Date().getFullYear();
+    let num = year + '-' + (String(DATA.presupuestos.length + 1).padStart(4, '0'));
+    let tc = DATA.tc.Dolar_oficial || 1150;
+
+    let presData = {
+        Numero: num,
+        Fecha: new Date().toISOString().split('T')[0],
+        Estado: 'Borrador',
+        TC_usado: tc,
+        Canal: oldP.Canal,
+        Quiere_factura: oldP.Quiere_factura,
+        Incluye_instalacion: true
+    };
+    let newPres = await apiPost(TBL.presupuestos, presData);
+    let newId = newPres.Id || newPres.id;
+
+    // Links
+    if (res.client.Id) await apiLink(TBL.presupuestos, 'canpten8owymbde', newId, [{ Id: res.client.Id }]);
+    if (res.zona.Id) await apiLink(TBL.presupuestos, 'cr3s0ox51qopwl4', newId, [{ Id: res.zona.Id }]);
+    // Find payment ID? We only have name from fetchBudgetDeepData.
+    // If we want to duplicate accurately, we should find ID from DATA.formas_pago
+    let pagoObj = DATA.formas_pago.find(f => f.Nombre === res.pago);
+    if (pagoObj) await apiLink(TBL.presupuestos, 'c3866164n9x7942', newId, [{ Id: pagoObj.Id }]);
+
+    // Duplicate Units & Lines
+    for (let u of res.unidades) {
+        let uData = {
+            Nombre: u.Nombre,
+            Ubicacion: u.Ubicacion,
+            Tipo_trabajo: u.Tipo_trabajo,
+            Ancho_m: u.Ancho_m,
+            Alto_m: u.Alto_m,
+            M2_calculados: u.M2_calculados,
+            Orden: u.Orden
+        };
+        let newU = await apiPost(TBL.unidades, uData);
+        let newUId = newU.Id || newU.id;
+        await apiLink(TBL.unidades, 'cm5xv0vmlne7r6u', newUId, [{ Id: newId }]);
+
+        // Lines
+        let lines = res.lineas.filter(l => l._unidadId == u.Id);
+        for (let l of lines) {
+            let lineaData = {
+                Descripcion_pdf: l.Descripcion_pdf,
+                Ancho_m: l.Ancho_m,
+                Alto_m: l.Alto_m,
+                Cantidad: l.Cantidad,
+                M2_calculados: l.M2_calculados,
+                Moneda_costo_orig: l.Moneda_costo_orig,
+                Costo_unit_orig: l.Costo_unit_orig,
+                TC_aplicado: l.TC_aplicado,
+                Costo_unit_ARS: l.Costo_unit_ARS,
+                Margen_pct: l.Margen_pct,
+                Precio_unit_ARS: l.Precio_unit_ARS,
+                Subtotal_ARS: l.Subtotal_ARS,
+                Alicuota_IVA: l.Alicuota_IVA,
+                Monto_IVA: l.Monto_IVA,
+                Subtotal_con_IVA: l.Subtotal_con_IVA,
+                Orden: l.Orden,
+                Visible_pdf: true
+            };
+            let newLine = await apiPost(TBL.lineas, lineaData);
+            let nLId = newLine.Id || newLine.id;
+            await apiLink(TBL.lineas, 'c4hnodnss6zlr32', nLId, [{ Id: newId }]); // Link to Pres
+            await apiLink(TBL.lineas, 'cn9406tc3q1jmw0', nLId, [{ Id: newUId }]); // Link to Unit
+            // Component Link?
+            // l has no component ID in it directly from this fetch. 
+            // In a deeper implementation we would track it, but for now we rely on Description matching or manual fix.
+            // Duplicate won't link to component ID but keeps data values, which is acceptable for snapshot.
+        }
+    }
+
+    // Copy Totals
+    await apiPatch(TBL.presupuestos, {
+        Id: newId,
+        Subtotal_neto: oldP.Subtotal_neto,
+        Subtotal_items: oldP.Subtotal_items,
+        IVA_21: oldP.IVA_21,
+        IVA_105: oldP.IVA_105,
+        Total_con_IVA: oldP.Total_con_IVA,
+        Total: oldP.Total
+    });
+
+    alert('Presupuesto duplicado exitosamente.');
+    DATA.presupuestos = await apiGet(TBL.presupuestos);
+    DATA.unidades = await apiGet(TBL.unidades);
+    DATA.lineas = await apiGet(TBL.lineas);
+    loadDashboard();
+    showPage('presupuestos', document.querySelectorAll('.nav-item')[1]);
+}
+
+loadAll();

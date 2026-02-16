@@ -322,9 +322,9 @@
     </main>
     <!-- MODAL NUEVO PRESUPUESTO -->
     <div class="modal-overlay" id="modal-pres">
-        <div class="modal">
+        <div class="modal" data-db-id="">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-                <h2>Nuevo Presupuesto</h2>
+                <h2 id="modal-title">Nuevo Presupuesto</h2>
                 <button onclick="closeModal()"
                     style="background:none;border:none;font-size:1.5em;cursor:pointer;color:var(--text-light)">✕</button>
             </div>
@@ -360,6 +360,41 @@
             <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px">
                 <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
                 <button class="btn btn-primary" onclick="savePres()">Guardar Presupuesto</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL VER DETALLE PRESUPUESTO -->
+    <div class="modal-overlay" id="modal-ver-pres">
+        <div class="modal">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+                <h2 id="vp-titulo">Presupuesto #</h2>
+                <button onclick="closeVerPres()"
+                    style="background:none;border:none;font-size:1.5em;cursor:pointer;color:var(--text-light)">✕</button>
+            </div>
+            <div class="card-header" style="margin-bottom:16px">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+                    <div>
+                        <p><strong>Cliente:</strong> <span id="vp-cliente">-</span></p>
+                        <p><strong>Zona:</strong> <span id="vp-zona">-</span></p>
+                    </div>
+                    <div>
+                        <p><strong>Fecha:</strong> <span id="vp-fecha">-</span></p>
+                        <p><strong>Estado:</strong> <span id="vp-estado">-</span></p>
+                        <p><strong>Forma Pago:</strong> <span id="vp-pago">-</span></p>
+                    </div>
+                </div>
+            </div>
+            <div id="vp-contenido" style="max-height:400px;overflow-y:auto;margin-bottom:20px"></div>
+            <div class="resumen-box">
+                <div class="resumen-line"><span>Subtotal neto</span><span id="vp-subtotal">$0</span></div>
+                <div class="resumen-line"><span>IVA</span><span id="vp-iva">$0</span></div>
+                <div class="resumen-line total"><span>TOTAL</span><span id="vp-total">$0</span></div>
+            </div>
+            <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px">
+                <button class="btn btn-secondary" onclick="closeVerPres()">Cerrar</button>
+                <button class="btn btn-primary" id="vp-btn-editar">Editar</button>
+                <button class="btn btn-primary" id="vp-btn-pdf">Generar PDF</button>
             </div>
         </div>
     </div>
