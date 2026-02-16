@@ -76,6 +76,7 @@
 <button class="config-tab" onclick="showConfigTab('zonas',this)">Zonas</button>
 <button class="config-tab" onclick="showConfigTab('pagos',this)">Formas de Pago</button>
 <button class="config-tab" onclick="showConfigTab('anchos',this)">Anchos PVC</button>
+<button class="config-tab" onclick="showConfigTab('aumentos',this)">Aumentos</button>
 </div>
 <div id="config-tc" class="config-section">
 <div class="card">
@@ -95,6 +96,18 @@
 </div>
 <div id="config-anchos" class="config-section" style="display:none">
 <div class="card"><h2 style="margin-bottom:16px">Anchos Estándar PVC</h2><table><thead><tr><th>Ancho solicitado hasta (m)</th><th>Ancho real paño (m)</th><th>Notas</th></tr></thead><tbody id="cfg-anchos-table"></tbody></table></div>
+</div>
+<div id="config-aumentos" class="config-section" style="display:none">
+<div class="card">
+<h2 style="margin-bottom:16px">Aumentos Mensuales</h2>
+<div class="form-row">
+<div class="form-group"><label>% de Aumento</label><input type="number" id="aumento-pct" placeholder="Ej: 5.0" step="0.1"></div>
+<div class="form-group"><label>Aplicar a</label><select id="aumento-cat"><option value="Todos">Todos los componentes</option><option value="Material">Solo materiales</option><option value="Motor">Solo motores</option><option value="Accesorio">Solo accesorios</option><option value="Mano_obra">Solo mano de obra</option></select></div>
+</div>
+<button class="btn btn-primary" onclick="aplicarAumento()">Aplicar Aumento</button>
+<h3 style="margin-top:24px;margin-bottom:12px;font-size:1em">Historial de Aumentos (Sesión)</h3>
+<table><thead><tr><th>Fecha</th><th>Porcentaje</th><th>Categoría</th><th>Items Actualizados</th></tr></thead><tbody id="aumento-historial"></tbody></table>
+</div>
 </div>
 </div>
 </main>
