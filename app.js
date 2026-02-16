@@ -184,8 +184,9 @@ function updatePropiedadesSelect() {
 }
 
 function loadPropiedadesSelect(presData) {
-    let cliId = document.getElementById('np-cliente').value;
     let ps = document.getElementById('np-propiedad');
+    if (!ps) return;
+    let cliId = document.getElementById('np-cliente').value;
     ps.innerHTML = '<option value="">Seleccionar propiedad...</option>';
     if (!cliId) return;
 
@@ -211,7 +212,8 @@ async function openNewPres(presData = null) {
 
     // Reset Modal
     document.getElementById('modal-title').textContent = presData ? ('Editar Presupuesto ' + presData.Numero) : 'Nuevo Presupuesto';
-    document.querySelector('#modal-pres .modal').setAttribute('data-db-id', presData ? presData.Id : '');
+    let modalEl = document.querySelector('#modal-pres .modal');
+    if (modalEl) modalEl.setAttribute('data-db-id', presData ? presData.Id : '');
 
     // Populate Selects
     let cs = document.getElementById('np-cliente');
@@ -258,21 +260,13 @@ async function openNewPres(presData = null) {
             }
             lines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
             lines.forEach(l => {
-                // Use the resolved component ID if available
                 let compId = l._componenteId;
                 let comp = null;
+                if (compId) comp = DATA.componentes.find(c => c.Id == compId);
+                else comp = DATA.componentes.find(c => c.Nombre === l.Descripcion_pdf);
 
-                if (compId) {
-                    comp = DATA.componentes.find(c => c.Id == compId);
-                } else {
-                    // Fallback to name match
-                    comp = DATA.componentes.find(c => c.Nombre === l.Descripcion_pdf);
-                }
-
-                if (comp) {
-                    addCompRowWithData(n, comp, l.Cantidad, l.Id);
-                } else {
-                    // Custom component or not found
+                if (comp) addCompRowWithData(n, comp, l.Cantidad, l.Id);
+                else {
                     let mockComp = {
                         Id: null,
                         Nombre: l.Descripcion_pdf,
@@ -318,16 +312,13 @@ function addUnidadUI(n, uData) {
     let html = '<div class="unidad-card" id="unidad-' + n + '" data-db-id="' + uId + '"><div class="unidad-header"><h3>Unidad ' + n + '</h3><div style="display:flex;gap:8px;align-items:center"><span class="unidad-subtotal" id="sub-u-' + n + '">$0</span><button class="btn-remove" onclick="removeUnidad(' + n + ')" title="Eliminar">🗑</button></div></div>';
     html += '<div class="form-row-4"><div class="form-group"><label>Ambiente</label><input id="u-' + n + '-nombre" placeholder="Ej: Dormitorio principal" value="' + nombre + '"></div>';
     html += '<div class="form-group"><label>Ubicación</label><input id="u-' + n + '-ubic" placeholder="Ej: Contra frente" value="' + ubic + '"></div>';
-    html += '<div class="form-group"><label>Tipo Trabajo</label><select id="u-' + n + '-tipo" value="' + tipo + '"><option value="Instalacion_nueva" ' + (tipo == 'Instalacion_nueva' ? 'selected' : '') + '>Instalacion nueva</option><option value="Cambio_pano" ' + (tipo == 'Cambio_pano' ? 'selected' : '') + '>Cambio pano</option><option value="Motorizacion" ' + (tipo == 'Motorizacion' ? 'selected' : '') + '>Motorizacion</option><option value="Cambio_guias" ' + (tipo == 'Cambio_guias' ? 'selected' : '') + '>Cambio guias</option><option value="Reparacion" ' + (tipo == 'Reparacion' ? 'selected' : '') + '>Reparacion</option><option value="Service" ' + (tipo == 'Service' ? 'selected' : '') + '>Service</option><option value="Otro" ' + (tipo == 'Otro' ? 'selected' : '') + '>Otro</option></select></div>';
+    html += '<div class="form-group"><label>Tipo Trabajo</label><select id="u-' + n + '-tipo"><option value="Instalacion_nueva" ' + (tipo == 'Instalacion_nueva' ? 'selected' : '') + '>Instalacion nueva</option><option value="Cambio_pano" ' + (tipo == 'Cambio_pano' ? 'selected' : '') + '>Cambio pano</option><option value="Motorizacion" ' + (tipo == 'Motorizacion' ? 'selected' : '') + '>Motorizacion</option><option value="Cambio_guias" ' + (tipo == 'Cambio_guias' ? 'selected' : '') + '>Cambio guias</option><option value="Reparacion" ' + (tipo == 'Reparacion' ? 'selected' : '') + '>Reparacion</option><option value="Service" ' + (tipo == 'Service' ? 'selected' : '') + '>Service</option><option value="Otro" ' + (tipo == 'Otro' ? 'selected' : '') + '>Otro</option></select></div>';
     html += '<div class="form-group"><label>Producto Base</label><select id="u-' + n + '-prod" onchange="loadCompSugeridos(' + n + ')">' + prodOpts + '</select></div></div>';
     html += '<div class="form-row" style="grid-template-columns:1fr 1fr 2fr"><div class="form-group"><label>Ancho (m)</label><input type="number" id="u-' + n + '-ancho" step="0.01" oninput="recalcUnidad(' + n + ')" value="' + ancho + '"></div>';
     html += '<div class="form-group"><label>Alto (m)</label><input type="number" id="u-' + n + '-alto" step="0.01" oninput="recalcUnidad(' + n + ')" value="' + alto + '"></div><div></div></div>';
     html += '<table class="comp-table"><thead><tr><th>Componente</th><th>Cant.</th><th class="hide-margin">Costo</th><th class="hide-margin">Moneda</th><th class="hide-margin">Margen%</th><th>Precio Unit.</th><th>Subtotal</th><th>IVA%</th><th></th></tr></thead><tbody id="comps-u-' + n + '"></tbody></table>';
     html += '<button class="btn-add-comp" onclick="addCompRow(' + n + ')">+ Agregar componente</button></div>';
     document.getElementById('np-unidades').insertAdjacentHTML('beforeend', html);
-
-    // Explicitly set select values in case attribute didn't work (for select value attr)
-    if (tipo) document.getElementById('u-' + n + '-tipo').value = tipo;
 }
 
 function removeUnidad(n) { document.getElementById('unidad-' + n)?.remove(); recalcTotal(); }
