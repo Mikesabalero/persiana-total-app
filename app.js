@@ -313,9 +313,9 @@ function addUnidadUI(n, uData) {
     html += '<div class="form-row-4"><div class="form-group"><label>Ambiente</label><input id="u-' + n + '-nombre" placeholder="Ej: Dormitorio principal" value="' + nombre + '"></div>';
     html += '<div class="form-group"><label>Ubicación</label><input id="u-' + n + '-ubic" placeholder="Ej: Contra frente" value="' + ubic + '"></div>';
     html += '<div class="form-group"><label>Tipo Trabajo</label><select id="u-' + n + '-tipo"><option value="Instalacion_nueva" ' + (tipo == 'Instalacion_nueva' ? 'selected' : '') + '>Instalacion nueva</option><option value="Cambio_pano" ' + (tipo == 'Cambio_pano' ? 'selected' : '') + '>Cambio pano</option><option value="Motorizacion" ' + (tipo == 'Motorizacion' ? 'selected' : '') + '>Motorizacion</option><option value="Cambio_guias" ' + (tipo == 'Cambio_guias' ? 'selected' : '') + '>Cambio guias</option><option value="Reparacion" ' + (tipo == 'Reparacion' ? 'selected' : '') + '>Reparacion</option><option value="Service" ' + (tipo == 'Service' ? 'selected' : '') + '>Service</option><option value="Otro" ' + (tipo == 'Otro' ? 'selected' : '') + '>Otro</option></select></div>';
-    html += '<div class="form-group"><label>Producto Base</label><select id="u-' + n + '-prod" onchange="loadCompSugeridos(' + n + ')">' + prodOpts + '</select></div></div>';
-    html += '<div class="form-row" style="grid-template-columns:1fr 1fr 2fr"><div class="form-group"><label>Ancho (m)</label><input type="number" id="u-' + n + '-ancho" step="0.01" oninput="recalcUnidad(' + n + ')" value="' + ancho + '"></div>';
-    html += '<div class="form-group"><label>Alto (m)</label><input type="number" id="u-' + n + '-alto" step="0.01" oninput="recalcUnidad(' + n + ')" value="' + alto + '"></div><div></div></div>';
+    html += '<div class="form-group"><label>Producto Base</label><select id="u-' + n + '-prod" onchange="autoLoadComponents(' + n + ')">' + prodOpts + '</select></div></div>';
+    html += '<div class="form-row" style="grid-template-columns:1fr 1fr 2fr"><div class="form-group"><label>Ancho (m)</label><input type="number" id="u-' + n + '-ancho" step="0.01" oninput="autoLoadComponents(' + n + ')" value="' + ancho + '"></div>';
+    html += '<div class="form-group"><label>Alto (m)</label><input type="number" id="u-' + n + '-alto" step="0.01" oninput="autoLoadComponents(' + n + ')" value="' + alto + '"></div><div></div></div>';
     html += '<table class="comp-table"><thead><tr><th>Componente</th><th>Cant.</th><th class="hide-margin">Costo</th><th class="hide-margin">Moneda</th><th class="hide-margin">Margen%</th><th>Precio Unit.</th><th>Subtotal</th><th>IVA%</th><th></th></tr></thead><tbody id="comps-u-' + n + '"></tbody></table>';
     html += '<button class="btn-add-comp" onclick="addCompRow(' + n + ')">+ Agregar componente</button></div>';
     document.getElementById('np-unidades').insertAdjacentHTML('beforeend', html);
@@ -323,33 +323,135 @@ function addUnidadUI(n, uData) {
 
 function removeUnidad(n) { document.getElementById('unidad-' + n)?.remove(); recalcTotal(); }
 
-function loadCompSugeridos(n) {
+// ===== AUTO-LOAD COMPONENTS =====
+const PESO_M2 = {
+    16: 11, 17: 13, 18: 10, 19: 12, 20: 14,
+    21: 4, 22: 7, 24: 3,
+    25: 10, 26: 5, 27: 10, 28: 5
+};
+const PROD_COMP_MAP = {
+    16: 33, 17: 34, 18: 35, 19: 36, 20: 37,
+    21: 38, 22: 39, 23: 40, 24: 41,
+    25: 42, 26: 43, 27: 44, 28: 45,
+    31: 46, 32: 47
+};
+const CAT_SEGURIDAD = [16, 17, 18, 19, 20];
+const CAT_EXTERIOR = [21, 22, 23, 24, 25, 26, 27, 28];
+const CAT_INTERIOR = [31, 32];
+
+function getCategoria(prodId) {
+    let pid = parseInt(prodId);
+    if (CAT_SEGURIDAD.includes(pid)) return 'Seguridad';
+    if (CAT_EXTERIOR.includes(pid)) return 'Exterior';
+    if (CAT_INTERIOR.includes(pid)) return 'Interior';
+    return null;
+}
+
+function selectMotor(cat, peso, ancho) {
+    if (cat === 'Seguridad') {
+        if (ancho < 6) {
+            if (peso <= 200) return 56;
+            if (peso <= 330) return 50;
+            if (peso <= 370) return 51;
+        } else {
+            if (peso <= 330) return 52;
+            if (peso <= 390) return 53;
+            if (peso <= 770) return 54;
+        }
+    } else if (cat === 'Exterior') {
+        if (ancho < 6) {
+            if (peso <= 115) return 55;
+            if (peso <= 200) return 56;
+            if (peso <= 330) return 50;
+            if (peso <= 370) return 51;
+        } else {
+            if (peso <= 330) return 52;
+            if (peso <= 390) return 53;
+            if (peso <= 770) return 54;
+        }
+    } else if (cat === 'Interior') {
+        if (peso <= 35) return 144;
+        if (peso <= 47) return 145;
+        if (peso <= 70) return 146;
+    }
+    return null;
+}
+
+function autoLoadComponents(n) {
     let prodId = document.getElementById('u-' + n + '-prod').value;
     let tbody = document.getElementById('comps-u-' + n);
+    let ancho = parseFloat(document.getElementById('u-' + n + '-ancho').value) || 0;
+    let alto = parseFloat(document.getElementById('u-' + n + '-alto').value) || 0;
+
+    // If no product selected, clear and return
+    if (!prodId) { tbody.innerHTML = ''; recalcUnidad(n); return; }
+
+    // If dimensions not set yet, just add the material component
+    let pid = parseInt(prodId);
+    let cat = getCategoria(pid);
+    if (!cat) { tbody.innerHTML = ''; addCompRow(n); recalcUnidad(n); return; }
+
+    let m2 = ancho * alto;
+    let pesoM2 = PESO_M2[pid] || 5;
+    let peso = m2 * pesoM2;
+
+    // Clear existing components
     tbody.innerHTML = '';
-    if (!prodId) return;
-    let templates = DATA.prod_comp.filter(pc => {
-        let pLink = pc.Productos;
-        if (!pLink) return false;
-        if (typeof pLink === 'object') {
-            if (Array.isArray(pLink)) return pLink.some(p => (p.Id || p) == prodId);
-            return (pLink.Id || pLink) == prodId;
-        }
-        return pLink == prodId;
-    });
-    templates.forEach(t => {
-        let compLink = t.Componentes;
-        let compId = null;
-        if (compLink) {
-            if (typeof compLink === 'object') {
-                if (Array.isArray(compLink) && compLink.length > 0) compId = compLink[0].Id || compLink[0];
-                else compId = compLink.Id || compLink;
-            } else compId = compLink;
-        }
-        let comp = DATA.componentes.find(c => c.Id == compId);
-        if (comp) addCompRowWithData(n, comp, t.Cantidad_default || 1);
-    });
-    if (templates.length === 0) addCompRow(n);
+
+    // 1. Material/Paño
+    let matCompId = PROD_COMP_MAP[pid];
+    if (matCompId) {
+        let matComp = DATA.componentes.find(c => c.Id == matCompId);
+        if (matComp) addCompRowWithData(n, matComp, m2 > 0 ? parseFloat(m2.toFixed(2)) : 1);
+    }
+
+    // If no dimensions yet, just show material and stop
+    if (!ancho || !alto) { recalcUnidad(n); return; }
+
+    // 2. Motor
+    let motorId = selectMotor(cat, peso, ancho);
+    if (motorId) {
+        let motorComp = DATA.componentes.find(c => c.Id == motorId);
+        if (motorComp) addCompRowWithData(n, motorComp, 1);
+    }
+
+    // 3. Guías (solo Seguridad y Exterior)
+    let guiaId = null;
+    if (cat === 'Seguridad' || cat === 'Exterior') {
+        guiaId = ancho < 5 ? 60 : 61;
+        let guiaComp = DATA.componentes.find(c => c.Id == guiaId);
+        if (guiaComp) addCompRowWithData(n, guiaComp, 1);
+    }
+
+    // 4. Kit Remoto (Seguridad y Exterior)
+    if (cat === 'Seguridad' || cat === 'Exterior') {
+        let kitComp = DATA.componentes.find(c => c.Id == 58);
+        if (kitComp) addCompRowWithData(n, kitComp, 1);
+    }
+
+    // 5. Mano de obra
+    let moBaseId = cat === 'Seguridad' ? 94 : (cat === 'Exterior' ? 93 : 92);
+    let moBase = DATA.componentes.find(c => c.Id == moBaseId);
+    if (moBase) addCompRowWithData(n, moBase, 1);
+
+    // Plus tamaño grande > 4m²
+    if (m2 > 4) {
+        let moPlus = DATA.componentes.find(c => c.Id == 95);
+        if (moPlus) addCompRowWithData(n, moPlus, 1);
+    }
+
+    // Plus motor (siempre, porque siempre lleva motor)
+    if (motorId) {
+        let moMotor = DATA.componentes.find(c => c.Id == 96);
+        if (moMotor) addCompRowWithData(n, moMotor, 1);
+    }
+
+    // Plus guías (Seguridad y Exterior)
+    if (guiaId) {
+        let moGuias = DATA.componentes.find(c => c.Id == 97);
+        if (moGuias) addCompRowWithData(n, moGuias, 1);
+    }
+
     recalcUnidad(n);
 }
 function addCompRow(n) {
@@ -749,9 +851,25 @@ async function generarPDF(presId) {
                     <ul style="margin: 0; padding-left: 25px; font-size: 1em; color: #374151; list-style-type: disc;">
             `;
 
+            // Mano_obra descriptive labels for PDF
+            let hasMO = false, hasMotorMO = false, hasGuiasMO = false;
             for (let l of unitLines) {
+                let compObj = l._componenteId ? DATA.componentes.find(c => c.Id == l._componenteId) : null;
+                let tipoComp = compObj ? compObj.Tipo_componente : '';
+                if (tipoComp === 'Mano_obra') {
+                    // Track which MO items exist for descriptive text
+                    if (compObj.Id == 92 || compObj.Id == 93 || compObj.Id == 94) hasMO = true;
+                    else if (compObj.Id == 96) hasMotorMO = true;
+                    else if (compObj.Id == 97) hasGuiasMO = true;
+                    // Skip individual MO listing
+                    continue;
+                }
                 html += `<li style="margin-bottom: 4px;">${cleanLabel(l.Descripcion_pdf || 'Item')}</li>`;
             }
+            // Add descriptive MO text
+            if (hasMO) html += `<li style="margin-bottom: 4px; font-style: italic; color: #6b7280;">Incluye instalación completa</li>`;
+            if (hasMotorMO) html += `<li style="margin-bottom: 4px; font-style: italic; color: #6b7280;">Incluye instalación de motor</li>`;
+            if (hasGuiasMO) html += `<li style="margin-bottom: 4px; font-style: italic; color: #6b7280;">Incluye instalación de guías</li>`;
 
             html += `
                     </ul>
