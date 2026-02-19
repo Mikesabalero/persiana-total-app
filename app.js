@@ -37,7 +37,7 @@ async function loadAll() {
     for (let p of DATA.presupuestos) {
         try { let cl = await apiGetLinks(TBL.presupuestos, 'canpten8owymbde', p.Id); if (cl.length > 0) p._clienteNombre = cl[0].Nombre || cl[0].Title || '-'; else p._clienteNombre = '-'; } catch (e) { p._clienteNombre = '-'; }
         try { let zl = await apiGetLinks(TBL.presupuestos, 'cr3s0ox51qopwl4', p.Id); if (zl.length > 0) p._zonaNombre = zl[0].Nombre || zl[0].Title || '-'; else p._zonaNombre = '-'; } catch (e) { p._zonaNombre = '-'; }
-        try { let pl = await apiGetLinks(TBL.presupuestos, 'cpf764utp1w7yj0', p.Id); if (pl.length > 0) p._propiedadDir = (pl[0].Direccion || '-') + ' - ' + (pl[0].Localidad || '-'); else p._propiedadDir = '-'; } catch (e) { p._propiedadDir = '-'; }
+        try { let pl = await apiGetLinks(TBL.presupuestos, 'cpf764utp1w7yj0', p.Id); if (pl.length > 0) { let propFull = DATA.propiedades.find(pr => pr.Id == pl[0].Id); p._propiedadDir = propFull ? (propFull.Direccion || '-') + ' - ' + (propFull.Localidad || '-') : (pl[0].Nombre || '-'); } else p._propiedadDir = '-'; } catch (e) { p._propiedadDir = '-'; }
     }
     loadDashboard();
 }
