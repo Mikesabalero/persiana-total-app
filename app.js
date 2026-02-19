@@ -350,7 +350,7 @@ function getCategoria(prodId) {
 function selectMotor(cat, peso, ancho) {
     if (cat === 'Seguridad') {
         if (ancho < 6) {
-            if (peso <= 200) return 56;
+            if (peso <= 200) return 55;
             if (peso <= 330) return 50;
             if (peso <= 370) return 51;
         } else {
@@ -360,8 +360,8 @@ function selectMotor(cat, peso, ancho) {
         }
     } else if (cat === 'Exterior') {
         if (ancho < 6) {
-            if (peso <= 115) return 55;
-            if (peso <= 200) return 56;
+            if (peso <= 115) return 56;
+            if (peso <= 200) return 55;
             if (peso <= 330) return 50;
             if (peso <= 370) return 51;
         } else {
