@@ -37,7 +37,7 @@ async function loadAll() {
     for (let p of DATA.presupuestos) {
         try { let cl = await apiGetLinks(TBL.presupuestos, 'canpten8owymbde', p.Id); if (cl.length > 0) p._clienteNombre = cl[0].Nombre || cl[0].Title || '-'; else p._clienteNombre = '-'; } catch (e) { p._clienteNombre = '-'; }
         try { let zl = await apiGetLinks(TBL.presupuestos, 'cr3s0ox51qopwl4', p.Id); if (zl.length > 0) p._zonaNombre = zl[0].Nombre || zl[0].Title || '-'; else p._zonaNombre = '-'; } catch (e) { p._zonaNombre = '-'; }
-        try { let pl = await apiGetLinks(TBL.presupuestos, 'c9pkiok73yxowj5', p.Id); if (pl.length > 0) p._propiedadDir = (pl[0].Direccion || '-') + ' - ' + (pl[0].Localidad || '-'); else p._propiedadDir = '-'; } catch (e) { p._propiedadDir = '-'; }
+        try { let pl = await apiGetLinks(TBL.presupuestos, 'cpf764utp1w7yj0', p.Id); if (pl.length > 0) p._propiedadDir = (pl[0].Direccion || '-') + ' - ' + (pl[0].Localidad || '-'); else p._propiedadDir = '-'; } catch (e) { p._propiedadDir = '-'; }
     }
     loadDashboard();
 }
@@ -430,7 +430,7 @@ function recalcTotal() {
             let inputs = r.querySelectorAll('input[type="number"]');
             let qty = parseFloat(inputs[0]?.value) || 1;
             let margen = parseFloat(inputs[1]?.value) || 0;
-            let iva = r.querySelector('.c-iva')?.textContent || '21';
+            let iva = (r.querySelector('.c-iva')?.textContent || '21').replace('%', '').trim();
             let costoArs = moneda === 'USD' ? costo * tc : costo;
             let precio = costoArs * (1 + margen / 100);
             let sub = precio * qty;
@@ -474,7 +474,7 @@ async function savePres() {
         await apiLink(TBL.presupuestos, 'canpten8owymbde', editPresId, [{ Id: parseInt(clienteId) }]);
         await apiLink(TBL.presupuestos, 'cr3s0ox51qopwl4', editPresId, [{ Id: parseInt(zonaId) }]);
         let propId = document.getElementById('np-propiedad').value;
-        if (propId) await apiLink(TBL.presupuestos, 'c9pkiok73yxowj5', editPresId, [{ Id: propId }]);
+        if (propId) await apiLink(TBL.presupuestos, 'cpf764utp1w7yj0', editPresId, [{ Id: parseInt(propId) }]);
     } else {
         // CREATE New
         let year = new Date().getFullYear();
@@ -486,9 +486,9 @@ async function savePres() {
         await apiLink(TBL.presupuestos, 'canpten8owymbde', presId, [{ Id: parseInt(clienteId) }]);
         await apiLink(TBL.presupuestos, 'cr3s0ox51qopwl4', presId, [{ Id: parseInt(zonaId) }]);
         let propId = document.getElementById('np-propiedad').value;
-        if (propId) await apiLink(TBL.presupuestos, 'c9pkiok73yxowj5', presId, [{ Id: propId }]);
+        if (propId) await apiLink(TBL.presupuestos, 'cpf764utp1w7yj0', presId, [{ Id: parseInt(propId) }]);
         let pagoId = document.getElementById('np-pago').value;
-        if (pagoId) await apiLink(TBL.presupuestos, 'c3866164n9x7942', presId, [{ Id: parseInt(pagoId) }]);
+        if (pagoId) await apiLink(TBL.presupuestos, 'cr9l2n9wiubrcra', presId, [{ Id: parseInt(pagoId) }]);
     }
 
     let subtotalNeto = 0, totalIva21 = 0, totalIva105 = 0;
@@ -522,6 +522,9 @@ async function savePres() {
             let unidad = await apiPost(TBL.unidades, uData);
             uId = unidad.Id || unidad.id;
             await apiLink(TBL.unidades, 'cm5xv0vmlne7r6u', uId, [{ Id: presId }]);
+            // Link Producto_base if selected
+            let prodSelVal = document.getElementById('u-' + n + '-prod')?.value;
+            if (prodSelVal) await apiLink(TBL.unidades, 'co1b5kwpl8d2rya', uId, [{ Id: parseInt(prodSelVal) }]);
         }
 
         let rows = document.querySelectorAll('#comps-u-' + n + ' tr');
@@ -544,7 +547,7 @@ async function savePres() {
             let compId = sel ? sel.value : null;
             let costo = parseFloat(r.querySelector('.c-costo')?.textContent) || 0;
             let moneda = r.querySelector('.c-moneda')?.textContent || 'ARS';
-            let iva = r.querySelector('.c-iva')?.textContent || '21';
+            let iva = (r.querySelector('.c-iva')?.textContent || '21').replace('%', '').trim();
             let inputs = r.querySelectorAll('input[type="number"]');
             let qty = parseFloat(inputs[0]?.value) || 1;
             let margen = parseFloat(inputs[1]?.value) || 0;
@@ -566,7 +569,7 @@ async function savePres() {
                 Margen_pct: margen,
                 Precio_unit_ARS: precioUnit,
                 Subtotal_ARS: sub,
-                Alicuota_IVA: iva,
+                Alicuota_IVA: iva.replace('%', '').trim(),
                 Monto_IVA: montoIva,
                 Subtotal_con_IVA: sub + montoIva,
                 Orden: orden,
@@ -820,7 +823,7 @@ async function fetchBudgetDeepData(presId) {
     let zoneLinks = await apiGetLinks(TBL.presupuestos, 'cr3s0ox51qopwl4', presId);
     if (zoneLinks.length > 0) zona = zoneLinks[0];
 
-    let payLinks = await apiGetLinks(TBL.presupuestos, 'c3866164n9x7942', presId);
+    let payLinks = await apiGetLinks(TBL.presupuestos, 'cr9l2n9wiubrcra', presId);
     if (payLinks.length > 0) pago = payLinks[0].Nombre;
 
     // Refresh data
@@ -918,7 +921,7 @@ async function viewPresupuesto(presId) {
     // I will add a new <p> for Direction after Cliente or similar.
 
 
-    // Build Content Table
+    // Build Content
     let html = '';
     res.unidades.forEach(u => {
         let prodName = u._productoNombre || '';
@@ -927,8 +930,10 @@ async function viewPresupuesto(presId) {
             if (prod) prodName = prod.Nombre;
         }
 
-        let unitTotal = lines.reduce((acc, l) => acc + (parseFloat(l.Subtotal_ARS) || 0), 0);
-        let measures = u.Ancho_m && u.Alto_m ? ` - ${u.Ancho_m}m × ${u.Alto_m}m` : '';
+        let uLines = res.lineas.filter(l => l._unidadId == u.Id);
+        uLines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
+        let unitTotal = uLines.reduce((acc, l) => acc + (parseFloat(l.Subtotal_ARS) || 0), 0);
+        let measures = u.Ancho_m && u.Alto_m ? ` (${u.Ancho_m}m × ${u.Alto_m}m)` : '';
 
         html += `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:12px">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #e5e7eb; padding-bottom:4px">
@@ -940,7 +945,7 @@ async function viewPresupuesto(presId) {
             </div>
             <ul style="margin: 0; padding-left: 20px; font-size: 0.9em; color: #374151; list-style-type: disc;">`;
 
-        lines.forEach(l => {
+        uLines.forEach(l => {
             html += `<li style="margin-bottom:2px">${cleanLabel(l.Descripcion_pdf)}</li>`;
         });
 
@@ -1012,7 +1017,7 @@ async function duplicatePresupuesto(presId) {
     // Find payment ID? We only have name from fetchBudgetDeepData.
     // If we want to duplicate accurately, we should find ID from DATA.formas_pago
     let pagoObj = DATA.formas_pago.find(f => f.Nombre === res.pago);
-    if (pagoObj) await apiLink(TBL.presupuestos, 'c3866164n9x7942', newId, [{ Id: pagoObj.Id }]);
+    if (pagoObj) await apiLink(TBL.presupuestos, 'cr9l2n9wiubrcra', newId, [{ Id: pagoObj.Id }]);
 
     // Duplicate Units & Lines
     for (let u of res.unidades) {
