@@ -430,7 +430,7 @@ function recalcTotal() {
             let inputs = r.querySelectorAll('input[type="number"]');
             let qty = parseFloat(inputs[0]?.value) || 1;
             let margen = parseFloat(inputs[1]?.value) || 0;
-            let iva = (r.querySelector('.c-iva')?.textContent || '21').replace('%', '').trim();
+            let iva = (r.querySelector('.c-iva')?.textContent || '21').replace(/%/g, '').trim();
             let costoArs = moneda === 'USD' ? costo * tc : costo;
             let precio = costoArs * (1 + margen / 100);
             let sub = precio * qty;
@@ -547,7 +547,7 @@ async function savePres() {
             let compId = sel ? sel.value : null;
             let costo = parseFloat(r.querySelector('.c-costo')?.textContent) || 0;
             let moneda = r.querySelector('.c-moneda')?.textContent || 'ARS';
-            let iva = (r.querySelector('.c-iva')?.textContent || '21').replace('%', '').trim();
+            let iva = (r.querySelector('.c-iva')?.textContent || '21').replace(/%/g, '').trim();
             let inputs = r.querySelectorAll('input[type="number"]');
             let qty = parseFloat(inputs[0]?.value) || 1;
             let margen = parseFloat(inputs[1]?.value) || 0;
@@ -569,7 +569,7 @@ async function savePres() {
                 Margen_pct: margen,
                 Precio_unit_ARS: precioUnit,
                 Subtotal_ARS: sub,
-                Alicuota_IVA: iva.replace('%', '').trim(),
+                Alicuota_IVA: iva.replace(/%/g, '').trim(),
                 Monto_IVA: montoIva,
                 Subtotal_con_IVA: sub + montoIva,
                 Orden: orden,
