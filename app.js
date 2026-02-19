@@ -299,7 +299,7 @@ function addUnidadUI(n, uData) {
     let selectedProd = uData ? uData._productoId : '';
 
     DATA.productos.forEach(p => {
-        let sel = (selectedProd && p.Id == selectedProd) ? 'selected' : '';
+        let sel = (selectedProd && String(p.Id) == String(selectedProd)) ? 'selected' : '';
         prodOpts += '<option value="' + p.Id + '" ' + sel + '>' + cleanLabel(p.Nombre) + '</option>';
     });
 
@@ -730,48 +730,34 @@ async function generarPDF(presId) {
                 </div>
         `;
 
-        let unitLines = presLineas.filter(l => l._unidadId == u.Id);
-        unitLines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
-        let unitTotal = unitLines.reduce((acc, l) => acc + (parseFloat(l.Subtotal_ARS) || 0), 0);
+        for (let u of presUnidades) {
+            let unitLines = presLineas.filter(l => l._unidadId == u.Id);
+            unitLines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
+            let unitTotal = unitLines.reduce((acc, l) => acc + (parseFloat(l.Subtotal_ARS) || 0), 0);
 
-        // Find product name for the unit
-        let prodName = '';
-        let pLink = resolveLink(u, 'Producto_base'); // Use resolveLink as in fetchBudgetDeepData
-        if (pLink) {
-            let prod = DATA.productos.find(p => p.Id == (pLink.Id || pLink.id));
-            if (prod) prodName = prod.Nombre;
-        }
-        if (!prodName && u._productoId) {
-            let prod = DATA.productos.find(p => p.Id == u._productoId);
-            if (prod) prodName = prod.Nombre;
-        }
+            let measures = u.Ancho_m && u.Alto_m ? ` (${u.Ancho_m}m × ${u.Alto_m}m)` : '';
 
-        let measures = u.Ancho_m && u.Alto_m ? ` - ${u.Ancho_m}m × ${u.Alto_m}m` : '';
-        let productTitle = prodName ? `${cleanLabel(prodName)}${measures}` : `${cleanLabel(u.Nombre)}${measures}`;
-
-        html += `
-                <div class="pdf-unit" style="margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
-                    <div class="pdf-unit-header" style="background: #f3f4f6; padding: 8px; border-radius: 4px; margin-bottom: 10px; display: flex; justify-content: space-between; font-weight: bold;">
-                        <span>${productTitle}</span>
-                        <span>${cleanLabel(u.Ubicacion) || ''}</span>
+            html += `
+                <div class="pdf-unit" style="margin-bottom: 25px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
+                    <div class="pdf-unit-header" style="background: #f3f4f6; padding: 10px; border-radius: 4px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: bold; font-size: 1.1em; color: #1f2937;">${cleanLabel(u.Nombre)} - ${cleanLabel(u.Ubicacion) || ''}${measures}</span>
+                        <span style="color: #4b5563; font-weight: normal;">${cleanLabel(u.Tipo_trabajo) || ''}</span>
                     </div>
-                    <div style="font-size: 0.9em; margin-bottom: 8px; color: #4b5563;">
-                        Trabajo: ${cleanLabel(u.Tipo_trabajo) || ''}
-                    </div>
-                    <ul style="margin: 0; padding-left: 20px; font-size: 0.9em; color: #374151;">
+                    <ul style="margin: 0; padding-left: 25px; font-size: 1em; color: #374151; list-style-type: disc;">
             `;
 
-        for (let l of unitLines) {
-            html += `<li style="margin-bottom: 2px;">${cleanLabel(l.Descripcion_pdf || 'Item')}</li>`;
-        }
+            for (let l of unitLines) {
+                html += `<li style="margin-bottom: 4px;">${cleanLabel(l.Descripcion_pdf || 'Item')}</li>`;
+            }
 
-        html += `
+            html += `
                     </ul>
-                    <div style="text-align: right; margin-top: 10px; font-size: 1.1em; font-weight: bold;">
-                        Precio Unidad: ${fmt(unitTotal)}
+                    <div style="text-align: right; margin-top: 12px; font-size: 1.1em; font-weight: bold; color: #111;">
+                        Precio unidad: ${fmt(unitTotal)}
                     </div>
                 </div>
             `;
+        }
 
         let sub = pres.Subtotal_neto || 0;
         let iva21 = pres.IVA_21 || 0;
@@ -945,21 +931,22 @@ async function viewPresupuesto(presId) {
         let measures = u.Ancho_m && u.Alto_m ? ` - ${u.Ancho_m}m × ${u.Alto_m}m` : '';
 
         html += `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:12px">
-            <h4 style="margin:0 0 4px 0;color:var(--grad1)">${cleanLabel(u.Nombre)}${measures}</h4>
-            <div style="font-size:0.9em;color:#6b7280;margin-bottom:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
-                <span><strong>Ubicación:</strong> ${cleanLabel(u.Ubicacion) || '-'}</span>
-                <span><strong>Tipo:</strong> ${cleanLabel(u.Tipo_trabajo) || '-'}</span>
-                <span><strong>Producto:</strong> ${cleanLabel(prodName) || '-'}</span>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #e5e7eb; padding-bottom:4px">
+                <h4 style="margin:0;color:var(--grad1)">${cleanLabel(u.Nombre)} - ${cleanLabel(u.Ubicacion) || ''}${measures}</h4>
+                <span style="font-size:0.9em; color:#6b7280; font-weight:bold">${cleanLabel(u.Tipo_trabajo) || ''}</span>
             </div>
-            <ul style="margin: 0; padding-left: 20px; font-size: 0.9em; color: #374151;">`;
+            <div style="font-size:0.9em;color:#6b7280;margin-bottom:8px">
+                <strong>Producto:</strong> ${cleanLabel(prodName) || '-'}
+            </div>
+            <ul style="margin: 0; padding-left: 20px; font-size: 0.9em; color: #374151; list-style-type: disc;">`;
 
         lines.forEach(l => {
-            html += `<li>${cleanLabel(l.Descripcion_pdf)}</li>`;
+            html += `<li style="margin-bottom:2px">${cleanLabel(l.Descripcion_pdf)}</li>`;
         });
 
         html += `</ul>
-            <div style="text-align:right; margin-top:8px; font-size:1.1em;">
-                <strong>Precio Unidad: ${fmt(unitTotal)}</strong>
+            <div style="text-align:right; margin-top:10px; font-size:1.1em;">
+                <strong>Precio unidad: ${fmt(unitTotal)}</strong>
             </div>
         </div>`;
     });
