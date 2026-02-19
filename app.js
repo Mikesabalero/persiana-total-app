@@ -828,8 +828,7 @@ async function generarPDF(presId) {
                         <h3>CLIENTE</h3>
                         <p><strong>${cleanLabel(client.Nombre) || '-'}</strong></p>
                         <p>${client.Telefono || ''}</p>
-                        <p>${client.Email || ''}</p>
-                        <p>${client.Direccion || ''}</p>
+                        <p>${res.propDir || ''}</p>
                         <p>${zona.Nombre ? 'Zona: ' + cleanLabel(zona.Nombre) : ''}</p>
                     </div>
                 </div>
@@ -867,9 +866,9 @@ async function generarPDF(presId) {
                 html += `<li style="margin-bottom: 4px;">${cleanLabel(l.Descripcion_pdf || 'Item')}</li>`;
             }
             // Add descriptive MO text
-            if (hasMO) html += `<li style="margin-bottom: 4px; font-style: italic; color: #6b7280;">Incluye instalación completa</li>`;
-            if (hasMotorMO) html += `<li style="margin-bottom: 4px; font-style: italic; color: #6b7280;">Incluye instalación de motor</li>`;
-            if (hasGuiasMO) html += `<li style="margin-bottom: 4px; font-style: italic; color: #6b7280;">Incluye instalación de guías</li>`;
+            if (hasMO) html += `<li style="margin-bottom: 4px;">Incluye instalación completa</li>`;
+            if (hasMotorMO) html += `<li style="margin-bottom: 4px;">Incluye instalación de motor</li>`;
+            if (hasGuiasMO) html += `<li style="margin-bottom: 4px;">Incluye instalación de guías</li>`;
 
             html += `
                     </ul>
@@ -944,6 +943,13 @@ async function fetchBudgetDeepData(presId) {
     let payLinks = await apiGetLinks(TBL.presupuestos, 'cr9l2n9wiubrcra', presId);
     if (payLinks.length > 0) pago = payLinks[0].Nombre;
 
+    let propLink = await apiGetLinks(TBL.presupuestos, 'cpf764utp1w7yj0', presId);
+    let propDir = '-';
+    if (propLink.length > 0) {
+        let propFull = DATA.propiedades.find(pr => pr.Id == propLink[0].Id);
+        propDir = propFull ? (propFull.Direccion || '-') + ' - ' + (propFull.Localidad || '-') : propLink[0].Nombre || '-';
+    }
+
     // Refresh data
     DATA.unidades = await apiGet(TBL.unidades);
     DATA.lineas = await apiGet(TBL.lineas);
@@ -996,7 +1002,7 @@ async function fetchBudgetDeepData(presId) {
         }
     }
 
-    return { client, zona, pago, unidades: presUnidades, lineas: presLineas };
+    return { client, zona, pago, propDir, unidades: presUnidades, lineas: presLineas };
 }
 
 async function viewPresupuesto(presId) {
