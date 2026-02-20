@@ -429,7 +429,7 @@ function autoLoadComponents(n) {
     // 2b. Eje (solo Seguridad y Exterior, según motor)
     if (motorId && (cat === 'Seguridad' || cat === 'Exterior')) {
         let ejeId = null;
-        if (motorId === 56) ejeId = 147;           // Tubular 140 → Eje 4"
+        if (motorId === 55) ejeId = 147;           // Tubular 140 → Eje 4"
         else if (motorId === 50 || motorId === 51) ejeId = 148;  // Paralelo 600/700 → Eje 5"
         else if (motorId === 52 || motorId === 53 || motorId === 54) ejeId = 149; // Paralelo 800/1000/1500 → Eje 7.5"
         // Tubular 60 (55) → no eje
