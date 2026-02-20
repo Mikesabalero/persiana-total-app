@@ -20,6 +20,15 @@ function closeDetail() { document.getElementById('panel-cliente').classList.remo
 function closeVerPres() { document.getElementById('modal-ver-pres').classList.remove('show'); }
 function resolveLink(row, field) { let v = row[field]; if (!v) return null; if (typeof v === 'object' && Array.isArray(v) && v.length > 0) return v[0]; if (typeof v === 'object' && v.Id) return v; return null; }
 function resolveName(row, field, list, idField) { let link = resolveLink(row, field); if (!link) return '-'; let id = link.Id || link.id || link; let found = list.find(i => i.Id == id); return found ? found.Nombre || found.Title || '-' : '-'; }
+const REPAIR_LABELS = {
+    'cambio_eje': 'Cambio de eje completo',
+    'cambio_cinta': 'Cambio de cinta',
+    'cambio_laterales': 'Cambio de laterales y flejes',
+    'cambio_resortes': 'Cambio de resortes',
+    'cambio_polea_tacos': 'Cambio de polea, tacos y punteras',
+    'bobinado_motor': 'Bobinado de motor'
+};
+
 function cleanLabel(text) {
     if (!text || typeof text !== 'string') return text || '';
     let s = text.replace(/_/g, ' ');
@@ -519,8 +528,16 @@ function autoLoadComponents(n) {
 
         if (!hasViatico) {
             let zonaId = document.getElementById('np-zona')?.value;
-            let viaticoMap = { '1': 138, '2': 139, '3': 140, '4': 141, '5': 142, '6': 143 };
-            let vId = viaticoMap[zonaId] || 143;
+            let zonaObj = DATA.zonas.find(z => z.Id == zonaId);
+            let zonaNombre = zonaObj ? (zonaObj.Nombre || '').toLowerCase() : '';
+
+            let vId = 143; // Default: Otras localidades
+            if (zonaNombre.includes('santa fe')) vId = 138;
+            else if (zonaNombre.includes('santo tom')) vId = 139;
+            else if (zonaNombre.includes('recreo')) vId = 140;
+            else if (zonaNombre.includes('esperanza')) vId = 141;
+            else if (zonaNombre.includes('paran')) vId = 142;
+
             let vComp = DATA.componentes.find(c => c.Id == vId);
             if (vComp) addCompRowWithData(n, vComp, 1);
         }
@@ -940,7 +957,7 @@ async function savePres() {
                 let lineaId = linea.Id || linea.id;
                 if (lineaId) {
                     await apiLink(TBL.lineas, 'c4hnodnss6zlr32', lineaId, [{ Id: presId }]);
-                    if (compId) await apiLink(TBL.lineas, 'czka6po5myr5wu6', lineaId, [{ Id: parseInt(compId) }]);
+                    if (compId && !isNaN(parseInt(compId))) await apiLink(TBL.lineas, 'czka6po5myr5wu6', lineaId, [{ Id: parseInt(compId) }]);
                     if (uId) await apiLink(TBL.lineas, 'cn9406tc3q1jmw0', lineaId, [{ Id: uId }]);
                 }
             }
@@ -1105,17 +1122,8 @@ async function generarPDF(presId) {
             `;
 
             let isRepair = u.Tipo_trabajo === 'Reparacion' || u.Tipo_trabajo === 'Service';
-            let repairLabels = {
-                'cambio_eje': 'Cambio de eje completo',
-                'cambio_cinta': 'Cambio de cinta',
-                'cambio_laterales': 'Cambio de laterales y flejes',
-                'cambio_resortes': 'Cambio de resortes',
-                'cambio_polea_tacos': 'Cambio de polea, tacos y punteras',
-                'bobinado_motor': 'Bobinado de motor'
-            };
-
             if (isRepair) {
-                let repName = repairLabels[u.Tipo_reparacion] || 'Reparación / Service';
+                let repName = REPAIR_LABELS[u.Tipo_reparacion] || 'Reparación / Service';
                 html += `<li style="margin-bottom: 4px;">${repName}</li>`;
             }
 
@@ -1345,13 +1353,20 @@ async function viewPresupuesto(presId) {
         let unitTotal = uLines.reduce((acc, l) => acc + (parseFloat(l.Subtotal_ARS) || 0), 0);
         let measures = u.Ancho_m && u.Alto_m ? ` (${u.Ancho_m}m × ${u.Alto_m}m)` : '';
 
+        let isRepair = u.Tipo_trabajo === 'Reparacion' || u.Tipo_trabajo === 'Service';
+        let prodLine = `<strong>Producto:</strong> ${cleanLabel(prodName) || '-'}`;
+        if (isRepair) {
+            let repName = REPAIR_LABELS[u.Tipo_reparacion] || 'Reparación / Service';
+            prodLine = `<strong>Reparación:</strong> ${repName}`;
+        }
+
         html += `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:12px">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #e5e7eb; padding-bottom:4px">
                 <h4 style="margin:0;color:var(--grad1)">${cleanLabel(u.Nombre)} - ${cleanLabel(u.Ubicacion) || ''}${measures}</h4>
                 <span style="font-size:0.9em; color:#6b7280; font-weight:bold">${cleanLabel(u.Tipo_trabajo) || ''}</span>
             </div>
             <div style="font-size:0.9em;color:#6b7280;margin-bottom:8px">
-                <strong>Producto:</strong> ${cleanLabel(prodName) || '-'}
+                ${prodLine}
             </div>
             <ul style="margin: 0; padding-left: 20px; font-size: 0.9em; color: #374151; list-style-type: disc;">`;
 
