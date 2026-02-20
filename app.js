@@ -631,6 +631,9 @@ async function savePres() {
             await apiPatch(TBL.unidades, { Id: cardDbId, ...uData });
             uId = cardDbId;
             processedUnitIds.push(uId);
+            // Update Producto_base link on edit
+            let prodSelValEdit = document.getElementById('u-' + n + '-prod')?.value;
+            if (prodSelValEdit) await apiLink(TBL.unidades, 'co1b5kwpl8d2rya', uId, [{ Id: parseInt(prodSelValEdit) }]);
         } else {
             let unidad = await apiPost(TBL.unidades, uData);
             uId = unidad.Id || unidad.id;
@@ -831,7 +834,6 @@ async function generarPDF(presId) {
 
                 <div class="pdf-title-row">
                     <div class="pdf-meta">
-                        <h3>PRESUPUESTO #${pres.Numero || '-'}</h3>
                         <p>Fecha: ${fecha}</p>
                         <p>Válido hasta: ${venc}</p>
                         <p>Estado: ${badgeHtml(pres.Estado)}</p>
@@ -951,7 +953,8 @@ async function fetchBudgetDeepData(presId) {
     if (zoneLinks.length > 0) zona = zoneLinks[0];
 
     let payLinks = await apiGetLinks(TBL.presupuestos, 'cr9l2n9wiubrcra', presId);
-    if (payLinks.length > 0) pago = payLinks[0].Nombre;
+    if (payLinks.length > 0) pago = payLinks[0].Nombre || payLinks[0].Title || 'A convenir';
+    if (!pago || pago === '-') pago = 'A convenir';
 
     let propLink = await apiGetLinks(TBL.presupuestos, 'cpf764utp1w7yj0', presId);
     let propDir = '-';
@@ -978,15 +981,20 @@ async function fetchBudgetDeepData(presId) {
     for (let u of DATA.unidades) {
         let pLink = resolveLink(u, 'Presupuestos');
         if (pLink && (pLink.Id == presId || pLink.id == presId)) {
-            // Correct Column: 'Producto_base'
-            let prodLink = resolveLink(u, 'Producto_base');
-            if (prodLink) {
-                u._productoId = prodLink.Id || prodLink.id;
-                u._productoNombre = prodLink.Nombre || prodLink.Title || '';
-            } else if (u.Producto_base && typeof u.Producto_base === 'number') {
-                u._productoId = u.Producto_base;
-                let prod = DATA.productos.find(p => p.Id == u.Producto_base);
-                if (prod) u._productoNombre = prod.Nombre || '';
+            // Resolve Producto_base via apiGetLinks for correct ID
+            let prodLinks = await apiGetLinks(TBL.unidades, 'co1b5kwpl8d2rya', u.Id);
+            if (prodLinks.length > 0) {
+                u._productoId = prodLinks[0].Id;
+                u._productoNombre = prodLinks[0].Nombre || prodLinks[0].Title || '';
+            } else {
+                let prodLink = resolveLink(u, 'Producto_base');
+                if (prodLink) {
+                    u._productoId = prodLink.Id || prodLink.id;
+                    u._productoNombre = prodLink.Nombre || prodLink.Title || '';
+                } else if (u.Producto_base && typeof u.Producto_base === 'number') {
+                    let prod = DATA.productos.find(p => p.Id == u.Producto_base);
+                    if (prod) { u._productoId = prod.Id; u._productoNombre = prod.Nombre || ''; }
+                }
             }
             presUnidades.push(u);
         }
