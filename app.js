@@ -807,7 +807,7 @@ async function generarPDF(presId) {
             <div id="pdf-content">
                 <div class="pdf-header">
                     <div class="pdf-logo">
-                        <img src="logo.png" alt="Persiana Total">
+                        <img src="logo-pdf.png" alt="Persiana Total">
                     </div>
                     <div class="pdf-company-info">
                         <h2>PERSIANA TOTAL</h2>
