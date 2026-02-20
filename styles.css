@@ -117,7 +117,8 @@ label{font-size:.8em;font-weight:600;color:var(--text-light);margin-bottom:6px;d
     margin-bottom: 40px;
 }
 .pdf-logo img {
-    height: 60px;
+    max-width: 250px;
+    height: auto;
 }
 .pdf-company-info {
     text-align: right;
