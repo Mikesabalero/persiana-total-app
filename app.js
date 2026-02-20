@@ -339,6 +339,7 @@ function addUnidadUI(n, uData) {
     html += '<table class="comp-table"><thead><tr><th>Componente</th><th>Cant.</th><th class="hide-margin">Costo</th><th class="hide-margin">Moneda</th><th class="hide-margin">Margen%</th><th>Precio Unit.</th><th>Subtotal</th><th>IVA%</th><th></th></tr></thead><tbody id="comps-u-' + n + '"></tbody></table>';
     html += '<button class="btn-add-comp" onclick="addCompRow(' + n + ')">+ Agregar componente</button></div>';
     document.getElementById('np-unidades').insertAdjacentHTML('beforeend', html);
+    autoLoadComponents(n);
 }
 
 function removeUnidad(n) { document.getElementById('unidad-' + n)?.remove(); recalcTotal(); }
@@ -398,39 +399,44 @@ function selectMotor(cat, peso, ancho, m2) {
 }
 
 function autoLoadComponents(n) {
-    let prodIdInput = document.getElementById('u-' + n + '-prod');
-    if (!prodIdInput) return;
-    let prodId = prodIdInput.value;
+    let prodSelect = document.getElementById('u-' + n + '-prod');
+    if (!prodSelect) return;
+    let prodId = prodSelect.value;
     let tbody = document.getElementById('comps-u-' + n);
     let ancho = parseFloat(document.getElementById('u-' + n + '-ancho')?.value) || 0;
     let alto = parseFloat(document.getElementById('u-' + n + '-alto')?.value) || 0;
-
     let tipoTrabajo = document.getElementById('u-' + n + '-tipo')?.value;
-    if (!prodId) { tbody.innerHTML = ''; recalcUnidad(n); return; }
 
     let pid = parseInt(prodId);
     let cat = getCategoria(pid);
-    if (!cat) { tbody.innerHTML = ''; addCompRow(n); recalcUnidad(n); return; }
-
-    let accSelect = document.getElementById('u-' + n + '-accion');
-    let accion = accSelect ? accSelect.value : 'motor';
 
     // UI visibility management
     let divTipoRep = document.getElementById('div-u-' + n + '-tiporep');
     if (divTipoRep) divTipoRep.style.display = (tipoTrabajo === 'Reparacion' || tipoTrabajo === 'Service') ? 'block' : 'none';
 
+    let accSelect = document.getElementById('u-' + n + '-accion');
+    let isRep = (tipoTrabajo === 'Reparacion' || tipoTrabajo === 'Service');
+
     if (accSelect) {
-        let accDiv = accSelect.parentElement;
-        if (cat === 'Seguridad') {
+        let accDiv = accSelect.closest('.form-group');
+        if (isRep) {
+            accDiv.style.display = 'none';
+        } else if (cat === 'Seguridad') {
             accDiv.style.display = 'none';
             accSelect.value = 'motor';
-            accion = 'motor';
-        } else if (tipoTrabajo === 'Reparacion' || tipoTrabajo === 'Service') {
-            accDiv.style.display = 'none'; // No accionamiento for repairs usually
         } else {
             accDiv.style.display = 'block';
         }
     }
+    if (prodSelect) {
+        prodSelect.closest('.form-group').style.display = isRep ? 'none' : 'block';
+    }
+
+    if (!prodId && !isRep) { tbody.innerHTML = ''; recalcUnidad(n); return; }
+    if (!cat && !isRep) { tbody.innerHTML = ''; addCompRow(n); recalcUnidad(n); return; }
+
+    let accion = accSelect ? accSelect.value : 'motor';
+    if (cat === 'Seguridad') accion = 'motor';
 
     let m2 = ancho * alto;
     let pesoM2 = PESO_M2[pid] || 5;
