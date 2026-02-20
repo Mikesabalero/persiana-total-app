@@ -358,12 +358,12 @@ function getCategoria(prodId) {
     return null;
 }
 
-function selectMotor(cat, peso, ancho) {
+function selectMotor(cat, peso, ancho, m2) {
     if (cat === 'Seguridad') {
         if (ancho < 6) {
-            if (peso <= 200) return 55;
-            if (peso <= 330) return 50;
-            if (peso <= 370) return 51;
+            if (m2 <= 10) return 55; // Tubular 140
+            if (peso <= 330) return 50; // Paralelo 600
+            if (peso <= 370) return 51; // Paralelo 700
         } else {
             if (peso <= 330) return 52;
             if (peso <= 390) return 53;
@@ -371,8 +371,8 @@ function selectMotor(cat, peso, ancho) {
         }
     } else if (cat === 'Exterior') {
         if (ancho < 6) {
-            if (peso <= 115) return 56;
-            if (peso <= 200) return 55;
+            if (peso <= 115) return 56; // Tubular 60
+            if (peso <= 200) return 55; // Tubular 140
             if (peso <= 330) return 50;
             if (peso <= 370) return 51;
         } else {
@@ -420,7 +420,7 @@ function autoLoadComponents(n) {
     if (!ancho || !alto) { recalcUnidad(n); return; }
 
     // 2. Motor
-    let motorId = selectMotor(cat, peso, ancho);
+    let motorId = selectMotor(cat, peso, ancho, m2);
     if (motorId) {
         let motorComp = DATA.componentes.find(c => c.Id == motorId);
         if (motorComp) addCompRowWithData(n, motorComp, 1);
