@@ -426,6 +426,19 @@ function autoLoadComponents(n) {
         if (motorComp) addCompRowWithData(n, motorComp, 1);
     }
 
+    // 2b. Eje (solo Seguridad y Exterior, según motor)
+    if (motorId && (cat === 'Seguridad' || cat === 'Exterior')) {
+        let ejeId = null;
+        if (motorId === 56) ejeId = 147;           // Tubular 140 → Eje 4"
+        else if (motorId === 50 || motorId === 51) ejeId = 148;  // Paralelo 600/700 → Eje 5"
+        else if (motorId === 52 || motorId === 53 || motorId === 54) ejeId = 149; // Paralelo 800/1000/1500 → Eje 7.5"
+        // Tubular 60 (55) → no eje
+        if (ejeId) {
+            let ejeComp = DATA.componentes.find(c => c.Id == ejeId);
+            if (ejeComp) addCompRowWithData(n, ejeComp, parseFloat(ancho.toFixed(2)));
+        }
+    }
+
     // 3. Guías (solo Seguridad y Exterior)
     let guiaId = null;
     if (cat === 'Seguridad' || cat === 'Exterior') {
