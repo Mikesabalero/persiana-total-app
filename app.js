@@ -320,10 +320,15 @@ function addUnidadUI(n, uData) {
     let ancho = uData ? (uData.Ancho_m || '') : '';
     let alto = uData ? (uData.Alto_m || '') : '';
 
+    let accion = uData ? (uData.Accionamiento || 'motor') : 'motor';
+    let cat = getCategoria(selectedProd);
+    let hideAccion = (cat === 'Seguridad') ? 'display:none' : '';
+
     let html = '<div class="unidad-card" id="unidad-' + n + '" data-db-id="' + uId + '"><div class="unidad-header"><h3>Unidad ' + n + '</h3><div style="display:flex;gap:8px;align-items:center"><span class="unidad-subtotal" id="sub-u-' + n + '">$0</span><button class="btn-remove" onclick="removeUnidad(' + n + ')" title="Eliminar">🗑</button></div></div>';
-    html += '<div class="form-row-4"><div class="form-group"><label>Ambiente</label><input id="u-' + n + '-nombre" placeholder="Ej: Dormitorio principal" value="' + nombre + '"></div>';
+    html += '<div class="form-row" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;"><div class="form-group"><label>Ambiente</label><input id="u-' + n + '-nombre" placeholder="Ej: Dormitorio principal" value="' + nombre + '"></div>';
     html += '<div class="form-group"><label>Ubicación</label><input id="u-' + n + '-ubic" placeholder="Ej: Contra frente" value="' + ubic + '"></div>';
     html += '<div class="form-group"><label>Tipo Trabajo</label><select id="u-' + n + '-tipo"><option value="Instalacion_nueva" ' + (tipo == 'Instalacion_nueva' ? 'selected' : '') + '>Instalación nueva</option><option value="Cambio_pano" ' + (tipo == 'Cambio_pano' ? 'selected' : '') + '>Cambio paño</option><option value="Motorizacion" ' + (tipo == 'Motorizacion' ? 'selected' : '') + '>Motorización</option><option value="Cambio_guias" ' + (tipo == 'Cambio_guias' ? 'selected' : '') + '>Cambio guías</option><option value="Reparacion" ' + (tipo == 'Reparacion' ? 'selected' : '') + '>Reparación</option><option value="Service" ' + (tipo == 'Service' ? 'selected' : '') + '>Service</option><option value="Otro" ' + (tipo == 'Otro' ? 'selected' : '') + '>Otro</option></select></div>';
+    html += '<div class="form-group" style="' + hideAccion + '"><label>Accionamiento</label><select id="u-' + n + '-accion" onchange="autoLoadComponents(' + n + ')"><option value="motor" ' + (accion == 'motor' ? 'selected' : '') + '>Con motor</option><option value="manual_cinta" ' + (accion == 'manual_cinta' ? 'selected' : '') + '>Manual a cinta</option><option value="manual_antognetti" ' + (accion == 'manual_antognetti' ? 'selected' : '') + '>Manual Antognetti</option></select></div>';
     html += '<div class="form-group"><label>Producto Base</label><select id="u-' + n + '-prod" onchange="autoLoadComponents(' + n + ')">' + prodOpts + '</select></div></div>';
     html += '<div class="form-row" style="grid-template-columns:1fr 1fr 2fr"><div class="form-group"><label>Ancho (m)</label><input type="number" id="u-' + n + '-ancho" step="0.01" oninput="autoLoadComponents(' + n + ')" value="' + ancho + '"></div>';
     html += '<div class="form-group"><label>Alto (m)</label><input type="number" id="u-' + n + '-alto" step="0.01" oninput="autoLoadComponents(' + n + ')" value="' + alto + '"></div><div></div></div>';
@@ -401,6 +406,18 @@ function autoLoadComponents(n) {
     let pid = parseInt(prodId);
     let cat = getCategoria(pid);
     if (!cat) { tbody.innerHTML = ''; addCompRow(n); recalcUnidad(n); return; }
+
+    // Accionamiento visibility
+    let accSelect = document.getElementById('u-' + n + '-accion');
+    if (accSelect) {
+        let accDiv = accSelect.parentElement;
+        if (cat === 'Seguridad') {
+            accDiv.style.display = 'none';
+            accSelect.value = 'motor';
+        } else {
+            accDiv.style.display = 'block';
+        }
+    }
 
     let m2 = ancho * alto;
     let pesoM2 = PESO_M2[pid] || 5;
@@ -633,6 +650,7 @@ async function savePres() {
             Tipo_trabajo: document.getElementById('u-' + n + '-tipo')?.value || 'Otro',
             Ancho_m: parseFloat(document.getElementById('u-' + n + '-ancho')?.value) || null,
             Alto_m: parseFloat(document.getElementById('u-' + n + '-alto')?.value) || null,
+            Accionamiento: document.getElementById('u-' + n + '-accion')?.value || 'motor',
             Orden: parseInt(n)
         };
         let ancho = uData.Ancho_m || 0;
