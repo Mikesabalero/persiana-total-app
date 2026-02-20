@@ -1125,6 +1125,7 @@ async function generarPDF(presId) {
             if (isRepair) {
                 let repName = REPAIR_LABELS[u.Tipo_reparacion] || 'Reparación / Service';
                 html += `<li style="margin-bottom: 4px;">${repName}</li>`;
+                html += `<li style="margin-bottom: 4px;">Incluye mano de obra</li>`;
             }
 
             // Mano_obra descriptive labels for PDF
@@ -1369,6 +1370,8 @@ async function viewPresupuesto(presId) {
                 ${prodLine}
             </div>
             <ul style="margin: 0; padding-left: 20px; font-size: 0.9em; color: #374151; list-style-type: disc;">`;
+
+        if (isRepair) html += `<li style="margin-bottom:2px">Incluye mano de obra</li>`;
 
         uLines.forEach(l => {
             html += `<li style="margin-bottom:2px">${cleanLabel(l.Descripcion_pdf)}</li>`;
