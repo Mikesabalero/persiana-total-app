@@ -458,15 +458,14 @@ function autoLoadComponents(n) {
         let tipoRep = document.getElementById('u-' + n + '-tiporep')?.value;
         if (!tipoRep) { recalcUnidad(n); return; }
 
-        let materialTotal = 0;
+        let materialCostTotal = 0;
         const addRepairComp = (id, qty) => {
             let comp = DATA.componentes.find(c => c.Id == id);
             if (comp) {
                 addCompRowWithData(n, comp, qty);
                 let tc = DATA.tc.Dolar_oficial || 1150;
                 let costoArs = (comp.Moneda_costo === 'USD' ? comp.Costo_unitario * tc : comp.Costo_unitario) || 0;
-                let precio = costoArs * (1 + (comp.Margen_default || 40) / 100);
-                materialTotal += precio * qty;
+                materialCostTotal += costoArs * qty;
             }
         };
 
@@ -492,10 +491,23 @@ function autoLoadComponents(n) {
             addRepairComp(115, 1); // Bobinado
         }
 
-        // 3. Mano de Obra (50% materiales, min 40k)
-        let moPrecio = Math.max(materialTotal * 0.5, 40000);
-        let moComp = DATA.componentes.find(c => c.Id == 93);
-        if (moComp) addCompRowWithData(n, moComp, 1, null, moPrecio);
+        // 3. Mano de Obra (50% COSTO materiales, min 40k)
+        let moPrecio = Math.max(materialCostTotal * 0.5, 40000);
+
+        // Add custom labor row
+        let moRow = document.createElement('tr');
+        moRow.innerHTML = `
+            <td><select disabled><option>Mano de obra reparación</option></select></td>
+            <td><input type="number" value="1" step="0.01" style="width:60px" oninput="recalcUnidad(${n})"></td>
+            <td class="c-costo hide-margin">${moPrecio.toFixed(2)}</td>
+            <td class="c-moneda hide-margin">ARS</td>
+            <td class="hide-margin"><input type="number" value="0" style="width:60px" oninput="recalcUnidad(${n})"></td>
+            <td class="c-precio">${fmt(moPrecio)}</td>
+            <td class="c-subtotal">${fmt(moPrecio)}</td>
+            <td class="c-iva">21%</td>
+            <td><button class="btn-remove" onclick="this.closest('tr').remove();recalcUnidad(${n})">✕</button></td>
+        `;
+        tbody.appendChild(moRow);
 
         // 4. Viático (Check if already added in any unit)
         let hasViatico = false;
