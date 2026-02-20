@@ -394,26 +394,29 @@ function selectMotor(cat, peso, ancho, m2) {
 }
 
 function autoLoadComponents(n) {
-    let prodId = document.getElementById('u-' + n + '-prod').value;
+    let prodIdInput = document.getElementById('u-' + n + '-prod');
+    if (!prodIdInput) return;
+    let prodId = prodIdInput.value;
     let tbody = document.getElementById('comps-u-' + n);
-    let ancho = parseFloat(document.getElementById('u-' + n + '-ancho').value) || 0;
-    let alto = parseFloat(document.getElementById('u-' + n + '-alto').value) || 0;
+    let ancho = parseFloat(document.getElementById('u-' + n + '-ancho')?.value) || 0;
+    let alto = parseFloat(document.getElementById('u-' + n + '-alto')?.value) || 0;
 
-    // If no product selected, clear and return
     if (!prodId) { tbody.innerHTML = ''; recalcUnidad(n); return; }
 
-    // If dimensions not set yet, just add the material component
     let pid = parseInt(prodId);
     let cat = getCategoria(pid);
     if (!cat) { tbody.innerHTML = ''; addCompRow(n); recalcUnidad(n); return; }
 
-    // Accionamiento visibility
     let accSelect = document.getElementById('u-' + n + '-accion');
+    let accion = accSelect ? accSelect.value : 'motor';
+
+    // Accionamiento visibility & value enforcement
     if (accSelect) {
         let accDiv = accSelect.parentElement;
         if (cat === 'Seguridad') {
             accDiv.style.display = 'none';
             accSelect.value = 'motor';
+            accion = 'motor';
         } else {
             accDiv.style.display = 'block';
         }
@@ -423,74 +426,191 @@ function autoLoadComponents(n) {
     let pesoM2 = PESO_M2[pid] || 5;
     let peso = m2 * pesoM2;
 
-    // Clear existing components
     tbody.innerHTML = '';
 
-    // 1. Material/Paño
+    // 1. Material/Paño (Common)
     let matCompId = PROD_COMP_MAP[pid];
     if (matCompId) {
         let matComp = DATA.componentes.find(c => c.Id == matCompId);
         if (matComp) addCompRowWithData(n, matComp, m2 > 0 ? parseFloat(m2.toFixed(2)) : 1);
     }
 
-    // If no dimensions yet, just show material and stop
     if (!ancho || !alto) { recalcUnidad(n); return; }
 
-    // 2. Motor
-    let motorId = selectMotor(cat, peso, ancho, m2);
-    if (motorId) {
-        let motorComp = DATA.componentes.find(c => c.Id == motorId);
-        if (motorComp) addCompRowWithData(n, motorComp, 1);
-    }
+    if (cat === 'Seguridad') {
+        // --- LOGICA SEGURIDAD ---
+        let motorId = selectMotor(cat, peso, ancho, m2);
+        if (motorId) {
+            let motorComp = DATA.componentes.find(c => c.Id == motorId);
+            if (motorComp) addCompRowWithData(n, motorComp, 1);
 
-    // 2b. Eje (solo Seguridad y Exterior, según motor)
-    if (motorId && (cat === 'Seguridad' || cat === 'Exterior')) {
-        let ejeId = null;
-        if (motorId === 55) ejeId = 147;           // Tubular 140 → Eje 4"
-        else if (motorId === 50 || motorId === 51) ejeId = 148;  // Paralelo 600/700 → Eje 5"
-        else if (motorId === 52 || motorId === 53 || motorId === 54) ejeId = 149; // Paralelo 800/1000/1500 → Eje 7.5"
-        // Tubular 60 (55) → no eje
-        if (ejeId) {
-            let ejeComp = DATA.componentes.find(c => c.Id == ejeId);
-            if (ejeComp) addCompRowWithData(n, ejeComp, parseFloat(ancho.toFixed(2)));
+            // Eje Seguridad
+            let ejeId = null;
+            if (motorId === 55) ejeId = 147;
+            else if (motorId === 50 || motorId === 51) ejeId = 148;
+            else if (motorId === 52 || motorId === 53 || motorId === 54) ejeId = 149;
+            if (ejeId) {
+                let ejeComp = DATA.componentes.find(c => c.Id == ejeId);
+                if (ejeComp) addCompRowWithData(n, ejeComp, parseFloat(ancho.toFixed(2)));
+            }
         }
-    }
 
-    // 3. Guías (solo Seguridad y Exterior)
-    let guiaId = null;
-    if (cat === 'Seguridad' || cat === 'Exterior') {
-        guiaId = ancho < 5 ? 60 : 61;
+        // Guías Seguridad
+        let guiaId = ancho < 5 ? 60 : 61;
         let guiaComp = DATA.componentes.find(c => c.Id == guiaId);
         if (guiaComp) addCompRowWithData(n, guiaComp, 1);
-    }
 
-    // 4. Kit Remoto (Seguridad y Exterior)
-    if (cat === 'Seguridad' || cat === 'Exterior') {
+        // Kit Remoto
         let kitComp = DATA.componentes.find(c => c.Id == 58);
         if (kitComp) addCompRowWithData(n, kitComp, 1);
-    }
 
-    // 5. Mano de obra
-    let moBaseId = cat === 'Seguridad' ? 94 : (cat === 'Exterior' ? 93 : 92);
-    let moBase = DATA.componentes.find(c => c.Id == moBaseId);
-    if (moBase) addCompRowWithData(n, moBase, 1);
-
-    // Plus tamaño grande > 4m²
-    if (m2 > 4) {
-        let moPlus = DATA.componentes.find(c => c.Id == 95);
-        if (moPlus) addCompRowWithData(n, moPlus, 1);
-    }
-
-    // Plus motor (siempre, porque siempre lleva motor)
-    if (motorId) {
-        let moMotor = DATA.componentes.find(c => c.Id == 96);
-        if (moMotor) addCompRowWithData(n, moMotor, 1);
-    }
-
-    // Plus guías (Seguridad y Exterior)
-    if (guiaId) {
+        // Mano de Obra Seguridad
+        let moBase = DATA.componentes.find(c => c.Id == 94);
+        if (moBase) addCompRowWithData(n, moBase, 1);
+        if (m2 > 4) {
+            let moPlus = DATA.componentes.find(c => c.Id == 95);
+            if (moPlus) addCompRowWithData(n, moPlus, 1);
+        }
+        if (motorId) {
+            let moMotor = DATA.componentes.find(c => c.Id == 96);
+            if (moMotor) addCompRowWithData(n, moMotor, 1);
+        }
         let moGuias = DATA.componentes.find(c => c.Id == 97);
         if (moGuias) addCompRowWithData(n, moGuias, 1);
+
+    } else if (cat === 'Exterior') {
+        // --- LOGICA EXTERIOR ---
+        if (accion === 'motor') {
+            let motorId = selectMotor(cat, peso, ancho, m2);
+            if (motorId) {
+                let motorComp = DATA.componentes.find(c => c.Id == motorId);
+                if (motorComp) addCompRowWithData(n, motorComp, 1);
+            }
+            // Eje 70mm
+            let eje = DATA.componentes.find(c => c.Id == 150);
+            if (eje) addCompRowWithData(n, eje, parseFloat(ancho.toFixed(2)));
+
+            // Guías Aluminio (63)
+            let guias = DATA.componentes.find(c => c.Id == 63);
+            if (guias) addCompRowWithData(n, guias, parseFloat((alto * 2).toFixed(2)));
+
+            // Kit Remoto (58)
+            let kit = DATA.componentes.find(c => c.Id == 58);
+            if (kit) addCompRowWithData(n, kit, 1);
+
+            // Mano de Obra Exterior + Pluses
+            let moBase = DATA.componentes.find(c => c.Id == 93);
+            if (moBase) addCompRowWithData(n, moBase, 1);
+            if (m2 > 4) {
+                let moPlus = DATA.componentes.find(c => c.Id == 95);
+                if (moPlus) addCompRowWithData(n, moPlus, 1);
+            }
+            if (motorId) {
+                let moMotor = DATA.componentes.find(c => c.Id == 96);
+                if (moMotor) addCompRowWithData(n, moMotor, 1);
+            }
+            let moGuias = DATA.componentes.find(c => c.Id == 97);
+            if (moGuias) addCompRowWithData(n, moGuias, 1);
+
+        } else if (accion === 'manual_cinta') {
+            // Eje 70mm
+            let eje = DATA.componentes.find(c => c.Id == 150);
+            if (eje) addCompRowWithData(n, eje, parseFloat(ancho.toFixed(2)));
+
+            // Polea (151/152)
+            let poleaId = m2 <= 1.5 ? 151 : 152;
+            let polea = DATA.componentes.find(c => c.Id == poleaId);
+            if (polea) addCompRowWithData(n, polea, 1);
+
+            // Tacos
+            let tacos = DATA.componentes.find(c => c.Id == 153);
+            if (tacos) addCompRowWithData(n, tacos, 2);
+
+            // Puntas de eje
+            let puntas = DATA.componentes.find(c => c.Id == 154);
+            if (puntas) addCompRowWithData(n, puntas, 1);
+
+            // Cinta (alto + 0.5)
+            let cinta = DATA.componentes.find(c => c.Id == 155);
+            if (cinta) addCompRowWithData(n, cinta, parseFloat((alto + 0.5).toFixed(2)));
+
+            // Juego de soportes (129)
+            let soportes = DATA.componentes.find(c => c.Id == 129);
+            if (soportes) addCompRowWithData(n, soportes, 2);
+
+            // Guías Aluminio (63)
+            let guias = DATA.componentes.find(c => c.Id == 63);
+            if (guias) addCompRowWithData(n, guias, parseFloat((alto * 2).toFixed(2)));
+
+            // Enrollador (120/121/122)
+            let enrId = alto <= 1.4 ? 120 : (alto <= 2.3 ? 121 : 122);
+            let enrollador = DATA.componentes.find(c => c.Id == enrId);
+            if (enrollador) addCompRowWithData(n, enrollador, 1);
+
+            // Caja (126/127/157)
+            let cajaId = alto <= 1.4 ? 126 : (alto <= 2.3 ? 127 : 157);
+            let caja = DATA.componentes.find(c => c.Id == cajaId);
+            if (caja) addCompRowWithData(n, caja, 1);
+
+            // Mano de Obra Exterior
+            let moBase = DATA.componentes.find(c => c.Id == 93);
+            if (moBase) addCompRowWithData(n, moBase, 1);
+            if (m2 > 4) {
+                let moPlus = DATA.componentes.find(c => c.Id == 95);
+                if (moPlus) addCompRowWithData(n, moPlus, 1);
+            }
+            let moGuias = DATA.componentes.find(c => c.Id == 97);
+            if (moGuias) addCompRowWithData(n, moGuias, 1);
+
+        } else if (accion === 'manual_antognetti') {
+            // Eje 70mm
+            let eje = DATA.componentes.find(c => c.Id == 150);
+            if (eje) addCompRowWithData(n, eje, parseFloat(ancho.toFixed(2)));
+
+            // Polea (151/152)
+            let poleaId = m2 <= 1.5 ? 151 : 152;
+            let polea = DATA.componentes.find(c => c.Id == poleaId);
+            if (polea) addCompRowWithData(n, polea, 1);
+
+            // Tacos
+            let tacos = DATA.componentes.find(c => c.Id == 153);
+            if (tacos) addCompRowWithData(n, tacos, 2);
+
+            // Puntas de eje
+            let puntas = DATA.componentes.find(c => c.Id == 154);
+            if (puntas) addCompRowWithData(n, puntas, 1);
+
+            // Caño cinta (alto + 0.5)
+            let cano = DATA.componentes.find(c => c.Id == 156);
+            if (cano) addCompRowWithData(n, cano, parseFloat((alto + 0.5).toFixed(2)));
+
+            // Juego de soportes (129)
+            let soportes = DATA.componentes.find(c => c.Id == 129);
+            if (soportes) addCompRowWithData(n, soportes, 2);
+
+            // Guías Aluminio (63)
+            let guias = DATA.componentes.find(c => c.Id == 63);
+            if (guias) addCompRowWithData(n, guias, parseFloat((alto * 2).toFixed(2)));
+
+            // Antognetti (136/137)
+            let antId = m2 <= 1.5 ? 136 : 137;
+            let antognetti = DATA.componentes.find(c => c.Id == antId);
+            if (antognetti) addCompRowWithData(n, antognetti, 1);
+
+            // Mano de Obra Exterior
+            let moBase = DATA.componentes.find(c => c.Id == 93);
+            if (moBase) addCompRowWithData(n, moBase, 1);
+            if (m2 > 4) {
+                let moPlus = DATA.componentes.find(c => c.Id == 95);
+                if (moPlus) addCompRowWithData(n, moPlus, 1);
+            }
+            let moGuias = DATA.componentes.find(c => c.Id == 97);
+            if (moGuias) addCompRowWithData(n, moGuias, 1);
+        }
+    } else if (cat === 'Interior') {
+        // Mano de obra Interior
+        let moBase = DATA.componentes.find(c => c.Id == 92);
+        if (moBase) addCompRowWithData(n, moBase, 1);
     }
 
     recalcUnidad(n);
