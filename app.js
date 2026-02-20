@@ -810,10 +810,11 @@ async function generarPDF(presId) {
                         <img src="logo-pdf.png" alt="Persiana Total">
                     </div>
                     <div class="pdf-company-info">
-                        <h2>PERSIANA TOTAL</h2>
-                        <p>Tel: +54 9 342 123-4567</p>
-                        <p>Santa Fe, Argentina</p>
-                        <p>info@persianatotal.com.ar</p>
+                        <h3>PRESUPUESTO #\${pres.Numero || '-'}</h3>
+                        <p>Tel: 0342 4895492</p>
+                        <p>WhatsApp: 3426393439</p>
+                        <p>persianatotal@hotmail.com</p>
+                        <p>www.persianatotal.com.ar</p>
                     </div>
                 </div>
 
@@ -866,9 +867,7 @@ async function generarPDF(presId) {
                 html += `<li style="margin-bottom: 4px;">${cleanLabel(l.Descripcion_pdf || 'Item')}</li>`;
             }
             // Add descriptive MO text
-            if (hasMO) html += `<li style="margin-bottom: 4px;">Incluye instalación completa</li>`;
-            if (hasMotorMO) html += `<li style="margin-bottom: 4px;">Incluye instalación de motor</li>`;
-            if (hasGuiasMO) html += `<li style="margin-bottom: 4px;">Incluye instalación de guías</li>`;
+            if (hasMO || hasMotorMO || hasGuiasMO) html += `<li style="margin-bottom: 4px;">Incluye instalación completa</li>`;
 
             html += `
                     </ul>
