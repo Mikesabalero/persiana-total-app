@@ -821,7 +821,7 @@ async function generarPDF(presId) {
                         <img src="logo-pdf.png" alt="Persiana Total">
                     </div>
                     <div class="pdf-company-info">
-                        <h3>PRESUPUESTO #\${pres.Numero || '-'}</h3>
+                        <h3>PRESUPUESTO #${pres.Numero || '-'}</h3>
                         <p>Tel: 0342 4895492</p>
                         <p>WhatsApp: 3426393439</p>
                         <p>persianatotal@hotmail.com</p>
@@ -983,6 +983,10 @@ async function fetchBudgetDeepData(presId) {
             if (prodLink) {
                 u._productoId = prodLink.Id || prodLink.id;
                 u._productoNombre = prodLink.Nombre || prodLink.Title || '';
+            } else if (u.Producto_base && typeof u.Producto_base === 'number') {
+                u._productoId = u.Producto_base;
+                let prod = DATA.productos.find(p => p.Id == u.Producto_base);
+                if (prod) u._productoNombre = prod.Nombre || '';
             }
             presUnidades.push(u);
         }
