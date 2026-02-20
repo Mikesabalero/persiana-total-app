@@ -458,14 +458,15 @@ function autoLoadComponents(n) {
         let tipoRep = document.getElementById('u-' + n + '-tiporep')?.value;
         if (!tipoRep) { recalcUnidad(n); return; }
 
-        let materialCostTotal = 0;
+        let materialPriceTotal = 0;
         const addRepairComp = (id, qty) => {
             let comp = DATA.componentes.find(c => c.Id == id);
             if (comp) {
                 addCompRowWithData(n, comp, qty);
                 let tc = DATA.tc.Dolar_oficial || 1150;
                 let costoArs = (comp.Moneda_costo === 'USD' ? comp.Costo_unitario * tc : comp.Costo_unitario) || 0;
-                materialCostTotal += costoArs * qty;
+                let precioUnit = costoArs * (1 + (comp.Margen_default || 40) / 100);
+                materialPriceTotal += precioUnit * qty;
             }
         };
 
@@ -491,8 +492,8 @@ function autoLoadComponents(n) {
             addRepairComp(115, 1); // Bobinado
         }
 
-        // 3. Mano de Obra (50% COSTO materiales, min 40k)
-        let moPrecio = Math.max(materialCostTotal * 0.5, 40000);
+        // 3. Mano de Obra (50% PRECIO materiales, min 40k)
+        let moPrecio = Math.max(materialPriceTotal * 0.5, 40000);
 
         // Add custom labor row
         let moRow = document.createElement('tr');
