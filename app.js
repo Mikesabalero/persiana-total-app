@@ -20,7 +20,18 @@ function closeDetail() { document.getElementById('panel-cliente').classList.remo
 function closeVerPres() { document.getElementById('modal-ver-pres').classList.remove('show'); }
 function resolveLink(row, field) { let v = row[field]; if (!v) return null; if (typeof v === 'object' && Array.isArray(v) && v.length > 0) return v[0]; if (typeof v === 'object' && v.Id) return v; return null; }
 function resolveName(row, field, list, idField) { let link = resolveLink(row, field); if (!link) return '-'; let id = link.Id || link.id || link; let found = list.find(i => i.Id == id); return found ? found.Nombre || found.Title || '-' : '-'; }
-function cleanLabel(text) { if (!text || typeof text !== 'string') return text || ''; return text.replace(/_/g, ' '); }
+function cleanLabel(text) {
+    if (!text || typeof text !== 'string') return text || '';
+    let s = text.replace(/_/g, ' ');
+    const acentos = {
+        'Instalacion nueva': 'Instalación nueva',
+        'Cambio pano': 'Cambio paño',
+        'Motorizacion': 'Motorización',
+        'Cambio guias': 'Cambio guías',
+        'Reparacion': 'Reparación',
+    };
+    return acentos[s] || s;
+}
 async function loadAll() {
     DATA.tc = (await apiGet(TBL.tc, '&where=(Vigente,eq,true)'))[0] || { Dolar_oficial: 1150 };
     DATA.clientes = await apiGet(TBL.clientes);
