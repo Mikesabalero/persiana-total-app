@@ -324,10 +324,14 @@ function addUnidadUI(n, uData) {
     let cat = getCategoria(selectedProd);
     let hideAccion = (cat === 'Seguridad') ? 'display:none' : '';
 
+    let tipoRep = uData ? (uData.Tipo_reparacion || '') : '';
+    let showRep = (tipo == 'Reparacion' || tipo == 'Service') ? 'display:block' : 'display:none';
+
     let html = '<div class="unidad-card" id="unidad-' + n + '" data-db-id="' + uId + '"><div class="unidad-header"><h3>Unidad ' + n + '</h3><div style="display:flex;gap:8px;align-items:center"><span class="unidad-subtotal" id="sub-u-' + n + '">$0</span><button class="btn-remove" onclick="removeUnidad(' + n + ')" title="Eliminar">🗑</button></div></div>';
     html += '<div class="form-row" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;"><div class="form-group"><label>Ambiente</label><input id="u-' + n + '-nombre" placeholder="Ej: Dormitorio principal" value="' + nombre + '"></div>';
     html += '<div class="form-group"><label>Ubicación</label><input id="u-' + n + '-ubic" placeholder="Ej: Contra frente" value="' + ubic + '"></div>';
-    html += '<div class="form-group"><label>Tipo Trabajo</label><select id="u-' + n + '-tipo"><option value="Instalacion_nueva" ' + (tipo == 'Instalacion_nueva' ? 'selected' : '') + '>Instalación nueva</option><option value="Cambio_pano" ' + (tipo == 'Cambio_pano' ? 'selected' : '') + '>Cambio paño</option><option value="Motorizacion" ' + (tipo == 'Motorizacion' ? 'selected' : '') + '>Motorización</option><option value="Cambio_guias" ' + (tipo == 'Cambio_guias' ? 'selected' : '') + '>Cambio guías</option><option value="Reparacion" ' + (tipo == 'Reparacion' ? 'selected' : '') + '>Reparación</option><option value="Service" ' + (tipo == 'Service' ? 'selected' : '') + '>Service</option><option value="Otro" ' + (tipo == 'Otro' ? 'selected' : '') + '>Otro</option></select></div>';
+    html += '<div class="form-group"><label>Tipo Trabajo</label><select id="u-' + n + '-tipo" onchange="autoLoadComponents(' + n + ')"><option value="Instalacion_nueva" ' + (tipo == 'Instalacion_nueva' ? 'selected' : '') + '>Instalación nueva</option><option value="Cambio_pano" ' + (tipo == 'Cambio_pano' ? 'selected' : '') + '>Cambio paño</option><option value="Motorizacion" ' + (tipo == 'Motorizacion' ? 'selected' : '') + '>Motorización</option><option value="Cambio_guias" ' + (tipo == 'Cambio_guias' ? 'selected' : '') + '>Cambio guías</option><option value="Reparacion" ' + (tipo == 'Reparacion' ? 'selected' : '') + '>Reparación</option><option value="Service" ' + (tipo == 'Service' ? 'selected' : '') + '>Service</option><option value="Otro" ' + (tipo == 'Otro' ? 'selected' : '') + '>Otro</option></select></div>';
+    html += '<div class="form-group" style="' + showRep + '" id="div-u-' + n + '-tiporep"><label>Tipo Reparación</label><select id="u-' + n + '-tiporep" onchange="autoLoadComponents(' + n + ')"><option value="">-- Elegir reparación --</option><option value="cambio_eje" ' + (tipoRep == 'cambio_eje' ? 'selected' : '') + '>Cambio de eje</option><option value="cambio_cinta" ' + (tipoRep == 'cambio_cinta' ? 'selected' : '') + '>Cambio de cinta</option><option value="cambio_laterales" ' + (tipoRep == 'cambio_laterales' ? 'selected' : '') + '>Cambio de laterales</option><option value="cambio_resortes" ' + (tipoRep == 'cambio_resortes' ? 'selected' : '') + '>Cambio de resortes</option><option value="cambio_polea_tacos" ' + (tipoRep == 'cambio_polea_tacos' ? 'selected' : '') + '>Cambio polea, tacos y punteras</option><option value="bobinado_motor" ' + (tipoRep == 'bobinado_motor' ? 'selected' : '') + '>Bobinado de motor</option></select></div>';
     html += '<div class="form-group" style="' + hideAccion + '"><label>Accionamiento</label><select id="u-' + n + '-accion" onchange="autoLoadComponents(' + n + ')"><option value="motor" ' + (accion == 'motor' ? 'selected' : '') + '>Con motor</option><option value="manual_cinta" ' + (accion == 'manual_cinta' ? 'selected' : '') + '>Manual a cinta</option><option value="manual_antognetti" ' + (accion == 'manual_antognetti' ? 'selected' : '') + '>Manual Antognetti</option></select></div>';
     html += '<div class="form-group"><label>Producto Base</label><select id="u-' + n + '-prod" onchange="autoLoadComponents(' + n + ')">' + prodOpts + '</select></div></div>';
     html += '<div class="form-row" style="grid-template-columns:1fr 1fr 2fr"><div class="form-group"><label>Ancho (m)</label><input type="number" id="u-' + n + '-ancho" step="0.01" oninput="autoLoadComponents(' + n + ')" value="' + ancho + '"></div>';
@@ -401,6 +405,7 @@ function autoLoadComponents(n) {
     let ancho = parseFloat(document.getElementById('u-' + n + '-ancho')?.value) || 0;
     let alto = parseFloat(document.getElementById('u-' + n + '-alto')?.value) || 0;
 
+    let tipoTrabajo = document.getElementById('u-' + n + '-tipo')?.value;
     if (!prodId) { tbody.innerHTML = ''; recalcUnidad(n); return; }
 
     let pid = parseInt(prodId);
@@ -410,13 +415,18 @@ function autoLoadComponents(n) {
     let accSelect = document.getElementById('u-' + n + '-accion');
     let accion = accSelect ? accSelect.value : 'motor';
 
-    // Accionamiento visibility & value enforcement
+    // UI visibility management
+    let divTipoRep = document.getElementById('div-u-' + n + '-tiporep');
+    if (divTipoRep) divTipoRep.style.display = (tipoTrabajo === 'Reparacion' || tipoTrabajo === 'Service') ? 'block' : 'none';
+
     if (accSelect) {
         let accDiv = accSelect.parentElement;
         if (cat === 'Seguridad') {
             accDiv.style.display = 'none';
             accSelect.value = 'motor';
             accion = 'motor';
+        } else if (tipoTrabajo === 'Reparacion' || tipoTrabajo === 'Service') {
+            accDiv.style.display = 'none'; // No accionamiento for repairs usually
         } else {
             accDiv.style.display = 'block';
         }
@@ -428,16 +438,75 @@ function autoLoadComponents(n) {
 
     tbody.innerHTML = '';
 
-    // 1. Material/Paño (Common)
-    let matCompId = PROD_COMP_MAP[pid];
-    if (matCompId) {
-        let matComp = DATA.componentes.find(c => c.Id == matCompId);
-        if (matComp) addCompRowWithData(n, matComp, m2 > 0 ? parseFloat(m2.toFixed(2)) : 1);
+    // 1. Material/Paño (Common for Base products)
+    if (tipoTrabajo !== 'Reparacion' && tipoTrabajo !== 'Service') {
+        let matCompId = PROD_COMP_MAP[pid];
+        if (matCompId) {
+            let matComp = DATA.componentes.find(c => c.Id == matCompId);
+            if (matComp) addCompRowWithData(n, matComp, m2 > 0 ? parseFloat(m2.toFixed(2)) : 1);
+        }
     }
 
-    if (!ancho || !alto) { recalcUnidad(n); return; }
+    if (tipoTrabajo === 'Reparacion' || tipoTrabajo === 'Service') {
+        // --- LOGICA REPARACIONES ---
+        let tipoRep = document.getElementById('u-' + n + '-tiporep')?.value;
+        if (!tipoRep) { recalcUnidad(n); return; }
 
-    if (cat === 'Seguridad') {
+        let materialTotal = 0;
+        const addRepairComp = (id, qty) => {
+            let comp = DATA.componentes.find(c => c.Id == id);
+            if (comp) {
+                addCompRowWithData(n, comp, qty);
+                let tc = DATA.tc.Dolar_oficial || 1150;
+                let costoArs = (comp.Moneda_costo === 'USD' ? comp.Costo_unitario * tc : comp.Costo_unitario) || 0;
+                let precio = costoArs * (1 + (comp.Margen_default || 40) / 100);
+                materialTotal += precio * qty;
+            }
+        };
+
+        if (tipoRep === 'cambio_eje') {
+            addRepairComp(150, parseFloat(ancho.toFixed(2))); // Eje 70mm
+            addRepairComp(154, 1); // Puntas
+            addRepairComp(153, 2); // Tacos
+            let poleaId = m2 <= 1.5 ? 151 : 152;
+            addRepairComp(poleaId, 1);
+        } else if (tipoRep === 'cambio_cinta') {
+            addRepairComp(155, parseFloat((alto + 0.5).toFixed(2))); // Cinta
+        } else if (tipoRep === 'cambio_laterales') {
+            addRepairComp(159, parseFloat(m2.toFixed(2))); // Laterales
+            addRepairComp(160, 1); // Flejes
+        } else if (tipoRep === 'cambio_resortes') {
+            addRepairComp(158, 1); // Resorte
+        } else if (tipoRep === 'cambio_polea_tacos') {
+            let poleaId = m2 <= 1.5 ? 151 : 152;
+            addRepairComp(poleaId, 1);
+            addRepairComp(153, 2); // Tacos
+            addRepairComp(154, 1); // Puntas
+        } else if (tipoRep === 'bobinado_motor') {
+            addRepairComp(115, 1); // Bobinado
+        }
+
+        // 3. Mano de Obra (50% materiales, min 40k)
+        let moPrecio = Math.max(materialTotal * 0.5, 40000);
+        let moComp = DATA.componentes.find(c => c.Id == 93);
+        if (moComp) addCompRowWithData(n, moComp, 1, null, moPrecio);
+
+        // 4. Viático (Check if already added in any unit)
+        let hasViatico = false;
+        document.querySelectorAll('tbody[id^="comps-u-"] tr').forEach(row => {
+            let sel = row.querySelector('select');
+            if (sel && [138, 139, 140, 141, 142, 143].includes(parseInt(sel.value))) hasViatico = true;
+        });
+
+        if (!hasViatico) {
+            let zonaId = document.getElementById('np-zona')?.value;
+            let viaticoMap = { '1': 138, '2': 139, '3': 140, '4': 141, '5': 142, '6': 143 };
+            let vId = viaticoMap[zonaId] || 143;
+            let vComp = DATA.componentes.find(c => c.Id == vId);
+            if (vComp) addCompRowWithData(n, vComp, 1);
+        }
+
+    } else if (cat === 'Seguridad') {
         // --- LOGICA SEGURIDAD ---
         let motorId = selectMotor(cat, peso, ancho, m2);
         if (motorId) {
@@ -623,13 +692,13 @@ function addCompRow(n) {
     row.innerHTML = '<td><select onchange="compSelected(this,' + n + ')" style="min-width:160px">' + compOpts + '</select></td><td><input type="number" value="1" step="0.01" style="width:60px" oninput="recalcUnidad(' + n + ')"></td><td class="c-costo hide-margin">0</td><td class="c-moneda hide-margin">-</td><td class="hide-margin"><input type="number" value="40" style="width:60px" oninput="recalcUnidad(' + n + ')"></td><td class="c-precio">$0</td><td class="c-subtotal">$0</td><td class="c-iva">21%</td><td><button class="btn-remove" onclick="this.closest(\'tr\').remove();recalcUnidad(' + n + ')">✕</button></td>';
     tbody.appendChild(row);
 }
-function addCompRowWithData(n, comp, qty, lineId = null) {
+function addCompRowWithData(n, comp, qty, lineId = null, forcedPrice = null) {
     let tc = DATA.tc.Dolar_oficial || 1150;
     let costo = comp.Costo_unitario || 0;
     let moneda = comp.Moneda_costo || 'ARS';
     let margen = comp.Margen_default || 40;
     let costoArs = moneda === 'USD' ? costo * tc : costo;
-    let precio = costoArs * (1 + margen / 100);
+    let precio = forcedPrice !== null ? forcedPrice : (costoArs * (1 + margen / 100));
     let iva = comp.Alicuota_IVA_venta || '21';
     let compOpts = '';
     // If we have an ID, we select it. If not (text only), we just show all and maybe select none or first?
@@ -768,6 +837,7 @@ async function savePres() {
             Nombre: document.getElementById('u-' + n + '-nombre')?.value || 'Unidad ' + n,
             Ubicacion: document.getElementById('u-' + n + '-ubic')?.value || '',
             Tipo_trabajo: document.getElementById('u-' + n + '-tipo')?.value || 'Otro',
+            Tipo_reparacion: document.getElementById('u-' + n + '-tiporep')?.value || null,
             Ancho_m: parseFloat(document.getElementById('u-' + n + '-ancho')?.value) || null,
             Alto_m: parseFloat(document.getElementById('u-' + n + '-alto')?.value) || null,
             Accionamiento: document.getElementById('u-' + n + '-accion')?.value || 'motor',
@@ -1015,11 +1085,35 @@ async function generarPDF(presId) {
                     <ul style="margin: 0; padding-left: 25px; font-size: 1em; color: #374151; list-style-type: disc;">
             `;
 
+            let isRepair = u.Tipo_trabajo === 'Reparacion' || u.Tipo_trabajo === 'Service';
+            let repairLabels = {
+                'cambio_eje': 'Cambio de eje completo',
+                'cambio_cinta': 'Cambio de cinta',
+                'cambio_laterales': 'Cambio de laterales y flejes',
+                'cambio_resortes': 'Cambio de resortes',
+                'cambio_polea_tacos': 'Cambio de polea, tacos y punteras',
+                'bobinado_motor': 'Bobinado de motor'
+            };
+
+            if (isRepair) {
+                let repName = repairLabels[u.Tipo_reparacion] || 'Reparación / Service';
+                html += `<li style="margin-bottom: 4px;">${repName}</li>`;
+            }
+
             // Mano_obra descriptive labels for PDF
             let hasMO = false, hasMotorMO = false, hasGuiasMO = false;
             for (let l of unitLines) {
                 let compObj = l._componenteId ? DATA.componentes.find(c => c.Id == l._componenteId) : null;
                 let tipoComp = compObj ? compObj.Tipo_componente : '';
+
+                // If repair, skip materials and labor (already grouped), but KEEP travel fees (Viáticos)
+                if (isRepair) {
+                    if (compObj && compObj.Nombre && compObj.Nombre.toLowerCase().includes('viático')) {
+                        html += `<li style="margin-bottom: 4px;">${cleanLabel(l.Descripcion_pdf || 'Viático')}</li>`;
+                    }
+                    continue;
+                }
+
                 if (tipoComp === 'Mano_obra') {
                     // Track which MO items exist for descriptive text
                     if (compObj.Id == 92 || compObj.Id == 93 || compObj.Id == 94) hasMO = true;
@@ -1030,8 +1124,8 @@ async function generarPDF(presId) {
                 }
                 html += `<li style="margin-bottom: 4px;">${cleanLabel(l.Descripcion_pdf || 'Item')}</li>`;
             }
-            // Add descriptive MO text
-            if (hasMO || hasMotorMO || hasGuiasMO) html += `<li style="margin-bottom: 4px;">Incluye instalación completa</li>`;
+            // Add descriptive MO text (only for non-repairs)
+            if (!isRepair && (hasMO || hasMotorMO || hasGuiasMO)) html += `<li style="margin-bottom: 4px;">Incluye instalación completa</li>`;
 
             html += `
                     </ul>
