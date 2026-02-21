@@ -25,7 +25,7 @@ const REPAIR_LABELS = {
     'cambio_cinta': 'Cambio de cinta',
     'cambio_laterales': 'Cambio de laterales y flejes',
     'cambio_resortes': 'Cambio de resortes',
-    'cambio_polea_tacos': 'Cambio de polea, tacos y punteras',
+    'cambio_polea_tacos': 'Cambio polea, tacos y punteras',
     'bobinado_motor': 'Bobinado de motor'
 };
 
@@ -317,10 +317,10 @@ function addUnidadUI(n, uData) {
     let uId = uData ? uData.Id : '';
     let selectedProd = uData ? uData._productoId : '';
 
-    let prodItems = '';
+    let prodOpts = '<option value="">Seleccionar producto...</option>';
     DATA.productos.forEach(p => {
-        let selClass = (selectedProd && String(p.Id) == String(selectedProd)) ? 'selected' : '';
-        prodItems += `<div class="search-item ${selClass}" onclick="selectProduct(${n}, ${p.Id}, '${cleanLabel(p.Nombre)}')">${cleanLabel(p.Nombre)}</div>`;
+        let sel = (selectedProd && String(p.Id) == String(selectedProd)) ? 'selected' : '';
+        prodOpts += `<option value="${p.Id}" ${sel}>${cleanLabel(p.Nombre)}</option>`;
     });
 
     let nombre = uData ? uData.Nombre : '';
@@ -342,11 +342,10 @@ function addUnidadUI(n, uData) {
     html += '<div class="form-group"><label>Tipo Trabajo</label><select id="u-' + n + '-tipo" onchange="autoLoadComponents(' + n + ')"><option value="Instalacion_nueva" ' + (tipo == 'Instalacion_nueva' ? 'selected' : '') + '>Instalación nueva</option><option value="Cambio_pano" ' + (tipo == 'Cambio_pano' ? 'selected' : '') + '>Cambio paño</option><option value="Motorizacion" ' + (tipo == 'Motorizacion' ? 'selected' : '') + '>Motorización</option><option value="Cambio_guias" ' + (tipo == 'Cambio_guias' ? 'selected' : '') + '>Cambio guías</option><option value="Reparacion" ' + (tipo == 'Reparacion' ? 'selected' : '') + '>Reparación</option><option value="Service" ' + (tipo == 'Service' ? 'selected' : '') + '>Service</option><option value="Otro" ' + (tipo == 'Otro' ? 'selected' : '') + '>Otro</option></select></div>';
     html += '<div class="form-group" style="' + showRep + '" id="div-u-' + n + '-tiporep"><label>Tipo Reparación</label><select id="u-' + n + '-tiporep" onchange="autoLoadComponents(' + n + ')"><option value="">-- Elegir reparación --</option><option value="cambio_eje" ' + (tipoRep == 'cambio_eje' ? 'selected' : '') + '>Cambio de eje</option><option value="cambio_cinta" ' + (tipoRep == 'cambio_cinta' ? 'selected' : '') + '>Cambio de cinta</option><option value="cambio_laterales" ' + (tipoRep == 'cambio_laterales' ? 'selected' : '') + '>Cambio de laterales</option><option value="cambio_resortes" ' + (tipoRep == 'cambio_resortes' ? 'selected' : '') + '>Cambio de resortes</option><option value="cambio_polea_tacos" ' + (tipoRep == 'cambio_polea_tacos' ? 'selected' : '') + '>Cambio polea, tacos y punteras</option><option value="bobinado_motor" ' + (tipoRep == 'bobinado_motor' ? 'selected' : '') + '>Bobinado de motor</option></select></div>';
     html += '<div class="form-group" style="' + hideAccion + '"><label>Accionamiento</label><select id="u-' + n + '-accion" onchange="autoLoadComponents(' + n + ')"><option value="motor" ' + (accion == 'motor' ? 'selected' : '') + '>Con motor</option><option value="manual_cinta" ' + (accion == 'manual_cinta' ? 'selected' : '') + '>Manual a cinta</option><option value="manual_antognetti" ' + (accion == 'manual_antognetti' ? 'selected' : '') + '>Manual Antognetti</option></select></div>';
-    html += '<div class="form-group searchable-select"><label>Producto Base</label>';
-    let selectedProdName = selectedProd ? cleanLabel(DATA.productos.find(p => String(p.Id) == String(selectedProd))?.Nombre || '') : '';
-    html += '<input type="text" id="u-' + n + '-prod-search" placeholder="Buscar producto..." oninput="filterProducts(' + n + ')" onfocus="showProducts(' + n + ')" value="' + selectedProdName + '" autocomplete="off">';
-    html += '<input type="hidden" id="u-' + n + '-prod" value="' + selectedProd + '">';
-    html += '<div id="u-' + n + '-prod-list" class="searchable-dropdown">' + prodItems + '</div></div></div>';
+    html += '<div class="form-group"><label>Producto Base</label>';
+    html += `<input type="text" class="filter-input" placeholder="Buscar producto..." oninput="filterProductSelect(${n}, this.value)">`;
+    html += `<select id="u-${n}-prod" onchange="autoLoadComponents(${n})">${prodOpts}</select>`;
+    html += '</div></div>';
     html += '<div class="form-row" style="grid-template-columns:1fr 1fr 2fr"><div class="form-group"><label>Ancho (m)</label><input type="number" id="u-' + n + '-ancho" step="0.01" oninput="autoLoadComponents(' + n + ')" value="' + ancho + '"></div>';
     html += '<div class="form-group"><label>Alto (m)</label><input type="number" id="u-' + n + '-alto" step="0.01" oninput="autoLoadComponents(' + n + ')" value="' + alto + '"></div><div></div></div>';
     html += '<table class="comp-table"><thead><tr><th>Componente</th><th>Cant.</th><th class="hide-margin">Costo</th><th class="hide-margin">Moneda</th><th class="hide-margin">Margen%</th><th>Precio Unit.</th><th>Subtotal</th><th>IVA%</th><th></th></tr></thead><tbody id="comps-u-' + n + '"></tbody></table>';
@@ -357,35 +356,14 @@ function addUnidadUI(n, uData) {
 
 function removeUnidad(n) { document.getElementById('unidad-' + n)?.remove(); recalcTotal(); }
 
-// ===== SEARCHABLE PRODUCT SELECTOR FUNCTIONS =====
-function filterProducts(n) {
-    let input = document.getElementById('u-' + n + '-prod-search');
-    let filter = input.value.toLowerCase();
-    let div = document.getElementById('u-' + n + '-prod-list');
-    let items = div.getElementsByClassName('search-item');
-    div.classList.add('show');
-    for (let i = 0; i < items.length; i++) {
-        let txtValue = items[i].textContent || items[i].innerText;
-        items[i].style.display = txtValue.toLowerCase().indexOf(filter) > -1 ? "" : "none";
-    }
-}
-
-function selectProduct(n, id, name) {
-    document.getElementById('u-' + n + '-prod').value = id;
-    document.getElementById('u-' + n + '-prod-search').value = name;
-    document.getElementById('u-' + n + '-prod-list').classList.remove('show');
-    // Highlight selected
-    let items = document.getElementById('u-' + n + '-prod-list').getElementsByClassName('search-item');
-    for (let i = 0; i < items.length; i++) {
-        items[i].classList.toggle('selected', items[i].getAttribute('onclick').includes(id));
-    }
-    autoLoadComponents(n);
-}
-
-function showProducts(n) {
-    // Hide others first
-    document.querySelectorAll('.searchable-dropdown').forEach(d => d.classList.remove('show'));
-    document.getElementById('u-' + n + '-prod-list').classList.add('show');
+function filterProductSelect(n, val) {
+    let sel = document.getElementById('u-' + n + '-prod');
+    let filter = val.toLowerCase();
+    Array.from(sel.options).forEach(opt => {
+        if (!opt.value) return; // Skip "Seleccionar..."
+        let txt = opt.textContent.toLowerCase();
+        opt.style.display = txt.includes(filter) ? '' : 'none';
+    });
 }
 
 // ===== AUTO-LOAD COMPONENTS =====
@@ -478,18 +456,13 @@ function autoLoadComponents(n) {
         }
     }
     if (prodSelect) {
-        // Hidden for: Reparacion, Cambio_guias
         prodSelect.closest('.form-group').style.display = (isRep || isGuias) ? 'none' : 'block';
     }
 
-    // EARLY RETURN logic - refined
-    // If not repair and not guias, we NEED a product.
     if (!isRep && !isGuias && !prodId) {
         console.log("Early return: No prodId and not Rep/Guias");
         tbody.innerHTML = ''; recalcUnidad(n); return;
     }
-
-    // For Guias, if no cat (because prod hidden), we might need a default or bail if no measures.
     if (isGuias && (!ancho || !alto)) {
         console.log("Early return: Guias without measurements");
         tbody.innerHTML = ''; recalcUnidad(n); return;
@@ -504,13 +477,10 @@ function autoLoadComponents(n) {
 
     tbody.innerHTML = '';
 
-    console.log(`Lógica: isRep=${isRep}, isMotor=${isMotor}, isPano=${isPano}, isGuias=${isGuias}, cat=${cat}`);
-
-    // --- HELPERS ---
     const addCustomLabor = (label, price) => {
         let moRow = document.createElement('tr');
         moRow.innerHTML = `
-            <td><select disabled><option>${label}</option></select></td>
+            <td><input list="none" value="${label}" disabled class="filter-input"></td>
             <td><input type="number" value="1" step="0.01" style="width:60px" oninput="recalcUnidad(${n})"></td>
             <td class="c-costo hide-margin">${price.toFixed(2)}</td>
             <td class="c-moneda hide-margin">ARS</td>
@@ -538,10 +508,8 @@ function autoLoadComponents(n) {
     };
 
     if (isRep) {
-        console.log("Hit: Reparacion block");
         let tipoRep = document.getElementById('u-' + n + '-tiporep')?.value;
         if (!tipoRep) { recalcUnidad(n); return; }
-
         if (tipoRep === 'cambio_eje') {
             addCompWithPrice(150, parseFloat(ancho.toFixed(2)));
             addCompWithPrice(154, 1);
@@ -561,10 +529,8 @@ function autoLoadComponents(n) {
         } else if (tipoRep === 'bobinado_motor') {
             addCompWithPrice(115, 1);
         }
-
         addCustomLabor("Mano de obra reparación", Math.max(materialPriceTotal * 0.5, 40000));
-
-        let hasViatico = Array.from(document.querySelectorAll('tbody[id^="comps-u-"] tr select')).some(s => [138, 139, 140, 141, 142, 143].includes(parseInt(s.value)));
+        let hasViatico = Array.from(tbody.querySelectorAll('input.filter-input')).some(i => i.value.toLowerCase().includes('viatico'));
         if (!hasViatico) {
             let zonaId = document.getElementById('np-zona')?.value;
             let zonaObj = DATA.zonas.find(z => z.Id == zonaId);
@@ -578,73 +544,51 @@ function autoLoadComponents(n) {
             let vComp = DATA.componentes.find(c => c.Id == vId);
             if (vComp) addCompRowWithData(n, vComp, 1);
         }
-
     } else if (isMotor) {
-        console.log("Hit: Motorizacion block");
         let motorId = selectMotor(cat, peso, ancho, m2);
         if (motorId) {
             addCompRowWithData(n, DATA.componentes.find(c => c.Id == motorId), 1);
             if (cat === 'Seguridad') {
-                let ejeId = (motorId === 55) ? 147 : ([50, 51].includes(motorId) ? 148 : ([52, 53, 54].includes(motorId) ? 149 : 147));
-                addCompRowWithData(n, DATA.componentes.find(c => c.Id == ejeId), parseFloat(ancho.toFixed(2)));
+                let ejeId = motorId === 55 ? 147 : ([50, 51].includes(motorId) ? 148 : ([52, 53, 54].includes(motorId) ? 149 : 147));
+                addCompWithPrice(ejeId, parseFloat(ancho.toFixed(2)));
             } else {
-                addCompRowWithData(n, DATA.componentes.find(c => c.Id == 150), parseFloat(ancho.toFixed(2)));
-                if (pid === 27 || pid === 29) {
-                    let cora = DATA.componentes.find(c => c.Id == 161);
-                    if (cora) addCompRowWithData(n, cora, Math.ceil(ancho / 0.4));
-                }
+                addCompWithPrice(150, parseFloat(ancho.toFixed(2)));
+                if (pid === 27 || pid === 29) addCompWithPrice(161, Math.ceil(ancho / 0.4));
             }
         }
-        addCompRowWithData(n, DATA.componentes.find(c => c.Id == 58), 1); // Kit Remoto
-        addCompRowWithData(n, DATA.componentes.find(c => c.Id == 102), 1); // Base motor
-        if (m2 > 4) addCompRowWithData(n, DATA.componentes.find(c => c.Id == 95), 1); // Plus tamaño
-        addCompRowWithData(n, DATA.componentes.find(c => c.Id == 103), 1); // Plus cableado
-
+        addCompWithPrice(58, 1); addCompWithPrice(102, 1);
+        if (m2 > 4) addCompWithPrice(95, 1);
+        addCompWithPrice(103, 1);
     } else if (isPano) {
-        console.log("Hit: Cambio Paño block");
         let matCompId = PROD_COMP_MAP[pid];
         if (matCompId) {
             addCompWithPrice(matCompId, m2);
             if (cat === 'Exterior') {
-                addCompWithPrice(155, parseFloat((alto + 0.5).toFixed(2))); // Cinta
-                if (pid === 27 || pid === 29) addCompWithPrice(161, Math.ceil(ancho / 0.4)); // Corazón
+                addCompWithPrice(155, parseFloat((alto + 0.5).toFixed(2)));
+                if (pid === 27 || pid === 29) addCompWithPrice(161, Math.ceil(ancho / 0.4));
             }
         }
         addCustomLabor("Mano de obra cambio paño", Math.max(materialPriceTotal * 0.5, 40000));
-
     } else if (isGuias) {
-        console.log("Hit: Cambio Guias block");
-        // NOTE: if cat is null because product hidden, we assume Exterior or default?
-        // Let's check cat, if null we could use Exterior as default fallback for Guias
         let effectiveCat = cat || 'Exterior';
-        if (effectiveCat === 'Seguridad') {
-            addCompWithPrice(ancho < 5 ? 60 : 61, parseFloat((alto * 2).toFixed(2)));
-        } else {
-            addCompWithPrice(63, parseFloat((alto * 2).toFixed(2)));
-        }
+        if (effectiveCat === 'Seguridad') addCompWithPrice(ancho < 5 ? 60 : 61, parseFloat((alto * 2).toFixed(2)));
+        else addCompWithPrice(63, parseFloat((alto * 2).toFixed(2)));
         addCustomLabor("Mano de obra cambio guías", Math.max(materialPriceTotal * 0.5, 40000));
-
     } else {
-        console.log("Hit: Instalacion Nueva block");
         let matCompId = PROD_COMP_MAP[pid];
-        // Only add material PAÑO for Instalacion_nueva. (Cambio_pano is handled in its own block)
-        if (matCompId && tipoTrabajo === 'Instalacion_nueva') {
-            addCompRowWithData(n, DATA.componentes.find(c => c.Id == matCompId), m2 > 0 ? parseFloat(m2.toFixed(2)) : 1);
-        }
-
+        if (matCompId) addCompRowWithData(n, DATA.componentes.find(c => c.Id == matCompId), m2 > 0 ? parseFloat(m2.toFixed(2)) : 1);
         if (cat === 'Seguridad') {
             let motorId = selectMotor(cat, peso, ancho, m2);
             if (motorId) {
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == motorId), 1);
-                let ejeId = motorId === 55 ? 147 : ([50, 51].includes(motorId) ? 148 : ([52, 53, 54].includes(motorId) ? 149 : 147));
+                let ejeId = motorId === 55 ? 147 : ([50, 51].includes(motorId) ? 148 : 147);
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == ejeId), parseFloat(ancho.toFixed(2)));
             }
             addCompRowWithData(n, DATA.componentes.find(c => c.Id == (ancho < 5 ? 60 : 61)), 1);
-            addCompRowWithData(n, DATA.componentes.find(c => c.Id == 58), 1);
-            addCompRowWithData(n, DATA.componentes.find(c => c.Id == 94), 1);
-            if (m2 > 4) addCompRowWithData(n, DATA.componentes.find(c => c.Id == 95), 1);
-            if (motorId) addCompRowWithData(n, DATA.componentes.find(c => c.Id == 96), 1);
-            addCompRowWithData(n, DATA.componentes.find(c => c.Id == 97), 1);
+            addCompWithPrice(58, 1); addCompWithPrice(94, 1);
+            if (m2 > 4) addCompWithPrice(95, 1);
+            if (motorId) addCompWithPrice(96, 1);
+            addCompWithPrice(97, 1);
         } else if (cat === 'Exterior') {
             if (accion === 'motor') {
                 let motorId = selectMotor(cat, peso, ancho, m2);
@@ -652,53 +596,62 @@ function autoLoadComponents(n) {
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 150), parseFloat(ancho.toFixed(2)));
                 if (pid === 27 || pid === 29) addCompRowWithData(n, DATA.componentes.find(c => c.Id == 161), Math.ceil(ancho / 0.4));
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 63), parseFloat((alto * 2).toFixed(2)));
-                addCompRowWithData(n, DATA.componentes.find(c => c.Id == 58), 1);
-                addCompRowWithData(n, DATA.componentes.find(c => c.Id == 93), 1);
-                if (m2 > 4) addCompRowWithData(n, DATA.componentes.find(c => c.Id == 95), 1);
-                if (motorId) addCompRowWithData(n, DATA.componentes.find(c => c.Id == 96), 1);
-                addCompRowWithData(n, DATA.componentes.find(c => c.Id == 97), 1);
+                addCompWithPrice(58, 1); addCompWithPrice(93, 1);
+                if (m2 > 4) addCompWithPrice(95, 1);
+                if (motorId) addCompWithPrice(96, 1);
+                addCompWithPrice(97, 1);
             } else if (accion === 'manual_cinta') {
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 150), parseFloat(ancho.toFixed(2)));
-                if (pid === 27 || pid === 29) addCompRowWithData(n, DATA.componentes.find(c => c.Id == 161), Math.ceil(ancho / 0.4));
+                if (pid === 27 || pid === 29) addCompWithPrice(161, Math.ceil(ancho / 0.4));
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == (m2 <= 1.5 ? 151 : 152)), 1);
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 153), 2);
-                addCompRowWithData(n, DATA.componentes.find(c => c.Id == 154), 1);
-                addCompRowWithData(n, DATA.componentes.find(c => c.Id == 155), parseFloat((alto + 0.5).toFixed(2)));
+                addCompWithPrice(154, 1); addCompWithPrice(155, parseFloat((alto + 0.5).toFixed(2)));
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 129), 2);
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 63), parseFloat((alto * 2).toFixed(2)));
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == (alto <= 1.4 ? 120 : (alto <= 2.3 ? 121 : 122))), 1);
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == (alto <= 1.4 ? 126 : (alto <= 2.3 ? 127 : 157))), 1);
-                addCompRowWithData(n, DATA.componentes.find(c => c.Id == 93), 1);
-                if (m2 > 4) addCompRowWithData(n, DATA.componentes.find(c => c.Id == 95), 1);
-                addCompRowWithData(n, DATA.componentes.find(c => c.Id == 97), 1);
+                addCompWithPrice(93, 1);
+                if (m2 > 4) addCompWithPrice(95, 1);
+                addCompWithPrice(97, 1);
             } else if (accion === 'manual_antognetti') {
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 150), parseFloat(ancho.toFixed(2)));
-                if (pid === 27 || pid === 29) addCompRowWithData(n, DATA.componentes.find(c => c.Id == 161), Math.ceil(ancho / 0.4));
+                if (pid === 27 || pid === 29) addCompWithPrice(161, Math.ceil(ancho / 0.4));
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == (m2 <= 1.5 ? 151 : 152)), 1);
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 153), 2);
-                addCompRowWithData(n, DATA.componentes.find(c => c.Id == 154), 1);
-                addCompRowWithData(n, DATA.componentes.find(c => c.Id == 156), parseFloat((alto + 0.5).toFixed(2)));
+                addCompWithPrice(154, 1); addCompWithPrice(156, parseFloat((alto + 0.5).toFixed(2)));
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 129), 2);
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 63), parseFloat((alto * 2).toFixed(2)));
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == (m2 <= 1.5 ? 136 : 137)), 1);
-                addCompRowWithData(n, DATA.componentes.find(c => c.Id == 93), 1);
-                if (m2 > 4) addCompRowWithData(n, DATA.componentes.find(c => c.Id == 95), 1);
-                addCompRowWithData(n, DATA.componentes.find(c => c.Id == 97), 1);
+                addCompWithPrice(93, 1);
+                if (m2 > 4) addCompWithPrice(95, 1);
+                addCompWithPrice(97, 1);
             }
         } else if (cat === 'Interior' && tipoTrabajo === 'Instalacion_nueva') {
             addCompRowWithData(n, DATA.componentes.find(c => c.Id == 92), 1);
         }
     }
     recalcUnidad(n);
-    console.log(`>>> autoLoadComponents(${n}) END`);
 }
 
 function addCompRow(n) {
-    let compOpts = '<option value="">Seleccionar...</option>';
-    DATA.componentes.forEach(c => { compOpts += '<option value="' + c.Id + '">' + cleanLabel(c.Nombre) + '</option>'; });
+    let datalistId = `comp-list-${n}-${Date.now()}`;
+    let compOpts = '';
+    DATA.componentes.forEach(c => { compOpts += `<option value="${cleanLabel(c.Nombre)}">`; });
+    let html = `<td>
+        <input list="${datalistId}" class="filter-input" placeholder="Buscar componente..." onchange="compSelected(this, ${n})">
+        <datalist id="${datalistId}">${compOpts}</datalist>
+    </td>
+    <td><input type="number" value="1" step="0.01" style="width:60px" oninput="recalcUnidad(${n})"></td>
+    <td class="c-costo hide-margin">0</td>
+    <td class="c-moneda hide-margin">-</td>
+    <td class="hide-margin"><input type="number" value="40" style="width:60px" oninput="recalcUnidad(${n})"></td>
+    <td class="c-precio">$0</td>
+    <td class="c-subtotal">$0</td>
+    <td class="c-iva">21%</td>
+    <td><button class="btn-remove" onclick="this.closest('tr').remove();recalcUnidad(${n})">✕</button></td>`;
     let tbody = document.getElementById('comps-u-' + n);
     let row = document.createElement('tr');
-    row.innerHTML = '<td><select onchange="compSelected(this,' + n + ')" style="min-width:160px">' + compOpts + '</select></td><td><input type="number" value="1" step="0.01" style="width:60px" oninput="recalcUnidad(' + n + ')"></td><td class="c-costo hide-margin">0</td><td class="c-moneda hide-margin">-</td><td class="hide-margin"><input type="number" value="40" style="width:60px" oninput="recalcUnidad(' + n + ')"></td><td class="c-precio">$0</td><td class="c-subtotal">$0</td><td class="c-iva">21%</td><td><button class="btn-remove" onclick="this.closest(\'tr\').remove();recalcUnidad(' + n + ')">✕</button></td>';
+    row.innerHTML = html;
     tbody.appendChild(row);
 }
 function addCompRowWithData(n, comp, qty, lineId = null, forcedPrice = null) {
@@ -709,30 +662,31 @@ function addCompRowWithData(n, comp, qty, lineId = null, forcedPrice = null) {
     let costoArs = moneda === 'USD' ? costo * tc : costo;
     let precio = forcedPrice !== null ? forcedPrice : (costoArs * (1 + margen / 100));
     let iva = comp.Alicuota_IVA_venta || '21';
+    let datalistId = `comp-list-${n}-${Date.now()}`;
     let compOpts = '';
-    // If we have an ID, we select it. If not (text only), we just show all and maybe select none or first?
-    // Better: if comp.Id is null (custom item), we should perhaps have a free text input?
-    // Current requirement: "Por cada componente: Nombre...".
-    // For now, if comp.Id is valid we select it.
-    if (comp.Id) {
-        DATA.componentes.forEach(c => { compOpts += '<option value="' + c.Id + '"' + (c.Id === comp.Id ? ' selected' : '') + '>' + cleanLabel(c.Nombre) + '</option>'; });
-    } else {
-        compOpts = '<option value="" selected>' + cleanLabel(comp.Nombre) + ' (Custom)</option>';
-        DATA.componentes.forEach(c => { compOpts += '<option value="' + c.Id + '">' + cleanLabel(c.Nombre) + '</option>'; });
-    }
-
+    DATA.componentes.forEach(c => { compOpts += `<option value="${cleanLabel(c.Nombre)}">`; });
     let tbody = document.getElementById('comps-u-' + n);
     let row = document.createElement('tr');
     if (lineId) row.setAttribute('data-db-id', lineId);
-
-    row.innerHTML = '<td><select onchange="compSelected(this,' + n + ')" style="min-width:160px">' + compOpts + '</select></td><td><input type="number" value="' + qty + '" step="0.01" style="width:60px" oninput="recalcUnidad(' + n + ')"></td><td class="c-costo hide-margin">' + Number(costo).toFixed(2) + '</td><td class="c-moneda hide-margin">' + moneda + '</td><td class="hide-margin"><input type="number" value="' + margen + '" style="width:60px" oninput="recalcUnidad(' + n + ')"></td><td class="c-precio">' + fmt(precio) + '</td><td class="c-subtotal">' + fmt(precio * qty) + '</td><td class="c-iva">' + iva + '%</td><td><button class="btn-remove" onclick="this.closest(\'tr\').remove();recalcUnidad(' + n + ')">✕</button></td>';
+    row.innerHTML = `<td>
+        <input list="${datalistId}" value="${cleanLabel(comp.Nombre)}" class="filter-input" placeholder="Buscar componente..." onchange="compSelected(this, ${n})">
+        <datalist id="${datalistId}">${compOpts}</datalist>
+    </td>
+    <td><input type="number" value="${qty}" step="0.01" style="width:60px" oninput="recalcUnidad(${n})"></td>
+    <td class="c-costo hide-margin">${Number(costo).toFixed(2)}</td>
+    <td class="c-moneda hide-margin">${moneda}</td>
+    <td class="hide-margin"><input type="number" value="${margen}" style="width:60px" oninput="recalcUnidad(${n})"></td>
+    <td class="c-precio">${fmt(precio)}</td>
+    <td class="c-subtotal">${fmt(precio * qty)}</td>
+    <td class="c-iva">${iva}%</td>
+    <td><button class="btn-remove" onclick="this.closest('tr').remove();recalcUnidad(${n})">✕</button></td>`;
     tbody.appendChild(row);
 }
-function compSelected(sel, n) {
-    let compId = sel.value;
-    let comp = DATA.componentes.find(c => c.Id == compId);
+function compSelected(input, n) {
+    let name = input.value;
+    let comp = DATA.componentes.find(c => cleanLabel(c.Nombre) === name);
     if (!comp) return;
-    let row = sel.closest('tr');
+    let row = input.closest('tr');
     row.querySelector('.c-costo').textContent = (comp.Costo_unitario || 0).toFixed(2);
     row.querySelector('.c-moneda').textContent = comp.Moneda_costo || 'ARS';
     row.querySelector('.c-iva').textContent = (comp.Alicuota_IVA_venta || '21') + '%';
@@ -740,254 +694,208 @@ function compSelected(sel, n) {
     if (margenInput) margenInput.value = comp.Margen_default || 40;
     recalcUnidad(n);
 }
+
 function recalcUnidad(n) {
     let tc = DATA.tc.Dolar_oficial || 1150;
+    let t = 0;
+    document.querySelectorAll('#comps-u-' + n + ' tr').forEach(r => {
+        let costo = parseFloat(r.querySelector('.c-costo')?.textContent) || 0;
+        let mon = r.querySelector('.c-moneda')?.textContent || 'ARS';
+        let inputs = r.querySelectorAll('input[type="number"]');
+        let qty = parseFloat(inputs[0]?.value) || 0;
+        let marg = parseFloat(inputs[1]?.value) || 0;
+        let costoArs = mon === 'USD' ? costo * tc : costo;
+        let pUnit = costoArs * (1 + marg / 100);
+        let sub = pUnit * qty;
+        r.querySelector('.c-precio').textContent = fmt(pUnit);
+        r.querySelector('.c-subtotal').textContent = fmt(sub);
+        t += sub;
+    });
+    document.getElementById('sub-u-' + n).textContent = fmt(t);
+    recalcTotal();
+}
+
+function recalcTotal() {
+    let total = 0;
+    document.querySelectorAll('.unidad-subtotal').forEach(s => {
+        total += parseFloat(s.textContent.replace('$', '').replace(/\./g, '').replace(',', '.')) || 0;
+    });
+    document.getElementById('np-total-valor').textContent = fmt(total);
+}
+async function savePres() {
+    let clienteId = document.getElementById('np-cliente').value;
+    let zonaId = document.getElementById('np-zona').value;
+    if (!clienteId || !zonaId) { alert('Completar Cliente y Zona'); return; }
+let tc = DATA.tc.Dolar_oficial || 1150;
+
+let presId = editPresId;
+let num = '';
+
+if (editPresId) {
+    let oldP = DATA.presupuestos.find(p => p.Id == editPresId);
+    num = oldP.Numero;
+    await apiPatch(TBL.presupuestos, {
+        Id: editPresId,
+        Canal: document.getElementById('np-canal').value,
+        Quiere_factura: document.getElementById('np-factura').checked
+    });
+    await apiLink(TBL.presupuestos, 'canpten8owymbde', editPresId, [{ Id: parseInt(clienteId) }]);
+    await apiLink(TBL.presupuestos, 'cr3s0ox51qopwl4', editPresId, [{ Id: parseInt(zonaId) }]);
+    let propId = document.getElementById('np-propiedad').value;
+    if (propId) await apiLink(TBL.presupuestos, 'cpf764utp1w7yj0', editPresId, [{ Id: parseInt(propId) }]);
+} else {
+    let year = new Date().getFullYear();
+    num = year + '-' + (String(DATA.presupuestos.length + 1).padStart(4, '0'));
+    let presData = { Numero: num, Fecha: new Date().toISOString().split('T')[0], Estado: 'Borrador', TC_usado: tc, Canal: document.getElementById('np-canal').value, Quiere_factura: document.getElementById('np-factura').checked, Incluye_instalacion: true };
+    let pres = await apiPost(TBL.presupuestos, presData);
+    presId = pres.Id || pres.id;
+    if (!presId) { alert('Error creando presupuesto'); return; }
+    await apiLink(TBL.presupuestos, 'canpten8owymbde', presId, [{ Id: parseInt(clienteId) }]);
+    await apiLink(TBL.presupuestos, 'cr3s0ox51qopwl4', presId, [{ Id: parseInt(zonaId) }]);
+    let propId = document.getElementById('np-propiedad').value;
+    if (propId) await apiLink(TBL.presupuestos, 'cpf764utp1w7yj0', presId, [{ Id: parseInt(propId) }]);
+    let pagoId = document.getElementById('np-pago').value;
+    if (pagoId) await apiLink(TBL.presupuestos, 'cr9l2n9wiubrcra', presId, [{ Id: parseInt(pagoId) }]);
+}
+
+let subtotalNeto = 0, totalIva21 = 0, totalIva105 = 0;
+let unidadCards = document.querySelectorAll('[id^="unidad-"]');
+let processedUnitIds = [];
+
+for (let card of unidadCards) {
+    let n = card.id.split('-')[1];
+    let cardDbId = card.getAttribute('data-db-id');
+    let uData = {
+        Nombre: document.getElementById('u-' + n + '-nombre')?.value || 'Unidad ' + n,
+        Ubicacion: document.getElementById('u-' + n + '-ubic')?.value || '',
+        Tipo_trabajo: document.getElementById('u-' + n + '-tipo')?.value || 'Otro',
+        Tipo_reparacion: document.getElementById('u-' + n + '-tiporep')?.value || null,
+        Ancho_m: parseFloat(document.getElementById('u-' + n + '-ancho')?.value) || null,
+        Alto_m: parseFloat(document.getElementById('u-' + n + '-alto')?.value) || null,
+        Accionamiento: document.getElementById('u-' + n + '-accion')?.value || 'motor',
+        Orden: parseInt(n)
+    };
+    let ancho = uData.Ancho_m || 0;
+    let alto = uData.Alto_m || 0;
+    if (ancho && alto) uData.M2_calculados = ancho * alto;
+
+    let uId = null;
+    if (cardDbId) {
+        await apiPatch(TBL.unidades, { Id: cardDbId, ...uData });
+        uId = cardDbId;
+        processedUnitIds.push(uId);
+        let prodSelValEdit = document.getElementById('u-' + n + '-prod')?.value;
+        if (prodSelValEdit) await apiLink(TBL.unidades, 'co1b5kwpl8d2rya', uId, [{ Id: parseInt(prodSelValEdit) }]);
+    } else {
+        let unidad = await apiPost(TBL.unidades, uData);
+        uId = unidad.Id || unidad.id;
+        await apiLink(TBL.unidades, 'cm5xv0vmlne7r6u', uId, [{ Id: presId }]);
+        let prodSelVal = document.getElementById('u-' + n + '-prod')?.value;
+        if (prodSelVal) await apiLink(TBL.unidades, 'co1b5kwpl8d2rya', uId, [{ Id: parseInt(prodSelVal) }]);
+    }
+
     let rows = document.querySelectorAll('#comps-u-' + n + ' tr');
-    let subtotal = 0;
-    rows.forEach(r => {
+    let orden = 0;
+    let originalLinesForUnit = [];
+    if (cardDbId) {
+        originalLinesForUnit = DATA.lineas.filter(l => {
+            let link = l.Unidad;
+            return (link && (link.Id || link) == cardDbId);
+        });
+    }
+    let processedLineIds = [];
+
+    for (let r of rows) {
+        orden++;
+        let rowDbId = r.getAttribute('data-db-id');
+        let input = r.querySelector('input.filter-input');
+        let compName = input ? input.value : '';
+        let compId = DATA.componentes.find(c => cleanLabel(c.Nombre) === compName)?.Id || null;
         let costo = parseFloat(r.querySelector('.c-costo')?.textContent) || 0;
         let moneda = r.querySelector('.c-moneda')?.textContent || 'ARS';
+        let iva = (r.querySelector('.c-iva')?.textContent || '21').replace(/%/g, '').trim();
         let inputs = r.querySelectorAll('input[type="number"]');
         let qty = parseFloat(inputs[0]?.value) || 1;
         let margen = parseFloat(inputs[1]?.value) || 0;
         let costoArs = moneda === 'USD' ? costo * tc : costo;
-        let precio = costoArs * (1 + margen / 100);
-        let sub = precio * qty;
-        r.querySelector('.c-precio').textContent = fmt(precio);
-        r.querySelector('.c-subtotal').textContent = fmt(sub);
-        subtotal += sub;
-    });
-    let el = document.getElementById('sub-u-' + n);
-    if (el) el.textContent = fmt(subtotal);
-    recalcTotal();
-}
-function recalcTotal() {
-    let subtotal = 0, iva21 = 0, iva105 = 0;
-    let tc = DATA.tc.Dolar_oficial || 1150;
-    document.querySelectorAll('[id^="comps-u-"]').forEach(tbody => {
-        tbody.querySelectorAll('tr').forEach(r => {
-            let costo = parseFloat(r.querySelector('.c-costo')?.textContent) || 0;
-            let moneda = r.querySelector('.c-moneda')?.textContent || 'ARS';
-            let inputs = r.querySelectorAll('input[type="number"]');
-            let qty = parseFloat(inputs[0]?.value) || 1;
-            let margen = parseFloat(inputs[1]?.value) || 0;
-            let iva = (r.querySelector('.c-iva')?.textContent || '21').replace(/%/g, '').trim();
-            let costoArs = moneda === 'USD' ? costo * tc : costo;
-            let precio = costoArs * (1 + margen / 100);
-            let sub = precio * qty;
-            subtotal += sub;
-            if (iva === '10.5') iva105 += sub * 0.105;
-            else iva21 += sub * 0.21;
-        });
-    });
-    let total = subtotal + iva21 + iva105;
-    let sinFact = total * 0.9;
-    document.getElementById('np-subtotal').textContent = fmt(subtotal);
-    document.getElementById('np-iva21').textContent = fmt(iva21);
-    document.getElementById('np-iva105').textContent = fmt(iva105);
-    document.getElementById('np-total').textContent = fmt(total);
-    document.getElementById('np-sinfact').textContent = fmt(sinFact);
-    document.getElementById('np-resumen').style.display = subtotal > 0 ? 'block' : 'none';
-}
+        let precioUnit = costoArs * (1 + margen / 100);
+        let sub = precioUnit * qty;
+        let montoIva = iva === '10.5' ? sub * 0.105 : sub * 0.21;
 
-async function savePres() {
-    let modal = document.querySelector('#modal-pres .modal');
-    let editPresId = modal.getAttribute('data-db-id');
-
-    let clienteId = document.getElementById('np-cliente').value;
-    let zonaId = document.getElementById('np-zona').value;
-    if (!clienteId) { alert('Seleccioná un cliente'); return; }
-    if (!zonaId) { alert('Seleccioná una zona'); return; }
-    let tc = DATA.tc.Dolar_oficial || 1150;
-
-    let presId = editPresId;
-    let num = '';
-
-    if (editPresId) {
-        // UPDATE Existing
-        let oldP = DATA.presupuestos.find(p => p.Id == editPresId);
-        num = oldP.Numero;
-        await apiPatch(TBL.presupuestos, {
-            Id: editPresId,
-            Canal: document.getElementById('np-canal').value,
-            Quiere_factura: document.getElementById('np-factura').checked
-        });
-        await apiLink(TBL.presupuestos, 'canpten8owymbde', editPresId, [{ Id: parseInt(clienteId) }]);
-        await apiLink(TBL.presupuestos, 'cr3s0ox51qopwl4', editPresId, [{ Id: parseInt(zonaId) }]);
-        let propId = document.getElementById('np-propiedad').value;
-        if (propId) await apiLink(TBL.presupuestos, 'cpf764utp1w7yj0', editPresId, [{ Id: parseInt(propId) }]);
-    } else {
-        // CREATE New
-        let year = new Date().getFullYear();
-        num = year + '-' + (String(DATA.presupuestos.length + 1).padStart(4, '0'));
-        let presData = { Numero: num, Fecha: new Date().toISOString().split('T')[0], Estado: 'Borrador', TC_usado: tc, Canal: document.getElementById('np-canal').value, Quiere_factura: document.getElementById('np-factura').checked, Incluye_instalacion: true };
-        let pres = await apiPost(TBL.presupuestos, presData);
-        presId = pres.Id || pres.id;
-        if (!presId) { alert('Error creando presupuesto'); return; }
-        await apiLink(TBL.presupuestos, 'canpten8owymbde', presId, [{ Id: parseInt(clienteId) }]);
-        await apiLink(TBL.presupuestos, 'cr3s0ox51qopwl4', presId, [{ Id: parseInt(zonaId) }]);
-        let propId = document.getElementById('np-propiedad').value;
-        if (propId) await apiLink(TBL.presupuestos, 'cpf764utp1w7yj0', presId, [{ Id: parseInt(propId) }]);
-        let pagoId = document.getElementById('np-pago').value;
-        if (pagoId) await apiLink(TBL.presupuestos, 'cr9l2n9wiubrcra', presId, [{ Id: parseInt(pagoId) }]);
-    }
-
-    let subtotalNeto = 0, totalIva21 = 0, totalIva105 = 0;
-    let unidadCards = document.querySelectorAll('[id^="unidad-"]');
-
-    // Deletion Logic
-    let processedUnitIds = [];
-
-    for (let card of unidadCards) {
-        let n = card.id.split('-')[1];
-        let cardDbId = card.getAttribute('data-db-id');
-
-        let uData = {
-            Nombre: document.getElementById('u-' + n + '-nombre')?.value || 'Unidad ' + n,
-            Ubicacion: document.getElementById('u-' + n + '-ubic')?.value || '',
-            Tipo_trabajo: document.getElementById('u-' + n + '-tipo')?.value || 'Otro',
-            Tipo_reparacion: document.getElementById('u-' + n + '-tiporep')?.value || null,
+        let lineaData = {
+            Descripcion_pdf: compName || 'Item',
             Ancho_m: parseFloat(document.getElementById('u-' + n + '-ancho')?.value) || null,
             Alto_m: parseFloat(document.getElementById('u-' + n + '-alto')?.value) || null,
-            Accionamiento: document.getElementById('u-' + n + '-accion')?.value || 'motor',
-            Orden: parseInt(n)
+            Cantidad: qty,
+            M2_calculados: uData.M2_calculados || null,
+            Moneda_costo_orig: moneda,
+            Costo_unit_orig: costo,
+            TC_aplicado: moneda === 'USD' ? tc : null,
+            Costo_unit_ARS: costoArs,
+            Margen_pct: margen,
+            Precio_unit_ARS: precioUnit,
+            Subtotal_ARS: sub,
+            Alicuota_IVA: iva.replace(/%/g, '').trim(),
+            Monto_IVA: montoIva,
+            Subtotal_con_IVA: sub + montoIva,
+            Orden: orden,
+            Visible_pdf: true
         };
-        let ancho = uData.Ancho_m || 0;
-        let alto = uData.Alto_m || 0;
-        if (ancho && alto) uData.M2_calculados = ancho * alto;
 
-        let uId = null;
-        if (cardDbId) {
-            await apiPatch(TBL.unidades, { Id: cardDbId, ...uData });
-            uId = cardDbId;
-            processedUnitIds.push(uId);
-            // Update Producto_base link on edit
-            let prodSelValEdit = document.getElementById('u-' + n + '-prod')?.value;
-            if (prodSelValEdit) await apiLink(TBL.unidades, 'co1b5kwpl8d2rya', uId, [{ Id: parseInt(prodSelValEdit) }]);
+        if (rowDbId) {
+            await apiPatch(TBL.lineas, { Id: rowDbId, ...lineaData });
+            processedLineIds.push(rowDbId);
         } else {
-            let unidad = await apiPost(TBL.unidades, uData);
-            uId = unidad.Id || unidad.id;
-            await apiLink(TBL.unidades, 'cm5xv0vmlne7r6u', uId, [{ Id: presId }]);
-            // Link Producto_base if selected
-            let prodSelVal = document.getElementById('u-' + n + '-prod')?.value;
-            if (prodSelVal) await apiLink(TBL.unidades, 'co1b5kwpl8d2rya', uId, [{ Id: parseInt(prodSelVal) }]);
+            let linea = await apiPost(TBL.lineas, lineaData);
+            let lineaId = linea.Id || linea.id;
+            if (lineaId) {
+                await apiLink(TBL.lineas, 'c4hnodnss6zlr32', lineaId, [{ Id: presId }]);
+                if (compId) await apiLink(TBL.lineas, 'czka6po5myr5wu6', lineaId, [{ Id: parseInt(compId) }]);
+                if (uId) await apiLink(TBL.lineas, 'cn9406tc3q1jmw0', lineaId, [{ Id: uId }]);
+            }
         }
+        subtotalNeto += sub;
+        if (iva === '10.5') totalIva105 += montoIva;
+        else totalIva21 += montoIva;
+    }
 
-        let rows = document.querySelectorAll('#comps-u-' + n + ' tr');
-        let orden = 0;
-        // Lines deletion needs logic: get all current lines for unit in DB, compare with filtered processed.
-        // It's easier to fetch *all* possible lines for this unit if updating, but we only have global DATA.lineas which is a snapshot.
-        let originalLinesForUnit = [];
-        if (cardDbId) {
-            originalLinesForUnit = DATA.lineas.filter(l => {
+    if (cardDbId) {
+        for (let ol of originalLinesForUnit) {
+            let imid = ol.Id || ol.id;
+            if (!processedLineIds.includes(imid)) await apiDelete(TBL.lineas, imid);
+        }
+    }
+}
+
+if (editPresId) {
+    let originalUnits = DATA.unidades.filter(u => {
+        let link = u.Presupuesto;
+        return (link && (link.Id || link) == editPresId);
+    });
+    for (let ou of originalUnits) {
+        let ouId = ou.Id || ou.id;
+        if (!processedUnitIds.includes(ouId)) {
+            let uLines = DATA.lineas.filter(l => {
                 let link = l.Unidad;
-                return (link && (link.Id || link) == cardDbId);
+                return (link && (link.Id || link) == ouId);
             });
-        }
-        let processedLineIds = [];
-
-        for (let r of rows) {
-            orden++;
-            let rowDbId = r.getAttribute('data-db-id');
-            let sel = r.querySelector('select');
-            let compId = sel ? sel.value : null;
-            let costo = parseFloat(r.querySelector('.c-costo')?.textContent) || 0;
-            let moneda = r.querySelector('.c-moneda')?.textContent || 'ARS';
-            let iva = (r.querySelector('.c-iva')?.textContent || '21').replace(/%/g, '').trim();
-            let inputs = r.querySelectorAll('input[type="number"]');
-            let qty = parseFloat(inputs[0]?.value) || 1;
-            let margen = parseFloat(inputs[1]?.value) || 0;
-            let costoArs = moneda === 'USD' ? costo * tc : costo;
-            let precioUnit = costoArs * (1 + margen / 100);
-            let sub = precioUnit * qty;
-            let montoIva = iva === '10.5' ? sub * 0.105 : sub * 0.21;
-
-            let lineaData = {
-                Descripcion_pdf: sel ? sel.options[sel.selectedIndex]?.text : 'Item',
-                Ancho_m: parseFloat(document.getElementById('u-' + n + '-ancho')?.value) || null,
-                Alto_m: parseFloat(document.getElementById('u-' + n + '-alto')?.value) || null,
-                Cantidad: qty,
-                M2_calculados: uData.M2_calculados || null,
-                Moneda_costo_orig: moneda,
-                Costo_unit_orig: costo,
-                TC_aplicado: moneda === 'USD' ? tc : null,
-                Costo_unit_ARS: costoArs,
-                Margen_pct: margen,
-                Precio_unit_ARS: precioUnit,
-                Subtotal_ARS: sub,
-                Alicuota_IVA: iva.replace(/%/g, '').trim(),
-                Monto_IVA: montoIva,
-                Subtotal_con_IVA: sub + montoIva,
-                Orden: orden,
-                Visible_pdf: true
-            };
-
-            if (rowDbId) {
-                await apiPatch(TBL.lineas, { Id: rowDbId, ...lineaData });
-                processedLineIds.push(rowDbId);
-            } else {
-                let linea = await apiPost(TBL.lineas, lineaData);
-                let lineaId = linea.Id || linea.id;
-                if (lineaId) {
-                    await apiLink(TBL.lineas, 'c4hnodnss6zlr32', lineaId, [{ Id: presId }]);
-                    if (compId && !isNaN(parseInt(compId))) await apiLink(TBL.lineas, 'czka6po5myr5wu6', lineaId, [{ Id: parseInt(compId) }]);
-                    if (uId) await apiLink(TBL.lineas, 'cn9406tc3q1jmw0', lineaId, [{ Id: uId }]);
-                }
-            }
-            subtotalNeto += sub;
-            if (iva === '10.5') totalIva105 += montoIva;
-            else totalIva21 += montoIva;
-        }
-
-        // Delete removed lines (only if unit existed)
-        if (cardDbId) {
-            for (let ol of originalLinesForUnit) {
-                let imid = ol.Id || ol.id;
-                if (!processedLineIds.includes(imid)) {
-                    await apiDelete(TBL.lineas, imid);
-                }
-            }
+            for (let l of uLines) await apiDelete(TBL.lineas, l.Id || l.id);
+            await apiDelete(TBL.unidades, ouId);
         }
     }
+}
 
-    // Delete removed Units
-    if (editPresId) {
-        // Get original units for this budget
-        let originalUnits = DATA.unidades.filter(u => {
-            let link = u.Presupuesto;
-            return (link && (link.Id || link) == editPresId);
-        });
+let totalConIva = subtotalNeto + totalIva21 + totalIva105;
+let sinFact = totalConIva * 0.9;
+await apiPatch(TBL.presupuestos, { Id: presId, Subtotal_neto: subtotalNeto, Subtotal_items: subtotalNeto, IVA_21: totalIva21, IVA_105: totalIva105, Total_con_IVA: totalConIva, Total: totalConIva, Descuento_sin_factura_pct: 10, Total_sin_factura: sinFact });
 
-        for (let ou of originalUnits) {
-            let ouId = ou.Id || ou.id;
-            if (!processedUnitIds.includes(ouId)) {
-                // Cascading delete lines? Safe to delete lines first if we can find them.
-                // Assuming DATA.lineas is current snapshot.
-                let uLines = DATA.lineas.filter(l => {
-                    let link = l.Unidad;
-                    return (link && (link.Id || link) == ouId);
-                });
-                for (let l of uLines) await apiDelete(TBL.lineas, l.Id || l.id);
-                await apiDelete(TBL.unidades, ouId);
-            }
-        }
-    }
-
-    let totalConIva = subtotalNeto + totalIva21 + totalIva105;
-    let sinFact = totalConIva * 0.9;
-    await apiPatch(TBL.presupuestos, { Id: presId, Subtotal_neto: subtotalNeto, Subtotal_items: subtotalNeto, IVA_21: totalIva21, IVA_105: totalIva105, Total_con_IVA: totalConIva, Total: totalConIva, Descuento_sin_factura_pct: 10, Total_sin_factura: sinFact });
-
-    // Refresh data
-    DATA.presupuestos = await apiGet(TBL.presupuestos);
-    DATA.lineas = await apiGet(TBL.lineas);
-    DATA.unidades = await apiGet(TBL.unidades);
-    loadDashboard();
-    showPage('presupuestos', document.querySelectorAll('.nav-item')[1]);
-
-    closeModal();
-    if (confirm('Presupuesto ' + num + ' guardado. ¿Ver ahora?')) {
-        viewPresupuesto(presId);
-    }
+DATA.presupuestos = await apiGet(TBL.presupuestos);
+DATA.lineas = await apiGet(TBL.lineas);
+DATA.unidades = await apiGet(TBL.unidades);
+loadDashboard();
+showPage('presupuestos', document.querySelectorAll('.nav-item')[1]);
+closeModal();
+if (confirm('Presupuesto ' + num + ' guardado. ¿Ver ahora?')) viewPresupuesto(presId);
 }
 
 async function aplicarAumento() {
@@ -996,14 +904,12 @@ async function aplicarAumento() {
     if (!pctVal) { alert('Ingresá un porcentaje'); return; }
     let pct = parseFloat(pctVal);
     if (pct === 0) return;
-
     if (!confirm('¿Estás seguro de aumentar ' + pct + '% a ' + cleanLabel(cat) + '?')) return;
 
     let toUpdate = DATA.componentes.filter(c => {
         if (cat === 'Todos') return true;
         return c.Tipo_componente === cat;
     });
-
     if (toUpdate.length === 0) { alert('No hay componentes para actualizar'); return; }
 
     let patchData = [];
@@ -1011,28 +917,22 @@ async function aplicarAumento() {
         let costo = parseFloat(c.Costo_unitario || 0);
         let newCosto = costo * (1 + pct / 100);
         patchData.push({ Id: c.Id, Costo_unitario: newCosto });
-        // Update local data
         c.Costo_unitario = newCosto;
     });
 
-    // Bulk update
     try {
         await apiPatch(TBL.componentes, patchData);
         alert('Se actualizaron ' + patchData.length + ' componentes correctamente.');
         loadPrecios();
-
-        // Add to history
         let tbody = document.getElementById('aumento-historial');
         let row = '<tr><td>' + new Date().toLocaleString() + '</td><td>' + pct + '%</td><td>' + cleanLabel(cat) + '</td><td>' + patchData.length + '</td></tr>';
         tbody.insertAdjacentHTML('afterbegin', row);
-
         document.getElementById('aumento-pct').value = '';
     } catch (e) {
         console.error(e);
         alert('Error al actualizar precios: ' + e.message);
     }
 }
-
 async function generarPDF(presId) {
     let pres = DATA.presupuestos.find(p => p.Id == presId);
     if (!pres) { alert('Presupuesto no encontrado'); return; }
@@ -1043,16 +943,12 @@ async function generarPDF(presId) {
         let pago = res.pago || '-';
         let presUnidades = res.unidades;
         let presLineas = res.lineas;
-
         let fecha = new Date(pres.Fecha).toLocaleDateString() || '-';
         let venc = new Date(new Date(pres.Fecha).getTime() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString();
-
         let html = `
             <div id="pdf-content">
                 <div class="pdf-header">
-                    <div class="pdf-logo">
-                        <img src="logo-pdf.png" alt="Persiana Total">
-                    </div>
+                    <div class="pdf-logo"><img src="logo-pdf.png" alt="Persiana Total"></div>
                     <div class="pdf-company-info">
                         <h3>PRESUPUESTO #${pres.Numero || '-'}</h3>
                         <p>Tel: 0342 4895492</p>
@@ -1061,7 +957,6 @@ async function generarPDF(presId) {
                         <p>www.persianatotal.com.ar</p>
                     </div>
                 </div>
-
                 <div class="pdf-title-row">
                     <div class="pdf-meta">
                         <p>Fecha: ${fecha}</p>
@@ -1078,14 +973,12 @@ async function generarPDF(presId) {
                 </div>
         `;
 
-        for (let u of presUnidades) {
-            let unitLines = presLineas.filter(l => l._unidadId == u.Id);
-            unitLines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
-            let unitTotal = unitLines.reduce((acc, l) => acc + (parseFloat(l.Subtotal_ARS) || 0), 0);
-
-            let measures = u.Ancho_m && u.Alto_m ? ` (${u.Ancho_m}m × ${u.Alto_m}m)` : '';
-
-            html += `
+for (let u of presUnidades) {
+    let unitLines = presLineas.filter(l => l._unidadId == u.Id);
+    unitLines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
+    let unitTotal = unitLines.reduce((acc, l) => acc + (parseFloat(l.Subtotal_ARS) || 0), 0);
+    let measures = u.Ancho_m && u.Alto_m ? ` (${u.Ancho_m}m × ${u.Alto_m}m)` : '';
+    html += `
                 <div class="pdf-unit" style="margin-bottom: 25px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
                     <div class="pdf-unit-header" style="background: #f3f4f6; padding: 10px; border-radius: 4px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-weight: bold; font-size: 1.1em; color: #1f2937;">${cleanLabel(u.Nombre)} - ${cleanLabel(u.Ubicacion) || ''}${measures}</span>
@@ -1093,56 +986,46 @@ async function generarPDF(presId) {
                     </div>
                     <ul style="margin: 0; padding-left: 25px; font-size: 1em; color: #374151; list-style-type: disc;">
             `;
-
-            let isRepair = u.Tipo_trabajo === 'Reparacion' || u.Tipo_trabajo === 'Service';
-            if (isRepair) {
-                let repName = REPAIR_LABELS[u.Tipo_reparacion] || 'Reparación / Service';
-                html += `<li style="margin-bottom: 4px;">${repName}</li>`;
-                html += `<li style="margin-bottom: 4px;">Incluye mano de obra</li>`;
+    let isRepair = u.Tipo_trabajo === 'Reparacion' || u.Tipo_trabajo === 'Service';
+    if (isRepair) {
+        let repName = REPAIR_LABELS[u.Tipo_reparacion] || 'Reparación / Service';
+        html += `<li style="margin-bottom: 4px;">${repName}</li>`;
+        html += `<li style="margin-bottom: 4px;">Incluye mano de obra</li>`;
+    }
+    let hasMO = false, hasMotorMO = false, hasGuiasMO = false;
+    for (let l of unitLines) {
+        let compObj = l._componenteId ? DATA.componentes.find(c => c.Id == l._componenteId) : null;
+        let tipoComp = compObj ? compObj.Tipo_componente : '';
+        if (isRepair) {
+            if (compObj && compObj.Nombre && compObj.Nombre.toLowerCase().includes('viático')) {
+                html += `<li style="margin-bottom: 4px;">${cleanLabel(l.Descripcion_pdf || 'Viático')}</li>`;
             }
-
-            // Mano_obra descriptive labels for PDF
-            let hasMO = false, hasMotorMO = false, hasGuiasMO = false;
-            for (let l of unitLines) {
-                let compObj = l._componenteId ? DATA.componentes.find(c => c.Id == l._componenteId) : null;
-                let tipoComp = compObj ? compObj.Tipo_componente : '';
-
-                // If repair, skip materials and labor (already grouped), but KEEP travel fees (Viáticos)
-                if (isRepair) {
-                    if (compObj && compObj.Nombre && compObj.Nombre.toLowerCase().includes('viático')) {
-                        html += `<li style="margin-bottom: 4px;">${cleanLabel(l.Descripcion_pdf || 'Viático')}</li>`;
-                    }
-                    continue;
-                }
-
-                if (tipoComp === 'Mano_obra') {
-                    // Track which MO items exist for descriptive text
-                    if (compObj.Id == 92 || compObj.Id == 93 || compObj.Id == 94) hasMO = true;
-                    else if (compObj.Id == 96) hasMotorMO = true;
-                    else if (compObj.Id == 97) hasGuiasMO = true;
-                    // Skip individual MO listing
-                    continue;
-                }
-                html += `<li style="margin-bottom: 4px;">${cleanLabel(l.Descripcion_pdf || 'Item')}</li>`;
-            }
-            // Add descriptive MO text (only for non-repairs)
-            if (!isRepair && (hasMO || hasMotorMO || hasGuiasMO)) html += `<li style="margin-bottom: 4px;">Incluye instalación completa</li>`;
-
-            html += `
+            continue;
+        }
+        if (tipoComp === 'Mano_obra') {
+            if (compObj.Id == 92 || compObj.Id == 93 || compObj.Id == 94) hasMO = true;
+            else if (compObj.Id == 96) hasMotorMO = true;
+            else if (compObj.Id == 97) hasGuiasMO = true;
+            continue;
+        }
+        html += `<li style="margin-bottom: 4px;">${cleanLabel(l.Descripcion_pdf || 'Item')}</li>`;
+    }
+    if (!isRepair && (hasMO || hasMotorMO || hasGuiasMO)) html += `<li style="margin-bottom: 4px;">Incluye instalación completa</li>`;
+    html += `
                     </ul>
                     <div style="text-align: right; margin-top: 12px; font-size: 1.1em; font-weight: bold; color: #111;">
                         Precio unidad: ${fmt(unitTotal)}
                     </div>
                 </div>
             `;
-        }
+}
 
-        let sub = pres.Subtotal_neto || 0;
-        let iva21 = pres.IVA_21 || 0;
-        let iva105 = pres.IVA_105 || 0;
-        let total = pres.Total_con_IVA || 0;
+let sub = pres.Subtotal_neto || 0;
+let iva21 = pres.IVA_21 || 0;
+let iva105 = pres.IVA_105 || 0;
+let total = pres.Total_con_IVA || 0;
 
-        html += `
+html += `
                 <div class="pdf-totals">
                     <div class="pdf-totals-box">
                         <div class="pdf-total-row"><span>Subtotal Neto:</span> <span>${fmt(sub)}</span></div>
@@ -1154,90 +1037,49 @@ async function generarPDF(presId) {
                         </div>
                     </div>
                 </div>
-
                 <div class="pdf-footer">
-                    <div>
-                        <p>Presupuesto válido por 15 días.</p>
-                        <p>Los precios pueden sufrir modificaciones sin previo aviso.</p>
-                    </div>
-                    <div class="pdf-signature">
-                        Firma y Aclaración
-                    </div>
+                    <div><p>Presupuesto válido por 15 días.</p><p>Los precios pueden sufrir modificaciones sin previo aviso.</p></div>
+                    <div class="pdf-signature">Firma y Aclaración</div>
                 </div>
             </div>
         `;
-
-        let container = document.getElementById('pdf-content');
-        if (!container) { alert('Error: Contenedor PDF no encontrado'); return; }
-        container.innerHTML = html;
-
-        let opt = {
-            margin: 0,
-            filename: `Presupuesto_${pres.Numero}.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2 },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
-        html2pdf().from(container.firstElementChild).set(opt).save();
-
-    } catch (e) {
-        console.error(e);
-        alert('Error generando PDF: ' + e.message);
-    }
+let container = document.getElementById('pdf-content');
+if (!container) { alert('Error: Contenedor PDF no encontrado'); return; }
+container.innerHTML = html;
+let opt = { margin: 0, filename: `Presupuesto_${pres.Numero}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+html2pdf().from(container.firstElementChild).set(opt).save();
+    } catch (e) { console.error(e); alert('Error generando PDF: ' + e.message); }
 }
 
-// Helpers for View/Edit/Duplicate (Fetching Links)
 async function fetchBudgetDeepData(presId) {
     let client = {}, zona = {}, pago = '-';
-
-    // Header links
     let clLinks = await apiGetLinks(TBL.presupuestos, 'canpten8owymbde', presId);
     if (clLinks.length > 0) client = clLinks[0];
-
     let zoneLinks = await apiGetLinks(TBL.presupuestos, 'cr3s0ox51qopwl4', presId);
     if (zoneLinks.length > 0) zona = zoneLinks[0];
-
     let payLinks = await apiGetLinks(TBL.presupuestos, 'cr9l2n9wiubrcra', presId);
     if (payLinks.length > 0) pago = payLinks[0].Nombre || payLinks[0].Title || 'A convenir';
     if (!pago || pago === '-') pago = 'A convenir';
-
     let propLink = await apiGetLinks(TBL.presupuestos, 'cpf764utp1w7yj0', presId);
     let propDir = '-';
     if (propLink.length > 0) {
         let propFull = DATA.propiedades.find(pr => pr.Id == propLink[0].Id);
         propDir = propFull ? (propFull.Direccion || '-') + ' - ' + (propFull.Localidad || '-') : propLink[0].Nombre || '-';
     }
-
-    // Refresh data
     DATA.unidades = await apiGet(TBL.unidades);
     DATA.lineas = await apiGet(TBL.lineas);
-
-    /* 
-    DIAGNOSTICS (User requested):
-    console.log('DATA.unidades total:', DATA.unidades.length);
-    if(DATA.unidades.length > 0) console.log('Primera unidad:', JSON.stringify(DATA.unidades[0]));
-    console.log('DATA.lineas total:', DATA.lineas.length);
-    if(DATA.lineas.length > 0) console.log('Primera linea:', JSON.stringify(DATA.lineas[0]));
-    */
-
     let presUnidades = [];
-
-    // Filter Units - Correct Column: 'Presupuestos' (plural)
     for (let u of DATA.unidades) {
         let pLink = resolveLink(u, 'Presupuestos');
         if (pLink && (pLink.Id == presId || pLink.id == presId)) {
-            // Resolve Producto_base via apiGetLinks for correct ID
             let prodLinks = await apiGetLinks(TBL.unidades, 'co1b5kwpl8d2rya', u.Id);
             if (prodLinks.length > 0) {
                 u._productoId = prodLinks[0].Id;
                 u._productoNombre = prodLinks[0].Nombre || prodLinks[0].Title || '';
             } else {
                 let prodLink = resolveLink(u, 'Producto_base');
-                if (prodLink) {
-                    u._productoId = prodLink.Id || prodLink.id;
-                    u._productoNombre = prodLink.Nombre || prodLink.Title || '';
-                } else if (u.Producto_base && typeof u.Producto_base === 'number') {
+                if (prodLink) { u._productoId = prodLink.Id || prodLink.id; u._productoNombre = prodLink.Nombre || prodLink.Title || ''; }
+                else if (u.Producto_base && typeof u.Producto_base === 'number') {
                     let prod = DATA.productos.find(p => p.Id == u.Producto_base);
                     if (prod) { u._productoId = prod.Id; u._productoNombre = prod.Nombre || ''; }
                 }
@@ -1246,56 +1088,41 @@ async function fetchBudgetDeepData(presId) {
         }
     }
     presUnidades.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
-
     let presLineas = [];
-    // Filter Lines
     for (let l of DATA.lineas) {
-        // Correct Column: 'Presupuestos'
         let pLink = resolveLink(l, 'Presupuestos');
         let matchesPres = pLink && (pLink.Id == presId || pLink.id == presId);
-
-        // Correct Column: 'Presupuesto_Unidades'
         let uLink = resolveLink(l, 'Presupuesto_Unidades');
         let uId = uLink ? (uLink.Id || uLink.id) : null;
         let matchesUnit = uId && presUnidades.some(u => u.Id == uId);
-
         if (matchesPres || matchesUnit) {
             l._unidadId = uId;
-            // Correct Column: 'Componentes'
             let cLink = resolveLink(l, 'Componentes');
-            if (cLink) {
-                l._componenteId = cLink.Id || cLink.id;
-            }
+            if (cLink) l._componenteId = cLink.Id || cLink.id;
             presLineas.push(l);
         }
     }
-
     return { client, zona, pago, propDir, unidades: presUnidades, lineas: presLineas };
 }
 
 async function viewPresupuesto(presId) {
     let pres = DATA.presupuestos.find(p => p.Id == presId);
     if (!pres) return;
-
-    // Show loading state?
     document.getElementById('vp-contenido').innerHTML = '<p style="text-align:center;padding:20px">Cargando detalles...</p>';
     document.getElementById('modal-ver-pres').classList.add('show');
-
     let res = await fetchBudgetDeepData(presId);
     let client = res.client;
     let zona = res.zona;
     let pago = res.pago;
     let propAddr = '-';
-    if (pres._propiedadDir && pres._propiedadDir !== '-') {
-        propAddr = pres._propiedadDir;
-    } else {
+    if (pres._propiedadDir && pres._propiedadDir !== '-') propAddr = pres._propiedadDir;
+    else {
         let pLink = resolveLink(pres, 'Propiedades');
         if (pLink) {
             let pData = DATA.propiedades.find(x => x.Id == (pLink.Id || pLink.id));
             if (pData) propAddr = (pData.Direccion || '-') + ' - ' + (pData.Localidad || '-');
         }
     }
-
     document.getElementById('vp-titulo').textContent = 'Presupuesto #' + pres.Numero;
     document.getElementById('vp-fecha').textContent = new Date(pres.Fecha).toLocaleDateString();
     document.getElementById('vp-cliente').textContent = cleanLabel(client.Nombre) || '-';
@@ -1304,16 +1131,6 @@ async function viewPresupuesto(presId) {
     document.getElementById('vp-estado').innerHTML = badgeHtml(pres.Estado);
     document.getElementById('vp-pago').textContent = cleanLabel(pago);
 
-    // Add Address to viewPresupuesto modal - need to check if there is a place for it in modal structure
-    // Since I don't want to change index.html too much, I'll inject it or replace something
-    // Let's assume index.html has a place or I just add to a div.
-    // Looking at index.html, it has:
-    // <p><strong>Cliente:</strong> <span id="vp-cliente">-</span></p>
-    // <p><strong>Zona:</strong> <span id="vp-zona">-</span></p>
-    // I will add a new <p> for Direction after Cliente or similar.
-
-
-    // Build Content
     let html = '';
     res.unidades.forEach(u => {
         let prodName = u._productoNombre || '';
@@ -1321,66 +1138,41 @@ async function viewPresupuesto(presId) {
             let prod = DATA.productos.find(p => p.Id == u._productoId);
             if (prod) prodName = prod.Nombre;
         }
-
         let uLines = res.lineas.filter(l => l._unidadId == u.Id);
         uLines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
         let unitTotal = uLines.reduce((acc, l) => acc + (parseFloat(l.Subtotal_ARS) || 0), 0);
         let measures = u.Ancho_m && u.Alto_m ? ` (${u.Ancho_m}m × ${u.Alto_m}m)` : '';
-
         let isRepair = u.Tipo_trabajo === 'Reparacion' || u.Tipo_trabajo === 'Service';
         let prodLine = `<strong>Producto:</strong> ${cleanLabel(prodName) || '-'}`;
         if (isRepair) {
             let repName = REPAIR_LABELS[u.Tipo_reparacion] || 'Reparación / Service';
             prodLine = `<strong>Reparación:</strong> ${repName}`;
         }
-
         html += `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:12px">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #e5e7eb; padding-bottom:4px">
                 <h4 style="margin:0;color:var(--grad1)">${cleanLabel(u.Nombre)} - ${cleanLabel(u.Ubicacion) || ''}${measures}</h4>
                 <span style="font-size:0.9em; color:#6b7280; font-weight:bold">${cleanLabel(u.Tipo_trabajo) || ''}</span>
             </div>
-            <div style="font-size:0.9em;color:#6b7280;margin-bottom:8px">
-                ${prodLine}
-            </div>
+            <div style="font-size:0.9em;color:#6b7280;margin-bottom:8px">${prodLine}</div>
             <ul style="margin: 0; padding-left: 20px; font-size: 0.9em; color: #374151; list-style-type: disc;">`;
-
         if (isRepair) html += `<li style="margin-bottom:2px">Incluye mano de obra</li>`;
-
-        uLines.forEach(l => {
-            html += `<li style="margin-bottom:2px">${cleanLabel(l.Descripcion_pdf)}</li>`;
-        });
-
-        html += `</ul>
-            <div style="text-align:right; margin-top:10px; font-size:1.1em;">
-                <strong>Precio unidad: ${fmt(unitTotal)}</strong>
-            </div>
-        </div>`;
+        uLines.forEach(l => { html += `<li style="margin-bottom:2px">${cleanLabel(l.Descripcion_pdf)}</li>`; });
+        html += `</ul><div style="text-align:right; margin-top:10px; font-size:1.1em;"><strong>Precio unidad: ${fmt(unitTotal)}</strong></div></div>`;
     });
-
     document.getElementById('vp-contenido').innerHTML = html;
     document.getElementById('vp-subtotal').textContent = fmt(pres.Subtotal_neto);
     document.getElementById('vp-iva').textContent = fmt((pres.IVA_21 || 0) + (pres.IVA_105 || 0));
     document.getElementById('vp-total').textContent = fmt(pres.Total_con_IVA);
-
     let btnEdit = document.getElementById('vp-btn-editar');
     btnEdit.onclick = function () {
-        closeVerPres();
-        pres._clienteData = client;
-        pres._zonaData = zona;
-        pres._pagoNombre = pago;
-        pres._unidades = res.unidades;
-        pres._lineas = res.lineas;
+        closeVerPres(); pres._clienteData = client; pres._zonaData = zona; pres._pagoNombre = pago; pres._unidades = res.unidades; pres._lineas = res.lineas;
         openNewPres(pres);
     };
-
     document.getElementById('vp-btn-pdf').onclick = function () { generarPDF(presId); };
 }
 
 async function changeStatus(presId, newStatus) {
-    if (!confirm('¿Cambiar estado a ' + newStatus + '?')) {
-        loadPresupuestos(); // Revert selection
-        return;
-    }
+    if (!confirm('¿Cambiar estado a ' + newStatus + '?')) { loadPresupuestos(); return; }
     await apiPatch(TBL.presupuestos, { Id: presId, Estado: newStatus });
     let p = DATA.presupuestos.find(x => x.Id == presId);
     if (p) p.Estado = newStatus;
@@ -1391,94 +1183,33 @@ async function duplicatePresupuesto(presId) {
     if (!confirm('¿Duplicar este presupuesto?')) return;
     let oldP = DATA.presupuestos.find(p => p.Id == presId);
     if (!oldP) return;
-
-    // Fetch deep data
     let res = await fetchBudgetDeepData(presId);
-
-    // Create new Presupuesto
     let year = new Date().getFullYear();
     let num = year + '-' + (String(DATA.presupuestos.length + 1).padStart(4, '0'));
     let tc = DATA.tc.Dolar_oficial || 1150;
-
-    let presData = {
-        Numero: num,
-        Fecha: new Date().toISOString().split('T')[0],
-        Estado: 'Borrador',
-        TC_usado: tc,
-        Canal: oldP.Canal,
-        Quiere_factura: oldP.Quiere_factura,
-        Incluye_instalacion: true
-    };
+    let presData = { Numero: num, Fecha: new Date().toISOString().split('T')[0], Estado: 'Borrador', TC_usado: tc, Canal: oldP.Canal, Quiere_factura: oldP.Quiere_factura, Incluye_instalacion: true };
     let newPres = await apiPost(TBL.presupuestos, presData);
     let newId = newPres.Id || newPres.id;
-
-    // Links
     if (res.client.Id) await apiLink(TBL.presupuestos, 'canpten8owymbde', newId, [{ Id: res.client.Id }]);
     if (res.zona.Id) await apiLink(TBL.presupuestos, 'cr3s0ox51qopwl4', newId, [{ Id: res.zona.Id }]);
-    // Find payment ID? We only have name from fetchBudgetDeepData.
-    // If we want to duplicate accurately, we should find ID from DATA.formas_pago
     let pagoObj = DATA.formas_pago.find(f => f.Nombre === res.pago);
     if (pagoObj) await apiLink(TBL.presupuestos, 'cr9l2n9wiubrcra', newId, [{ Id: pagoObj.Id }]);
 
-    // Duplicate Units & Lines
     for (let u of res.unidades) {
-        let uData = {
-            Nombre: u.Nombre,
-            Ubicacion: u.Ubicacion,
-            Tipo_trabajo: u.Tipo_trabajo,
-            Ancho_m: u.Ancho_m,
-            Alto_m: u.Alto_m,
-            M2_calculados: u.M2_calculados,
-            Orden: u.Orden
-        };
+        let uData = { Nombre: u.Nombre, Ubicacion: u.Ubicacion, Tipo_trabajo: u.Tipo_trabajo, Ancho_m: u.Ancho_m, Alto_m: u.Alto_m, M2_calculados: u.M2_calculados, Orden: u.Orden };
         let newU = await apiPost(TBL.unidades, uData);
         let newUId = newU.Id || newU.id;
         await apiLink(TBL.unidades, 'cm5xv0vmlne7r6u', newUId, [{ Id: newId }]);
-
-        // Lines
         let lines = res.lineas.filter(l => l._unidadId == u.Id);
         for (let l of lines) {
-            let lineaData = {
-                Descripcion_pdf: l.Descripcion_pdf,
-                Ancho_m: l.Ancho_m,
-                Alto_m: l.Alto_m,
-                Cantidad: l.Cantidad,
-                M2_calculados: l.M2_calculados,
-                Moneda_costo_orig: l.Moneda_costo_orig,
-                Costo_unit_orig: l.Costo_unit_orig,
-                TC_aplicado: l.TC_aplicado,
-                Costo_unit_ARS: l.Costo_unit_ARS,
-                Margen_pct: l.Margen_pct,
-                Precio_unit_ARS: l.Precio_unit_ARS,
-                Subtotal_ARS: l.Subtotal_ARS,
-                Alicuota_IVA: l.Alicuota_IVA,
-                Monto_IVA: l.Monto_IVA,
-                Subtotal_con_IVA: l.Subtotal_con_IVA,
-                Orden: l.Orden,
-                Visible_pdf: true
-            };
+            let lineaData = { Descripcion_pdf: l.Descripcion_pdf, Ancho_m: l.Ancho_m, Alto_m: l.Alto_m, Cantidad: l.Cantidad, M2_calculados: l.M2_calculados, Moneda_costo_orig: l.Moneda_costo_orig, Costo_unit_orig: l.Costo_unit_orig, TC_aplicado: l.TC_aplicado, Costo_unit_ARS: l.Costo_unit_ARS, Margen_pct: l.Margen_pct, Precio_unit_ARS: l.Precio_unit_ARS, Subtotal_ARS: l.Subtotal_ARS, Alicuota_IVA: l.Alicuota_IVA, Monto_IVA: l.Monto_IVA, Subtotal_con_IVA: l.Subtotal_con_IVA, Orden: l.Orden, Visible_pdf: true };
             let newLine = await apiPost(TBL.lineas, lineaData);
             let nLId = newLine.Id || newLine.id;
-            await apiLink(TBL.lineas, 'c4hnodnss6zlr32', nLId, [{ Id: newId }]); // Link to Pres
-            await apiLink(TBL.lineas, 'cn9406tc3q1jmw0', nLId, [{ Id: newUId }]); // Link to Unit
-            // Component Link?
-            // l has no component ID in it directly from this fetch. 
-            // In a deeper implementation we would track it, but for now we rely on Description matching or manual fix.
-            // Duplicate won't link to component ID but keeps data values, which is acceptable for snapshot.
+            await apiLink(TBL.lineas, 'c4hnodnss6zlr32', nLId, [{ Id: newId }]);
+            await apiLink(TBL.lineas, 'cn9406tc3q1jmw0', nLId, [{ Id: newUId }]);
         }
     }
-
-    // Copy Totals
-    await apiPatch(TBL.presupuestos, {
-        Id: newId,
-        Subtotal_neto: oldP.Subtotal_neto,
-        Subtotal_items: oldP.Subtotal_items,
-        IVA_21: oldP.IVA_21,
-        IVA_105: oldP.IVA_105,
-        Total_con_IVA: oldP.Total_con_IVA,
-        Total: oldP.Total
-    });
-
+    await apiPatch(TBL.presupuestos, { Id: newId, Subtotal_neto: oldP.Subtotal_neto, Subtotal_items: oldP.Subtotal_items, IVA_21: oldP.IVA_21, IVA_105: oldP.IVA_105, Total_con_IVA: oldP.Total_con_IVA, Total: oldP.Total });
     alert('Presupuesto duplicado exitosamente.');
     DATA.presupuestos = await apiGet(TBL.presupuestos);
     DATA.unidades = await apiGet(TBL.unidades);
@@ -1488,18 +1219,11 @@ async function duplicatePresupuesto(presId) {
 }
 
 loadAll();
-// ===== GLOBAL MODAL HANDLER =====
-window.onclick = function (event) {
-    // Global close for searchable selects when clicking outside
-    if (!event.target.matches('.searchable-select input')) {
-        document.querySelectorAll('.searchable-dropdown').forEach(d => d.classList.remove('show'));
-    }
 
+window.onclick = function (event) {
     if (event.target.classList.contains('modal-overlay')) {
         if (event.target.id === 'modal-pres') closeModal();
         else if (event.target.id === 'modal-ver-pres') closeVerPres();
     }
-    if (event.target.classList.contains('detail-panel')) {
-        closeDetail();
-    }
+    if (event.target.classList.contains('detail-panel')) closeDetail();
 };

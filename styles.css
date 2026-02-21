@@ -810,10 +810,26 @@ label {
     padding-top: 8px;
     width: 200px;
 }
+
 /* Searchable Select Styles */
 .searchable-select {
     position: relative;
     z-index: 10 !important;
+}
+
+.filter-input {
+    width: 100%;
+    font-size: 0.85em;
+    padding: 4px 8px;
+    margin-bottom: 4px;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    transition: border-color 0.2s;
+}
+
+.filter-input:focus {
+    border-color: var(--grad2);
+    outline: none;
 }
 
 .searchable-dropdown {
@@ -829,7 +845,7 @@ label {
     max-height: 250px;
     overflow-y: auto;
     z-index: 1000;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .searchable-dropdown.show {
