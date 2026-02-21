@@ -588,8 +588,8 @@ function autoLoadComponents(n) {
     } else {
         console.log("Hit: Instalacion Nueva block");
         let matCompId = PROD_COMP_MAP[pid];
-        // Bug 1 Fix: Only add material for Installation or Pano, NOT for Motorization
-        if (matCompId && !isMotor) {
+        // Only add material PAÑO for Instalacion_nueva. (Cambio_pano is handled in its own block)
+        if (matCompId && tipoTrabajo === 'Instalacion_nueva') {
             addCompRowWithData(n, DATA.componentes.find(c => c.Id == matCompId), m2 > 0 ? parseFloat(m2.toFixed(2)) : 1);
         }
 
@@ -646,7 +646,7 @@ function autoLoadComponents(n) {
                 if (m2 > 4) addCompRowWithData(n, DATA.componentes.find(c => c.Id == 95), 1);
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 97), 1);
             }
-        } else if (cat === 'Interior') {
+        } else if (cat === 'Interior' && tipoTrabajo === 'Instalacion_nueva') {
             addCompRowWithData(n, DATA.componentes.find(c => c.Id == 92), 1);
         }
     }
