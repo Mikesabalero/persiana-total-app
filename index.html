@@ -111,8 +111,9 @@
                 </div><button class="btn btn-primary" onclick="openNewPres()">+ Nuevo Presupuesto</button>
             </div>
             <div class="filters">
-                <input type="text" id="pres-search" placeholder="Buscar por número o cliente..." oninput="filterPres()">
-                <select id="pres-filter-estado" onchange="filterPres()">
+                <input type="text" id="pres-search" placeholder="Buscar por número o cliente..."
+                    oninput="filterPresupuestos()">
+                <select id="pres-filter-estado" onchange="filterPresupuestos()">
                     <option value="">Todos los estados</option>
                     <option>Borrador</option>
                     <option>Enviado</option>

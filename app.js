@@ -80,11 +80,28 @@ function loadPresupuestos() {
     let tb = document.getElementById('pres-table');
     tb.innerHTML = '';
     DATA.presupuestos.forEach(p => {
-        let cliName = cleanLabel(p._clienteNombre) || '-';
-        let propDir = cleanLabel(p._propiedadDir) || '-';
-        let zonaName = cleanLabel(p._zonaNombre) || '-';
+        let cliName = p._clienteNombre;
+        if (!cliName || cliName === '-') cliName = resolveName(p, 'Clientes', DATA.clientes);
+
+        let propDir = p._propiedadDir;
+        if (!propDir || propDir === '-') {
+            let pr = resolveLink(p, 'Propiedades');
+            if (pr) {
+                let pfull = DATA.propiedades.find(x => x.Id == (pr.Id || pr.id));
+                if (pfull) propDir = (pfull.Direccion || '-') + ' - ' + (pfull.Localidad || '-');
+            }
+        }
+
+        let zonaName = p._zonaNombre;
+        if (!zonaName || zonaName === '-') zonaName = resolveName(p, 'Zonas', DATA.zonas);
+
+        cliName = cleanLabel(cliName) || '-';
+        propDir = cleanLabel(propDir) || '-';
+        zonaName = cleanLabel(zonaName) || '-';
+
         let iva = (p.IVA_21 || 0) + (p.IVA_105 || 0);
         let id = p.Id || p.id;
+
         let actions = '<div style="display:flex; gap:5px; align-items:center;">';
         actions += '<button class="btn btn-sm btn-secondary" onclick="viewPresupuesto(' + id + ')">Ver</button>';
         actions += '<button class="btn btn-sm btn-secondary" onclick="duplicatePresupuesto(' + id + ')" title="Duplicar">📑</button>';
