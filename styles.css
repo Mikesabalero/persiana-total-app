@@ -811,11 +811,6 @@ label {
     width: 200px;
 }
 
-/* Searchable Select Styles */
-.searchable-select {
-    position: relative;
-    z-index: 10 !important;
-}
 
 .filter-input {
     width: 100%;
