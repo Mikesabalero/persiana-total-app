@@ -1106,8 +1106,7 @@ async function generarPDF(presId) {
                     <div style="font-size: 0.8em; color: #6b7280;"><p>Presupuesto válido por 15 días.</p><p>Los precios pueden sufrir modificaciones sin previo aviso.</p></div>
                     <div class="pdf-signature" style="border-top: 1px solid #374151; width: 200px; text-align: center; font-size: 0.8em; color: #374151; padding-top: 8px; margin-bottom: 10px;">Firma y Aclaración</div>
                 </div>
-            </div>
-        `;
+            </div>`;
         let container = document.getElementById('pdf-content');
         if (!container) { alert('Error: Contenedor PDF no encontrado'); return; }
         container.innerHTML = html;
@@ -1208,12 +1207,12 @@ async function viewPresupuesto(presId) {
         let unitTotal = uLines.reduce((acc, l) => acc + (parseFloat(l.Subtotal_ARS) || 0), 0);
         let measures = u.Ancho_m && u.Alto_m ? ` (${u.Ancho_m}m × ${u.Alto_m}m)` : '';
         let isRepair = u.Tipo_trabajo === 'Reparacion' || u.Tipo_trabajo === 'Service';
-        let prodLine = `< strong > Producto:</strong > ${cleanLabel(prodName) || '-'} `;
+        let prodLine = `<strong>Producto:</strong> ${cleanLabel(prodName) || '-'} `;
         if (isRepair) {
             let repName = REPAIR_LABELS[u.Tipo_reparacion] || 'Reparación / Service';
-            prodLine = `< strong > Reparación:</strong > ${repName} `;
+            prodLine = `<strong>Reparación:</strong> ${repName} `;
         }
-        html += `< div style = "background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:12px" >
+        html += `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:12px">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #e5e7eb; padding-bottom:4px">
                 <h4 style="margin:0;color:var(--grad1)">${cleanLabel(u.Nombre)} - ${cleanLabel(u.Ubicacion) || ''}${measures}</h4>
                 <span style="font-size:0.9em; color:#6b7280; font-weight:bold">${cleanLabel(u.Tipo_trabajo) || ''}</span>
@@ -1221,8 +1220,10 @@ async function viewPresupuesto(presId) {
             <div style="font-size:0.9em;color:#6b7280;margin-bottom:8px">${prodLine}</div>
             <ul style="margin: 0; padding-left: 20px; font-size: 0.9em; color: #374151; list-style-type: disc;">`;
         if (isRepair) html += `<li style="margin-bottom:2px">Incluye mano de obra</li>`;
-        uLines.forEach(l => { html += `<li style="margin-bottom:2px">${cleanLabel(l.Descripcion_pdf)}</li>`; });
-        html += `</ul><div style="text-align:right; margin-top:10px; font-size:1.1em;"><strong>Precio unidad: ${fmt(unitTotal)}</strong></div></div > `;
+        uLines.forEach(l => {
+            html += `<li style="margin-bottom:2px">${cleanLabel(l.Descripcion_pdf)} (${l.Cantidad}) — ${fmt(l.Subtotal_ARS)}</li>`;
+        });
+        html += `</ul><div style="text-align:right; margin-top:10px; font-size:1.1em;"><strong>Precio unidad: ${fmt(unitTotal)}</strong></div></div>`;
     });
     document.getElementById('vp-contenido').innerHTML = html;
     document.getElementById('vp-subtotal').textContent = fmt(pres.Subtotal_neto);
