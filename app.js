@@ -357,16 +357,16 @@ function removeUnidad(n) { document.getElementById('unidad-' + n)?.remove(); rec
 const PESO_M2 = {
     16: 11, 17: 13, 18: 10, 19: 12, 20: 14,
     21: 4, 22: 7, 24: 3,
-    25: 10, 26: 5, 27: 10, 28: 5
+    25: 10, 26: 5, 27: 10, 28: 5, 29: 10
 };
 const PROD_COMP_MAP = {
     16: 33, 17: 34, 18: 35, 19: 36, 20: 37,
     21: 38, 22: 39, 23: 40, 24: 41,
-    25: 42, 26: 43, 27: 44, 28: 45,
-    31: 46, 32: 47
+    25: 42, 26: 43, 27: 44, 28: 45, 29: 46,
+    31: 48, 32: 49
 };
 const CAT_SEGURIDAD = [16, 17, 18, 19, 20];
-const CAT_EXTERIOR = [21, 22, 23, 24, 25, 26, 27, 28];
+const CAT_EXTERIOR = [21, 22, 23, 24, 25, 26, 27, 28, 29];
 const CAT_INTERIOR = [31, 32];
 
 function getCategoria(prodId) {
@@ -568,7 +568,7 @@ function autoLoadComponents(n) {
             addCompWithPrice(matCompId, m2);
             if (cat === 'Exterior') {
                 addCompWithPrice(155, parseFloat((alto + 0.5).toFixed(2))); // Cinta
-                if (pid === 25 || pid === 26) addCompWithPrice(161, Math.ceil(ancho / 0.4)); // Corazón
+                if (pid === 27 || pid === 29) addCompWithPrice(161, Math.ceil(ancho / 0.4)); // Corazón
             }
         }
         addCustomLabor("Mano de obra cambio paño", Math.max(materialPriceTotal * 0.5, 40000));
@@ -588,7 +588,10 @@ function autoLoadComponents(n) {
     } else {
         console.log("Hit: Instalacion Nueva block");
         let matCompId = PROD_COMP_MAP[pid];
-        if (matCompId) addCompRowWithData(n, DATA.componentes.find(c => c.Id == matCompId), m2 > 0 ? parseFloat(m2.toFixed(2)) : 1);
+        // Bug 1 Fix: Only add material for Installation or Pano, NOT for Motorization
+        if (matCompId && !isMotor) {
+            addCompRowWithData(n, DATA.componentes.find(c => c.Id == matCompId), m2 > 0 ? parseFloat(m2.toFixed(2)) : 1);
+        }
 
         if (cat === 'Seguridad') {
             let motorId = selectMotor(cat, peso, ancho, m2);
@@ -608,7 +611,7 @@ function autoLoadComponents(n) {
                 let motorId = selectMotor(cat, peso, ancho, m2);
                 if (motorId) addCompRowWithData(n, DATA.componentes.find(c => c.Id == motorId), 1);
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 150), parseFloat(ancho.toFixed(2)));
-                if (pid === 25 || pid === 26) addCompRowWithData(n, DATA.componentes.find(c => c.Id == 161), Math.ceil(ancho / 0.4));
+                if (pid === 27 || pid === 29) addCompRowWithData(n, DATA.componentes.find(c => c.Id == 161), Math.ceil(ancho / 0.4));
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 63), parseFloat((alto * 2).toFixed(2)));
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 58), 1);
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 93), 1);
@@ -617,7 +620,7 @@ function autoLoadComponents(n) {
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 97), 1);
             } else if (accion === 'manual_cinta') {
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 150), parseFloat(ancho.toFixed(2)));
-                if (pid === 25 || pid === 26) addCompRowWithData(n, DATA.componentes.find(c => c.Id == 161), Math.ceil(ancho / 0.4));
+                if (pid === 27 || pid === 29) addCompRowWithData(n, DATA.componentes.find(c => c.Id == 161), Math.ceil(ancho / 0.4));
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == (m2 <= 1.5 ? 151 : 152)), 1);
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 153), 2);
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 154), 1);
@@ -631,7 +634,7 @@ function autoLoadComponents(n) {
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 97), 1);
             } else if (accion === 'manual_antognetti') {
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 150), parseFloat(ancho.toFixed(2)));
-                if (pid === 25 || pid === 26) addCompRowWithData(n, DATA.componentes.find(c => c.Id == 161), Math.ceil(ancho / 0.4));
+                if (pid === 27 || pid === 29) addCompRowWithData(n, DATA.componentes.find(c => c.Id == 161), Math.ceil(ancho / 0.4));
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == (m2 <= 1.5 ? 151 : 152)), 1);
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 153), 2);
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 154), 1);
