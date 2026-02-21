@@ -162,7 +162,7 @@ function filterCli() {
         r.style.display = show ? '' : 'none';
     });
 }
-function filterPres() {
+function filterPresupuestos() {
     let search = document.getElementById('pres-search').value.toLowerCase();
     let estado = document.getElementById('pres-filter-estado').value;
     let rows = document.querySelectorAll('#pres-table tr');
