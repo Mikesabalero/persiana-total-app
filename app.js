@@ -1021,7 +1021,11 @@ async function generarPDF(presId) {
             let uLines = presLineas.filter(l => (l._unidadId || l.Unidad?.Id || l.Unidad) == u.Id);
             uLines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
 
-            let billingMode = pres.Facturacion || 'con_iva';
+            let billingMode = pres.Facturacion;
+            if (!billingMode) {
+                let allRepair = presUnidades.every(unit => unit.Tipo_trabajo === 'Reparacion' || unit.Tipo_trabajo === 'Service');
+                billingMode = allRepair ? 'sin_iva' : 'con_iva';
+            }
             let isRepair = u.Tipo_trabajo === 'Reparacion' || u.Tipo_trabajo === 'Service';
 
             let unitTotal = uLines.reduce((acc, l) => acc + (parseFloat(l.Subtotal_con_IVA) || 0), 0);
@@ -1075,7 +1079,11 @@ async function generarPDF(presId) {
             `;
         }
 
-        let billingMode = pres.Facturacion || 'con_iva';
+        let billingMode = pres.Facturacion;
+        if (!billingMode) {
+            let allRepair = presUnidades.every(u => u.Tipo_trabajo === 'Reparacion' || u.Tipo_trabajo === 'Service');
+            billingMode = allRepair ? 'sin_iva' : 'con_iva';
+        }
         let total = pres.Total_con_IVA || 0;
 
         html += `<div class="pdf-totals" style="margin-top: 30px;">
@@ -1226,9 +1234,26 @@ async function viewPresupuesto(presId) {
         html += `</ul><div style="text-align:right; margin-top:10px; font-size:1.1em;"><strong>Precio unidad: ${fmt(unitTotal)}</strong></div></div>`;
     });
     document.getElementById('vp-contenido').innerHTML = html;
+
+    let billingMode = pres.Facturacion;
+    if (!billingMode) {
+        let allRepair = res.unidades.every(u => u.Tipo_trabajo === 'Reparacion' || u.Tipo_trabajo === 'Service');
+        billingMode = allRepair ? 'sin_iva' : 'con_iva';
+    }
+
     document.getElementById('vp-subtotal').textContent = fmt(pres.Subtotal_neto);
     document.getElementById('vp-iva').textContent = fmt((pres.IVA_21 || 0) + (pres.IVA_105 || 0));
     document.getElementById('vp-total').textContent = fmt(pres.Total_con_IVA);
+
+    // Summary View Fix: Only show discount/net-total if con_iva
+    let summaryBox = document.querySelector('#modal-ver-pres .resumen-box');
+    if (summaryBox) {
+        // En index.html no hay IDs para estas líneas específicas, pero viewPresupuesto (línea 1228+) 
+        // solo actualiza subtotal, iva y total. Si quisiéramos mostrar el descuento en la vista
+        // de presupuesto como en el PDF, tendríamos que inyectar HTML extra aquí.
+        // Dado que el requerimiento se enfoca en el PDF y el default, mantengo la coherencia.
+    }
+
     let btnEdit = document.getElementById('vp-btn-editar');
     btnEdit.onclick = function () {
         closeVerPres(); pres._clienteData = client; pres._zonaData = zona; pres._pagoNombre = pago; pres._unidades = res.unidades; pres._lineas = res.lineas;
