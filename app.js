@@ -720,7 +720,7 @@ function recalcTotal() {
     document.querySelectorAll('.unidad-subtotal').forEach(s => {
         total += parseFloat(s.textContent.replace('$', '').replace(/\./g, '').replace(',', '.')) || 0;
     });
-    document.getElementById('np-total-valor').textContent = fmt(total);
+    document.getElementById('np-total').textContent = fmt(total);
 }
 async function savePres() {
     let clienteId = document.getElementById('np-cliente').value;
