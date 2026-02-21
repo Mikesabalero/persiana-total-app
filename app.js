@@ -315,12 +315,12 @@ function addUnidad() {
 
 function addUnidadUI(n, uData) {
     let uId = uData ? uData.Id : '';
-    let prodOpts = '<option value="">Seleccionar producto...</option>';
     let selectedProd = uData ? uData._productoId : '';
 
+    let prodItems = '';
     DATA.productos.forEach(p => {
-        let sel = (selectedProd && String(p.Id) == String(selectedProd)) ? 'selected' : '';
-        prodOpts += '<option value="' + p.Id + '" ' + sel + '>' + cleanLabel(p.Nombre) + '</option>';
+        let selClass = (selectedProd && String(p.Id) == String(selectedProd)) ? 'selected' : '';
+        prodItems += `<div class="search-item ${selClass}" onclick="selectProduct(${n}, ${p.Id}, '${cleanLabel(p.Nombre)}')">${cleanLabel(p.Nombre)}</div>`;
     });
 
     let nombre = uData ? uData.Nombre : '';
@@ -342,7 +342,11 @@ function addUnidadUI(n, uData) {
     html += '<div class="form-group"><label>Tipo Trabajo</label><select id="u-' + n + '-tipo" onchange="autoLoadComponents(' + n + ')"><option value="Instalacion_nueva" ' + (tipo == 'Instalacion_nueva' ? 'selected' : '') + '>Instalación nueva</option><option value="Cambio_pano" ' + (tipo == 'Cambio_pano' ? 'selected' : '') + '>Cambio paño</option><option value="Motorizacion" ' + (tipo == 'Motorizacion' ? 'selected' : '') + '>Motorización</option><option value="Cambio_guias" ' + (tipo == 'Cambio_guias' ? 'selected' : '') + '>Cambio guías</option><option value="Reparacion" ' + (tipo == 'Reparacion' ? 'selected' : '') + '>Reparación</option><option value="Service" ' + (tipo == 'Service' ? 'selected' : '') + '>Service</option><option value="Otro" ' + (tipo == 'Otro' ? 'selected' : '') + '>Otro</option></select></div>';
     html += '<div class="form-group" style="' + showRep + '" id="div-u-' + n + '-tiporep"><label>Tipo Reparación</label><select id="u-' + n + '-tiporep" onchange="autoLoadComponents(' + n + ')"><option value="">-- Elegir reparación --</option><option value="cambio_eje" ' + (tipoRep == 'cambio_eje' ? 'selected' : '') + '>Cambio de eje</option><option value="cambio_cinta" ' + (tipoRep == 'cambio_cinta' ? 'selected' : '') + '>Cambio de cinta</option><option value="cambio_laterales" ' + (tipoRep == 'cambio_laterales' ? 'selected' : '') + '>Cambio de laterales</option><option value="cambio_resortes" ' + (tipoRep == 'cambio_resortes' ? 'selected' : '') + '>Cambio de resortes</option><option value="cambio_polea_tacos" ' + (tipoRep == 'cambio_polea_tacos' ? 'selected' : '') + '>Cambio polea, tacos y punteras</option><option value="bobinado_motor" ' + (tipoRep == 'bobinado_motor' ? 'selected' : '') + '>Bobinado de motor</option></select></div>';
     html += '<div class="form-group" style="' + hideAccion + '"><label>Accionamiento</label><select id="u-' + n + '-accion" onchange="autoLoadComponents(' + n + ')"><option value="motor" ' + (accion == 'motor' ? 'selected' : '') + '>Con motor</option><option value="manual_cinta" ' + (accion == 'manual_cinta' ? 'selected' : '') + '>Manual a cinta</option><option value="manual_antognetti" ' + (accion == 'manual_antognetti' ? 'selected' : '') + '>Manual Antognetti</option></select></div>';
-    html += '<div class="form-group"><label>Producto Base</label><select id="u-' + n + '-prod" onchange="autoLoadComponents(' + n + ')">' + prodOpts + '</select></div></div>';
+    html += '<div class="form-group searchable-select"><label>Producto Base</label>';
+    let selectedProdName = selectedProd ? cleanLabel(DATA.productos.find(p => String(p.Id) == String(selectedProd))?.Nombre || '') : '';
+    html += '<input type="text" id="u-' + n + '-prod-search" placeholder="Buscar producto..." oninput="filterProducts(' + n + ')" onfocus="showProducts(' + n + ')" value="' + selectedProdName + '" autocomplete="off">';
+    html += '<input type="hidden" id="u-' + n + '-prod" value="' + selectedProd + '">';
+    html += '<div id="u-' + n + '-prod-list" class="searchable-dropdown">' + prodItems + '</div></div></div>';
     html += '<div class="form-row" style="grid-template-columns:1fr 1fr 2fr"><div class="form-group"><label>Ancho (m)</label><input type="number" id="u-' + n + '-ancho" step="0.01" oninput="autoLoadComponents(' + n + ')" value="' + ancho + '"></div>';
     html += '<div class="form-group"><label>Alto (m)</label><input type="number" id="u-' + n + '-alto" step="0.01" oninput="autoLoadComponents(' + n + ')" value="' + alto + '"></div><div></div></div>';
     html += '<table class="comp-table"><thead><tr><th>Componente</th><th>Cant.</th><th class="hide-margin">Costo</th><th class="hide-margin">Moneda</th><th class="hide-margin">Margen%</th><th>Precio Unit.</th><th>Subtotal</th><th>IVA%</th><th></th></tr></thead><tbody id="comps-u-' + n + '"></tbody></table>';
@@ -352,6 +356,37 @@ function addUnidadUI(n, uData) {
 }
 
 function removeUnidad(n) { document.getElementById('unidad-' + n)?.remove(); recalcTotal(); }
+
+// ===== SEARCHABLE PRODUCT SELECTOR FUNCTIONS =====
+function filterProducts(n) {
+    let input = document.getElementById('u-' + n + '-prod-search');
+    let filter = input.value.toLowerCase();
+    let div = document.getElementById('u-' + n + '-prod-list');
+    let items = div.getElementsByClassName('search-item');
+    div.classList.add('show');
+    for (let i = 0; i < items.length; i++) {
+        let txtValue = items[i].textContent || items[i].innerText;
+        items[i].style.display = txtValue.toLowerCase().indexOf(filter) > -1 ? "" : "none";
+    }
+}
+
+function selectProduct(n, id, name) {
+    document.getElementById('u-' + n + '-prod').value = id;
+    document.getElementById('u-' + n + '-prod-search').value = name;
+    document.getElementById('u-' + n + '-prod-list').classList.remove('show');
+    // Highlight selected
+    let items = document.getElementById('u-' + n + '-prod-list').getElementsByClassName('search-item');
+    for (let i = 0; i < items.length; i++) {
+        items[i].classList.toggle('selected', items[i].getAttribute('onclick').includes(id));
+    }
+    autoLoadComponents(n);
+}
+
+function showProducts(n) {
+    // Hide others first
+    document.querySelectorAll('.searchable-dropdown').forEach(d => d.classList.remove('show'));
+    document.getElementById('u-' + n + '-prod-list').classList.add('show');
+}
 
 // ===== AUTO-LOAD COMPONENTS =====
 const PESO_M2 = {
@@ -1453,3 +1488,18 @@ async function duplicatePresupuesto(presId) {
 }
 
 loadAll();
+// ===== GLOBAL MODAL HANDLER =====
+window.onclick = function (event) {
+    // Global close for searchable selects when clicking outside
+    if (!event.target.matches('.searchable-select input')) {
+        document.querySelectorAll('.searchable-dropdown').forEach(d => d.classList.remove('show'));
+    }
+
+    if (event.target.classList.contains('modal-overlay')) {
+        if (event.target.id === 'modal-pres') closeModal();
+        else if (event.target.id === 'modal-ver-pres') closeVerPres();
+    }
+    if (event.target.classList.contains('detail-panel')) {
+        closeDetail();
+    }
+};

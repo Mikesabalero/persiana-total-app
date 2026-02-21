@@ -810,3 +810,45 @@ label {
     padding-top: 8px;
     width: 200px;
 }
+/* Searchable Select Styles */
+.searchable-select {
+    position: relative;
+    z-index: 10 !important;
+}
+
+.searchable-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1.5px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    max-height: 250px;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.searchable-dropdown.show {
+    display: block;
+}
+
+.search-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 0.88em;
+    transition: background 0.2s;
+}
+
+.search-item:hover {
+    background: rgba(18, 186, 168, 0.08);
+    color: var(--grad1);
+}
+
+.search-item.selected {
+    background: rgba(18, 186, 168, 0.15);
+    font-weight: 600;
+}
