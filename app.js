@@ -554,6 +554,10 @@ function autoLoadComponents(n) {
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == ejeId), parseFloat(ancho.toFixed(2)));
             } else {
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 150), parseFloat(ancho.toFixed(2)));
+                if (pid === 27 || pid === 29) {
+                    let cora = DATA.componentes.find(c => c.Id == 161);
+                    if (cora) addCompRowWithData(n, cora, Math.ceil(ancho / 0.4));
+                }
             }
         }
         addCompRowWithData(n, DATA.componentes.find(c => c.Id == 58), 1); // Kit Remoto
