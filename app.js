@@ -420,29 +420,30 @@ function autoLoadComponents(n) {
     let cat = getCategoria(pid);
 
     // UI visibility management
+    let isRep = (tipoTrabajo === 'Reparacion' || tipoTrabajo === 'Service');
+    let isMotor = (tipoTrabajo === 'Motorizacion');
+    let isPano = (tipoTrabajo === 'Cambio_pano');
+    let isGuias = (tipoTrabajo === 'Cambio_guias');
+
     let divTipoRep = document.getElementById('div-u-' + n + '-tiporep');
-    if (divTipoRep) divTipoRep.style.display = (tipoTrabajo === 'Reparacion' || tipoTrabajo === 'Service') ? 'block' : 'none';
+    if (divTipoRep) divTipoRep.style.display = isRep ? 'block' : 'none';
 
     let accSelect = document.getElementById('u-' + n + '-accion');
-    let isRep = (tipoTrabajo === 'Reparacion' || tipoTrabajo === 'Service');
-
     if (accSelect) {
         let accDiv = accSelect.closest('.form-group');
-        if (isRep) {
+        if (isRep || isMotor || isPano || isGuias || cat === 'Seguridad') {
             accDiv.style.display = 'none';
-        } else if (cat === 'Seguridad') {
-            accDiv.style.display = 'none';
-            accSelect.value = 'motor';
+            if (isMotor || cat === 'Seguridad') accSelect.value = 'motor';
         } else {
             accDiv.style.display = 'block';
         }
     }
     if (prodSelect) {
-        prodSelect.closest('.form-group').style.display = isRep ? 'none' : 'block';
+        prodSelect.closest('.form-group').style.display = (isRep || isGuias) ? 'none' : 'block';
     }
 
-    if (!prodId && !isRep) { tbody.innerHTML = ''; recalcUnidad(n); return; }
-    if (!cat && !isRep) { tbody.innerHTML = ''; addCompRow(n); recalcUnidad(n); return; }
+    if (!prodId && !isRep && !isGuias) { tbody.innerHTML = ''; recalcUnidad(n); return; }
+    if (!cat && !isRep && !isGuias) { tbody.innerHTML = ''; if (tipoTrabajo !== 'Cambio_guias') addCompRow(n); recalcUnidad(n); return; }
 
     let accion = accSelect ? accSelect.value : 'motor';
     if (cat === 'Seguridad') accion = 'motor';
@@ -453,8 +454,25 @@ function autoLoadComponents(n) {
 
     tbody.innerHTML = '';
 
-    // 1. Material/Paño (Common for Base products)
-    if (tipoTrabajo !== 'Reparacion' && tipoTrabajo !== 'Service') {
+    // --- HELPER FOR CUSTOM LABOR ---
+    const addCustomLabor = (label, price) => {
+        let moRow = document.createElement('tr');
+        moRow.innerHTML = `
+            <td><select disabled><option>${label}</option></select></td>
+            <td><input type="number" value="1" step="0.01" style="width:60px" oninput="recalcUnidad(${n})"></td>
+            <td class="c-costo hide-margin">${price.toFixed(2)}</td>
+            <td class="c-moneda hide-margin">ARS</td>
+            <td class="hide-margin"><input type="number" value="0" style="width:60px" oninput="recalcUnidad(${n})"></td>
+            <td class="c-precio">${fmt(price)}</td>
+            <td class="c-subtotal">${fmt(price)}</td>
+            <td class="c-iva">21%</td>
+            <td><button class="btn-remove" onclick="this.closest('tr').remove();recalcUnidad(${n})">✕</button></td>
+        `;
+        tbody.appendChild(moRow);
+    };
+
+    // 1. Material/Paño (Common for Base products / Cambio Pano)
+    if (tipoTrabajo !== 'Reparacion' && tipoTrabajo !== 'Service' && tipoTrabajo !== 'Cambio_guias') {
         let matCompId = PROD_COMP_MAP[pid];
         if (matCompId) {
             let matComp = DATA.componentes.find(c => c.Id == matCompId);
@@ -502,22 +520,7 @@ function autoLoadComponents(n) {
         }
 
         // 3. Mano de Obra (50% PRECIO materiales, min 40k)
-        let moPrecio = Math.max(materialPriceTotal * 0.5, 40000);
-
-        // Add custom labor row
-        let moRow = document.createElement('tr');
-        moRow.innerHTML = `
-            <td><select disabled><option>Mano de obra reparación</option></select></td>
-            <td><input type="number" value="1" step="0.01" style="width:60px" oninput="recalcUnidad(${n})"></td>
-            <td class="c-costo hide-margin">${moPrecio.toFixed(2)}</td>
-            <td class="c-moneda hide-margin">ARS</td>
-            <td class="hide-margin"><input type="number" value="0" style="width:60px" oninput="recalcUnidad(${n})"></td>
-            <td class="c-precio">${fmt(moPrecio)}</td>
-            <td class="c-subtotal">${fmt(moPrecio)}</td>
-            <td class="c-iva">21%</td>
-            <td><button class="btn-remove" onclick="this.closest('tr').remove();recalcUnidad(${n})">✕</button></td>
-        `;
-        tbody.appendChild(moRow);
+        addCustomLabor("Mano de obra reparación", Math.max(materialPriceTotal * 0.5, 40000));
 
         // 4. Viático (Check if already added in any unit)
         let hasViatico = false;
@@ -542,8 +545,102 @@ function autoLoadComponents(n) {
             if (vComp) addCompRowWithData(n, vComp, 1);
         }
 
+    } else if (tipoTrabajo === 'Motorizacion') {
+        // --- LOGICA MOTORIZACION ---
+        let motorId = selectMotor(cat, peso, ancho, m2);
+        if (motorId) {
+            let motorComp = DATA.componentes.find(c => c.Id == motorId);
+            if (motorComp) addCompRowWithData(n, motorComp, 1);
+
+            // Eje según motor
+            if (cat === 'Seguridad') {
+                let ejeId = 147; // Default 4" for Tubular 140
+                if ([55, 126, 127].includes(motorId)) ejeId = 147; // 140/Fm60/Pm60
+                else if ([50, 51].includes(motorId)) ejeId = 148; // Pm 600/700 -> 5"
+                else if ([52, 53, 54].includes(motorId)) ejeId = 149; // Pm 800/1000/1500 -> 7.5"
+                let eje = DATA.componentes.find(c => c.Id == ejeId);
+                if (eje) addCompRowWithData(n, eje, parseFloat(ancho.toFixed(2)));
+            } else {
+                let eje = DATA.componentes.find(c => c.Id == 150);
+                if (eje) addCompRowWithData(n, eje, parseFloat(ancho.toFixed(2)));
+                // Corazón if Barrio
+                if (pid === 25 || pid === 26) {
+                    let cora = DATA.componentes.find(c => c.Id == 161);
+                    if (cora) addCompRowWithData(n, cora, Math.ceil(ancho / 0.4));
+                }
+            }
+        }
+        // Kit Remoto (58)
+        let kit = DATA.componentes.find(c => c.Id == 58);
+        if (kit) addCompRowWithData(n, kit, 1);
+
+        // Mano de obra
+        let moBase = DATA.componentes.find(c => c.Id == 102);
+        if (moBase) addCompRowWithData(n, moBase, 1);
+        if (m2 > 4) {
+            let moPlus = DATA.componentes.find(c => c.Id == 95);
+            if (moPlus) addCompRowWithData(n, moPlus, 1);
+        }
+        let moCable = DATA.componentes.find(c => c.Id == 103);
+        if (moCable) addCompRowWithData(n, moCable, 1);
+
+    } else if (tipoTrabajo === 'Cambio_pano') {
+        // --- LOGICA CAMBIO PAÑO ---
+        let matPrice = 0;
+        let matCompId = PROD_COMP_MAP[pid];
+        let matComp = DATA.componentes.find(c => c.Id == matCompId);
+        if (matComp) {
+            let tc = DATA.tc.Dolar_oficial || 1150;
+            let costoArs = (matComp.Moneda_costo === 'USD' ? matComp.Costo_unitario * tc : matComp.Costo_unitario) || 0;
+            matPrice += costoArs * (1 + (matComp.Margen_default || 40) / 100) * m2;
+        }
+
+        if (cat === 'Exterior') {
+            let cinta = DATA.componentes.find(c => c.Id == 155);
+            if (cinta) {
+                addCompRowWithData(n, cinta, parseFloat((alto + 0.5).toFixed(2)));
+                let tc = DATA.tc.Dolar_oficial || 1150;
+                let costoArs = (cinta.Moneda_costo === 'USD' ? cinta.Costo_unitario * tc : cinta.Costo_unitario) || 0;
+                matPrice += costoArs * (1 + (cinta.Margen_default || 40) / 100) * (alto + 0.5);
+            }
+            if (pid === 25 || pid === 26) {
+                let cora = DATA.componentes.find(c => c.Id == 161);
+                if (cora) {
+                    let qty = Math.ceil(ancho / 0.4);
+                    addCompRowWithData(n, cora, qty);
+                    let tc = DATA.tc.Dolar_oficial || 1150;
+                    let costoArs = (cora.Moneda_costo === 'USD' ? cora.Costo_unitario * tc : cora.Costo_unitario) || 0;
+                    matPrice += costoArs * (1 + (cora.Margen_default || 40) / 100) * qty;
+                }
+            }
+        }
+        addCustomLabor("Mano de obra cambio paño", Math.max(matPrice * 0.5, 40000));
+
+    } else if (tipoTrabajo === 'Cambio_guias') {
+        // --- LOGICA CAMBIO GUIAS ---
+        let guiasPrice = 0;
+        if (cat === 'Seguridad') {
+            let gid = ancho < 5 ? 60 : 61;
+            let guias = DATA.componentes.find(c => c.Id == gid);
+            if (guias) {
+                addCompRowWithData(n, guias, parseFloat((alto * 2).toFixed(2)));
+                let tc = DATA.tc.Dolar_oficial || 1150;
+                let costoArs = (guias.Moneda_costo === 'USD' ? guias.Costo_unitario * tc : guias.Costo_unitario) || 0;
+                guiasPrice += costoArs * (1 + (guias.Margen_default || 40) / 100) * (alto * 2);
+            }
+        } else {
+            let guias = DATA.componentes.find(c => c.Id == 63);
+            if (guias) {
+                addCompRowWithData(n, guias, parseFloat((alto * 2).toFixed(2)));
+                let tc = DATA.tc.Dolar_oficial || 1150;
+                let costoArs = (guias.Moneda_costo === 'USD' ? guias.Costo_unitario * tc : guias.Costo_unitario) || 0;
+                guiasPrice += costoArs * (1 + (guias.Margen_default || 40) / 100) * (alto * 2);
+            }
+        }
+        addCustomLabor("Mano de obra cambio guías", Math.max(guiasPrice * 0.5, 40000));
+
     } else if (cat === 'Seguridad') {
-        // --- LOGICA SEGURIDAD ---
+        // --- LOGICA SEGURIDAD (INSTALACION NUEVA) ---
         let motorId = selectMotor(cat, peso, ancho, m2);
         if (motorId) {
             let motorComp = DATA.componentes.find(c => c.Id == motorId);
@@ -595,6 +692,12 @@ function autoLoadComponents(n) {
             let eje = DATA.componentes.find(c => c.Id == 150);
             if (eje) addCompRowWithData(n, eje, parseFloat(ancho.toFixed(2)));
 
+            // Corazón if Barrio
+            if (pid === 25 || pid === 26) {
+                let cora = DATA.componentes.find(c => c.Id == 161);
+                if (cora) addCompRowWithData(n, cora, Math.ceil(ancho / 0.4));
+            }
+
             // Guías Aluminio (63)
             let guias = DATA.componentes.find(c => c.Id == 63);
             if (guias) addCompRowWithData(n, guias, parseFloat((alto * 2).toFixed(2)));
@@ -621,6 +724,12 @@ function autoLoadComponents(n) {
             // Eje 70mm
             let eje = DATA.componentes.find(c => c.Id == 150);
             if (eje) addCompRowWithData(n, eje, parseFloat(ancho.toFixed(2)));
+
+            // Corazón if Barrio
+            if (pid === 25 || pid === 26) {
+                let cora = DATA.componentes.find(c => c.Id == 161);
+                if (cora) addCompRowWithData(n, cora, Math.ceil(ancho / 0.4));
+            }
 
             // Polea (151/152)
             let poleaId = m2 <= 1.5 ? 151 : 152;
@@ -671,6 +780,12 @@ function autoLoadComponents(n) {
             // Eje 70mm
             let eje = DATA.componentes.find(c => c.Id == 150);
             if (eje) addCompRowWithData(n, eje, parseFloat(ancho.toFixed(2)));
+
+            // Corazón if Barrio
+            if (pid === 25 || pid === 26) {
+                let cora = DATA.componentes.find(c => c.Id == 161);
+                if (cora) addCompRowWithData(n, cora, Math.ceil(ancho / 0.4));
+            }
 
             // Polea (151/152)
             let poleaId = m2 <= 1.5 ? 151 : 152;
