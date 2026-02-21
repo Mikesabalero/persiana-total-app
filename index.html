@@ -343,8 +343,12 @@
                         <option value="ChatBot_WhatsApp">ChatBot WhatsApp</option>
                         <option value="ChatBot_Web">ChatBot Web</option>
                     </select></div>
-                <div class="form-group" style="display:flex;align-items:end;gap:12px"><label><input type="checkbox"
-                            id="np-factura"> Requiere Factura Oficial</label></div>
+                <div class="form-group"><label>Facturación</label>
+                    <select id="np-factura">
+                        <option value="con_iva">Con factura (IVA detallado)</option>
+                        <option value="sin_iva">Sin factura (precio final)</option>
+                    </select>
+                </div>
             </div>
             <hr style="margin:20px 0;border-color:var(--border)">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">

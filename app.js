@@ -287,8 +287,9 @@ async function openNewPres(presData = null) {
 
     loadPropiedadesSelect(presData);
 
+    document.getElementById('np-pago').value = resolveLink(presData, 'Formas_pago')?.Id || '';
     document.getElementById('np-canal').value = presData ? (presData.Canal || 'Manual') : 'Manual';
-    document.getElementById('np-factura').checked = presData ? (presData.Quiere_factura || false) : false;
+    document.getElementById('np-factura').value = presData ? (presData.Facturacion || 'con_iva') : 'con_iva';
 
     document.getElementById('np-unidades').innerHTML = '';
     document.getElementById('np-resumen').style.display = 'none';
@@ -363,6 +364,19 @@ function addUnidadUI(n, uData) {
     let tipoRep = uData ? (uData.Tipo_reparacion || '') : '';
     let showRep = (tipo == 'Reparacion' || tipo == 'Service') ? 'display:block' : 'display:none';
 
+    // Auto-select billing mode
+    if (unidadCount === 1) {
+        let jobType = uData ? uData.Tipo_trabajo : '';
+        let facturaSel = document.getElementById('np-factura');
+        if (facturaSel) {
+            if (jobType === 'Reparacion' || jobType === 'Service') {
+                facturaSel.value = 'sin_iva';
+            } else {
+                facturaSel.value = 'con_iva';
+            }
+        }
+    }
+
     let html = '<div class="unidad-card" id="unidad-' + n + '" data-db-id="' + uId + '"><div class="unidad-header"><h3>Unidad ' + n + '</h3><div style="display:flex;gap:8px;align-items:center"><span class="unidad-subtotal" id="sub-u-' + n + '">$0</span><button class="btn-remove" onclick="removeUnidad(' + n + ')" title="Eliminar">🗑</button></div></div>';
     html += '<div class="form-row" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;"><div class="form-group"><label>Ambiente</label><input id="u-' + n + '-nombre" placeholder="Ej: Dormitorio principal" value="' + nombre + '"></div>';
     html += '<div class="form-group"><label>Ubicación</label><input id="u-' + n + '-ubic" placeholder="Ej: Contra frente" value="' + ubic + '"></div>';
@@ -370,8 +384,7 @@ function addUnidadUI(n, uData) {
     html += '<div class="form-group" style="' + showRep + '" id="div-u-' + n + '-tiporep"><label>Tipo Reparación</label><select id="u-' + n + '-tiporep" onchange="autoLoadComponents(' + n + ')"><option value="">-- Elegir reparación --</option><option value="cambio_eje" ' + (tipoRep == 'cambio_eje' ? 'selected' : '') + '>Cambio de eje</option><option value="cambio_cinta" ' + (tipoRep == 'cambio_cinta' ? 'selected' : '') + '>Cambio de cinta</option><option value="cambio_laterales" ' + (tipoRep == 'cambio_laterales' ? 'selected' : '') + '>Cambio de laterales</option><option value="cambio_resortes" ' + (tipoRep == 'cambio_resortes' ? 'selected' : '') + '>Cambio de resortes</option><option value="cambio_polea_tacos" ' + (tipoRep == 'cambio_polea_tacos' ? 'selected' : '') + '>Cambio polea, tacos y punteras</option><option value="bobinado_motor" ' + (tipoRep == 'bobinado_motor' ? 'selected' : '') + '>Bobinado de motor</option></select></div>';
     html += '<div class="form-group" style="' + hideAccion + '"><label>Accionamiento</label><select id="u-' + n + '-accion" onchange="autoLoadComponents(' + n + ')"><option value="motor" ' + (accion == 'motor' ? 'selected' : '') + '>Con motor</option><option value="manual_cinta" ' + (accion == 'manual_cinta' ? 'selected' : '') + '>Manual a cinta</option><option value="manual_antognetti" ' + (accion == 'manual_antognetti' ? 'selected' : '') + '>Manual Antognetti</option></select></div>';
     html += '<div class="form-group"><label>Producto Base</label>';
-    html += `<select id="u-${n}-prod" onchange="autoLoadComponents(${n})">${prodOpts}</select>`;
-    html += '</div></div>';
+    html += `<select id="u-${n}-prod" onchange="autoLoadComponents(${n})">${prodOpts}</select></div></div>`;
     html += '<div class="form-row" style="grid-template-columns:1fr 1fr 2fr"><div class="form-group"><label>Ancho (m)</label><input type="number" id="u-' + n + '-ancho" step="0.01" oninput="autoLoadComponents(' + n + ')" value="' + ancho + '"></div>';
     html += '<div class="form-group"><label>Alto (m)</label><input type="number" id="u-' + n + '-alto" step="0.01" oninput="autoLoadComponents(' + n + ')" value="' + alto + '"></div><div></div></div>';
     html += '<table class="comp-table"><thead><tr><th>Componente</th><th>Cant.</th><th class="hide-margin">Costo</th><th class="hide-margin">Moneda</th><th class="hide-margin">Margen%</th><th>Precio Unit.</th><th>Subtotal</th><th>IVA%</th><th></th></tr></thead><tbody id="comps-u-' + n + '"></tbody></table>';
@@ -754,7 +767,7 @@ async function savePres() {
         await apiPatch(TBL.presupuestos, {
             Id: editPresId,
             Canal: document.getElementById('np-canal').value,
-            Quiere_factura: document.getElementById('np-factura').checked
+            Facturacion: document.getElementById('np-factura').value
         });
         await apiLink(TBL.presupuestos, 'canpten8owymbde', editPresId, [{ Id: parseInt(clienteId) }]);
         await apiLink(TBL.presupuestos, 'cr3s0ox51qopwl4', editPresId, [{ Id: parseInt(zonaId) }]);
@@ -763,16 +776,29 @@ async function savePres() {
     } else {
         let year = new Date().getFullYear();
         num = year + '-' + (String(DATA.presupuestos.length + 1).padStart(4, '0'));
-        let presData = { Numero: num, Fecha: new Date().toISOString().split('T')[0], Estado: 'Borrador', TC_usado: tc, Canal: document.getElementById('np-canal').value, Quiere_factura: document.getElementById('np-factura').checked, Incluye_instalacion: true };
+        let client = document.getElementById('np-cliente').value;
+        let prop = document.getElementById('np-propiedad').value;
+        let zona = document.getElementById('np-zona').value;
+        let pago = document.getElementById('np-pago').value;
+        let canal = document.getElementById('np-canal').value;
+        let facturacion = document.getElementById('np-factura').value;
+
+        let presData = {
+            Numero: num,
+            TC_usado: tc,
+            Clientes: client ? [{ Id: parseInt(client) }] : null,
+            Propiedades: prop ? [{ Id: parseInt(prop) }] : null,
+            Zonas: zona ? [{ Id: parseInt(zona) }] : null,
+            Formas_pago: pago ? [{ Id: parseInt(pago) }] : null,
+            Canal: canal,
+            Facturacion: facturacion,
+            Estado: 'Borrador',
+            Fecha: new Date().toISOString().split('T')[0],
+            Incluye_instalacion: true
+        };
         let pres = await apiPost(TBL.presupuestos, presData);
         presId = pres.Id || pres.id;
         if (!presId) { alert('Error creando presupuesto'); return; }
-        await apiLink(TBL.presupuestos, 'canpten8owymbde', presId, [{ Id: parseInt(clienteId) }]);
-        await apiLink(TBL.presupuestos, 'cr3s0ox51qopwl4', presId, [{ Id: parseInt(zonaId) }]);
-        let propId = document.getElementById('np-propiedad').value;
-        if (propId) await apiLink(TBL.presupuestos, 'cpf764utp1w7yj0', presId, [{ Id: parseInt(propId) }]);
-        let pagoId = document.getElementById('np-pago').value;
-        if (pagoId) await apiLink(TBL.presupuestos, 'cr9l2n9wiubrcra', presId, [{ Id: parseInt(pagoId) }]);
     }
 
     let subtotalNeto = 0, totalIva21 = 0, totalIva105 = 0;
@@ -999,71 +1025,100 @@ async function generarPDF(presId) {
                 <div class="pdf-unit" style="margin-bottom: 25px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
                     <div class="pdf-unit-header" style="background: #f3f4f6; padding: 10px; border-radius: 4px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-weight: bold; font-size: 1.1em; color: #1f2937;">${cleanLabel(u.Nombre)} - ${cleanLabel(u.Ubicacion) || ''}${measures}</span>
-                        <span style="color: #4b5563; font-weight: normal;">${cleanLabel(u.Tipo_trabajo) || ''}</span>
-                    </div>
-                    <ul style="margin: 0; padding-left: 25px; font-size: 1em; color: #374151; list-style-type: disc;">
-            `;
+        for (let u of presUnits) {
+            let uLines = presLines.filter(l => (l.Unidad?.Id || l.Unidad) == u.Id);
+            uLines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
+            
+            let billingMode = pres.Facturacion || 'con_iva';
             let isRepair = u.Tipo_trabajo === 'Reparacion' || u.Tipo_trabajo === 'Service';
-            if (isRepair) {
-                let repName = REPAIR_LABELS[u.Tipo_reparacion] || 'Reparación / Service';
-                html += `<li style="margin-bottom: 4px;">${repName}</li>`;
-                html += `<li style="margin-bottom: 4px;">Incluye mano de obra</li>`;
+            
+            // PRECIO UNIDAD: suma de ítems (con IVA si es con_iva/reparación, sin desglose si es sin_iva)
+            let unitTotal = 0;
+            if (billingMode === 'con_iva' || isRepair) {
+                unitTotal = uLines.reduce((acc, l) => acc + (parseFloat(l.Subtotal_con_IVA) || 0), 0);
+            } else {
+                unitTotal = uLines.reduce((acc, l) => acc + (parseFloat(l.Subtotal_con_IVA) || 0), 0);
             }
+
+            let measures = (u.Ancho_m && u.Alto_m) ? ` (${ u.Ancho_m }m x ${ u.Alto_m }m)` : '';
+            html += `
+                < div class="pdf-unit" >
+                    <div class="pdf-unit-header">
+                        <span>${cleanLabel(u.Nombre)} - ${cleanLabel(u.Ubicacion) || ''}${measures}</span>
+                        <span>${cleanLabel(u.Tipo_trabajo) || ''}</span>
+                    </div>
+                    <ul>
+            `;
+
+            if (isRepair) {
+                let repLabel = REPAIR_LABELS[u.Tipo_reparacion] || 'Reparación / Service';
+                html += `<li>${repLabel}</li><li>Incluye mano de obra</li>`;
+            }
+
             let hasMO = false, hasMotorMO = false, hasGuiasMO = false;
-            for (let l of unitLines) {
+            for (let l of uLines) {
                 let compObj = l._componenteId ? DATA.componentes.find(c => c.Id == l._componenteId) : null;
                 let tipoComp = compObj ? compObj.Tipo_componente : '';
+
                 if (isRepair) {
-                    if (compObj && compObj.Nombre && compObj.Nombre.toLowerCase().includes('viático')) {
-                        html += `<li style="margin-bottom: 4px;">${cleanLabel(l.Descripcion_pdf || 'Viático')}</li>`;
+                    if (compObj?.Nombre?.toLowerCase().includes('viático')) {
+                        html += `<li>${cleanLabel(l.Descripcion_pdf || 'Viático')}</li>`;
                     }
                     continue;
                 }
+
                 if (tipoComp === 'Mano_obra') {
-                    if (compObj.Id == 92 || compObj.Id == 93 || compObj.Id == 94) hasMO = true;
-                    else if (compObj.Id == 96) hasMotorMO = true;
-                    else if (compObj.Id == 97) hasGuiasMO = true;
+                    if ([92, 93, 94].includes(compObj?.Id)) hasMO = true;
+                    else if (compObj?.Id == 96) hasMotorMO = true;
+                    else if (compObj?.Id == 97) hasGuiasMO = true;
                     continue;
                 }
-                html += `<li style="margin-bottom: 4px;">${cleanLabel(l.Descripcion_pdf || 'Item')}</li>`;
+
+                let pWithIva = billingMode === 'con_iva' ? ` (${fmt(l.Subtotal_con_IVA / l.Cantidad)})` : '';
+                html += `<li>${cleanLabel(l.Descripcion_pdf)}${pWithIva}</li>`;
             }
-            if (!isRepair && (hasMO || hasMotorMO || hasGuiasMO)) html += `<li style="margin-bottom: 4px;">Incluye instalación completa</li>`;
+
+            if (!isRepair && (hasMO || hasMotorMO || hasGuiasMO)) html += `<li>Incluye instalación completa</li>`;
+            
             html += `
                     </ul>
-                    <div style="text-align: right; margin-top: 12px; font-size: 1.1em; font-weight: bold; color: #111;">
-                        Precio unidad: ${fmt(unitTotal)}
-                    </div>
-                </div>
-            `;
+                    <div class="pdf-unit-total">Precio unidad: ${fmt(unitTotal)}</div>
+                </div >
+                `;
         }
 
-        let sub = pres.Subtotal_neto || 0;
-        let iva21 = pres.IVA_21 || 0;
-        let iva105 = pres.IVA_105 || 0;
+        let billingMode = pres.Facturacion || 'con_iva';
         let total = pres.Total_con_IVA || 0;
 
+        html += `< div class="pdf-summary" > `;
+        if (billingMode === 'con_iva') {
+            html += `
+                < div class="pdf-total-row final" ><span>TOTAL:</span> <span>${fmt(total)}</span></div >
+                <div class="pdf-total-row info"><span>Precios con IVA incluido</span></div>
+                <div class="pdf-total-row discount"><span>Dto. 10% sin factura:</span> <span>-${fmt(total * 0.1)}</span></div>
+                <div class="pdf-total-row result"><span>Total sin factura:</span> <span>${fmt(total * 0.9)}</span></div>
+            `;
+        } else {
+            html += `
+                < div class="pdf-total-row final" ><span>TOTAL:</span> <span>${fmt(total)}</span></div >
+                    `;
+        }
+        
         html += `
-                <div class="pdf-totals">
-                    <div class="pdf-totals-box">
-                        <div class="pdf-total-row"><span>Subtotal Neto:</span> <span>${fmt(sub)}</span></div>
-                        ${iva21 > 0 ? `<div class='pdf-total-row'><span>IVA 21%:</span> <span>${fmt(iva21)}</span></div>` : ''}
-                        ${iva105 > 0 ? `<div class='pdf-total-row'><span>IVA 10.5%:</span> <span>${fmt(iva105)}</span></div>` : ''}
-                        <div class="pdf-total-row final"><span>TOTAL:</span> <span>${fmt(total)}</span></div>
-                        <div class="pdf-total-row" style="margin-top:10px;font-size:0.8em;color:#6b7280">
-                            Condición de pago: ${cleanLabel(pago)}
-                        </div>
-                    </div>
-                </div>
+                    < div class="pdf-total-row" style = "margin-top:10px; font-size:0.8em; color:#6b7280" >
+                        Condición de pago: ${ cleanLabel(pago) }
+                    </div >
+                </div >
+            </div >
                 <div class="pdf-footer">
                     <div><p>Presupuesto válido por 15 días.</p><p>Los precios pueden sufrir modificaciones sin previo aviso.</p></div>
                     <div class="pdf-signature">Firma y Aclaración</div>
                 </div>
-            </div>
-        `;
+        </div > `;
         let container = document.getElementById('pdf-content');
         if (!container) { alert('Error: Contenedor PDF no encontrado'); return; }
         container.innerHTML = html;
-        let opt = { margin: 0, filename: `Presupuesto_${pres.Numero}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+        let opt = { margin: 0, filename: `Presupuesto_${ pres.Numero }.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
         html2pdf().from(container.firstElementChild).set(opt).save();
     } catch (e) { console.error(e); alert('Error generando PDF: ' + e.message); }
 }
@@ -1158,14 +1213,14 @@ async function viewPresupuesto(presId) {
         let uLines = res.lineas.filter(l => l._unidadId == u.Id);
         uLines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
         let unitTotal = uLines.reduce((acc, l) => acc + (parseFloat(l.Subtotal_ARS) || 0), 0);
-        let measures = u.Ancho_m && u.Alto_m ? ` (${u.Ancho_m}m × ${u.Alto_m}m)` : '';
+        let measures = u.Ancho_m && u.Alto_m ? ` (${ u.Ancho_m }m × ${ u.Alto_m }m)` : '';
         let isRepair = u.Tipo_trabajo === 'Reparacion' || u.Tipo_trabajo === 'Service';
-        let prodLine = `<strong>Producto:</strong> ${cleanLabel(prodName) || '-'}`;
+        let prodLine = `< strong > Producto:</strong > ${ cleanLabel(prodName) || '-' } `;
         if (isRepair) {
             let repName = REPAIR_LABELS[u.Tipo_reparacion] || 'Reparación / Service';
-            prodLine = `<strong>Reparación:</strong> ${repName}`;
+            prodLine = `< strong > Reparación:</strong > ${ repName } `;
         }
-        html += `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:12px">
+        html += `< div style = "background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:12px" >
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #e5e7eb; padding-bottom:4px">
                 <h4 style="margin:0;color:var(--grad1)">${cleanLabel(u.Nombre)} - ${cleanLabel(u.Ubicacion) || ''}${measures}</h4>
                 <span style="font-size:0.9em; color:#6b7280; font-weight:bold">${cleanLabel(u.Tipo_trabajo) || ''}</span>
@@ -1174,7 +1229,7 @@ async function viewPresupuesto(presId) {
             <ul style="margin: 0; padding-left: 20px; font-size: 0.9em; color: #374151; list-style-type: disc;">`;
         if (isRepair) html += `<li style="margin-bottom:2px">Incluye mano de obra</li>`;
         uLines.forEach(l => { html += `<li style="margin-bottom:2px">${cleanLabel(l.Descripcion_pdf)}</li>`; });
-        html += `</ul><div style="text-align:right; margin-top:10px; font-size:1.1em;"><strong>Precio unidad: ${fmt(unitTotal)}</strong></div></div>`;
+        html += `</ul><div style="text-align:right; margin-top:10px; font-size:1.1em;"><strong>Precio unidad: ${fmt(unitTotal)}</strong></div></div > `;
     });
     document.getElementById('vp-contenido').innerHTML = html;
     document.getElementById('vp-subtotal').textContent = fmt(pres.Subtotal_neto);
