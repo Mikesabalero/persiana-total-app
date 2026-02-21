@@ -85,8 +85,10 @@ function loadPresupuestos() {
         let zonaName = cleanLabel(p._zonaNombre) || '-';
         let iva = (p.IVA_21 || 0) + (p.IVA_105 || 0);
         let id = p.Id || p.id;
-        let actions = '<button class="btn btn-sm btn-secondary" style="margin-right:5px" onclick="viewPresupuesto(' + id + ')">Ver</button>';
-        actions += '<button class="btn btn-sm btn-secondary" style="margin-right:5px" onclick="duplicatePresupuesto(' + id + ')" title="Duplicar">📑</button>';
+        let actions = '<div style="display:flex; gap:5px; align-items:center;">';
+        actions += '<button class="btn btn-sm btn-secondary" onclick="viewPresupuesto(' + id + ')">Ver</button>';
+        actions += '<button class="btn btn-sm btn-secondary" onclick="duplicatePresupuesto(' + id + ')" title="Duplicar">📑</button>';
+        actions += '<button class="btn btn-sm btn-danger" onclick="deletePresupuesto(' + id + ')" title="Eliminar">🗑</button>';
         actions += '<select onchange="changeStatus(' + id + ', this.value)" style="padding:2px;font-size:12px">' +
             '<option value="Borrador" ' + (p.Estado == 'Borrador' ? 'selected' : '') + '>Borrador</option>' +
             '<option value="Enviado" ' + (p.Estado == 'Enviado' ? 'selected' : '') + '>Enviado</option>' +
@@ -94,7 +96,7 @@ function loadPresupuestos() {
             '<option value="Rechazado" ' + (p.Estado == 'Rechazado' ? 'selected' : '') + '>Rechazado</option>' +
             '<option value="Facturado" ' + (p.Estado == 'Facturado' ? 'selected' : '') + '>Facturado</option>' +
             '<option value="Vencido" ' + (p.Estado == 'Vencido' ? 'selected' : '') + '>Vencido</option>' +
-            '</select>';
+            '</select></div>';
 
         tb.innerHTML += '<tr><td><strong>' + (p.Numero || '-') + '</strong></td><td>' + (p.Fecha || '-') + '</td><td>' + cliName + '</td><td>' + propDir + '</td><td>' + zonaName + '</td><td>' + fmt(p.Subtotal_neto || p.Subtotal_items) + '</td><td>' + fmt(iva) + '</td><td><strong>' + fmt(p.Total_con_IVA || p.Total) + '</strong></td><td>' + badgeHtml(p.Estado || 'Borrador') + '</td><td>' + actions + '</td></tr>';
     });
@@ -1206,6 +1208,36 @@ async function duplicatePresupuesto(presId) {
     DATA.lineas = await apiGet(TBL.lineas);
     loadDashboard();
     showPage('presupuestos', document.querySelectorAll('.nav-item')[1]);
+}
+
+async function deletePresupuesto(presId) {
+    let p = DATA.presupuestos.find(x => x.Id == presId);
+    if (!p) return;
+    if (!confirm('¿Estás seguro de eliminar el presupuesto #' + (p.Numero || presId) + '?')) return;
+
+    try {
+        // Encontrar unidades y sus líneas asociadas
+        let units = DATA.unidades.filter(u => {
+            let link = resolveLink(u, 'Presupuestos');
+            return link && (link.Id == presId || link.id == presId);
+        });
+
+        for (let u of units) {
+            let lines = DATA.lineas.filter(l => {
+                let link = resolveLink(l, 'Presupuesto_Unidades');
+                return link && (link.Id == u.Id || link.id == u.Id);
+            });
+            for (let l of lines) await apiDelete(TBL.lineas, l.Id || l.id);
+            await apiDelete(TBL.unidades, u.Id || u.id);
+        }
+
+        await apiDelete(TBL.presupuestos, presId);
+        alert('Presupuesto eliminado correctamente');
+        loadAll();
+    } catch (e) {
+        console.error(e);
+        alert('Error al eliminar presupuesto: ' + e.message);
+    }
 }
 
 loadAll();
