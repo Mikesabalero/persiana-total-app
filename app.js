@@ -364,6 +364,15 @@ function addUnidadUI(n, uData) {
     let tipoRep = uData ? (uData.Tipo_reparacion || '') : '';
     let showRep = (tipo == 'Reparacion' || tipo == 'Service') ? 'display:block' : 'display:none';
 
+    let html = '<div class="unidad-card" id="unidad-' + n + '" data-db-id="' + uId + '"><div class="unidad-header"><h3>Unidad ' + n + '</h3><div style="display:flex;gap:8px;align-items:center"><span class="unidad-subtotal" id="sub-u-' + n + '">$0</span><button class="btn-remove" onclick="removeUnidad(' + n + ')" title="Eliminar">🗑</button></div></div>';
+    html += '<div class="form-row" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;"><div class="form-group"><label>Ambiente</label><input id="u-' + n + '-nombre" placeholder="Ej: Dormitorio principal" value="' + nombre + '"></div>';
+    html += '<div class="form-group"><label>Ubicación</label><input id="u-' + n + '-ubic" placeholder="Ej: Contra frente" value="' + ubic + '"></div>';
+    html += '<div class="form-group"><label>Tipo Trabajo</label><select id="u-' + n + '-tipo" onchange="autoLoadComponents(' + n + ')"><option value="Instalacion_nueva" ' + (tipo == 'Instalacion_nueva' ? 'selected' : '') + '>Instalación nueva</option><option value="Cambio_pano" ' + (tipo == 'Cambio_pano' ? 'selected' : '') + '>Cambio paño</option><option value="Motorizacion" ' + (tipo == 'Motorizacion' ? 'selected' : '') + '>Motorización</option><option value="Cambio_guias" ' + (tipo == 'Cambio_guias' ? 'selected' : '') + '>Cambio guías</option><option value="Reparacion" ' + (tipo == 'Reparacion' ? 'selected' : '') + '>Reparación</option><option value="Service" ' + (tipo == 'Service' ? 'selected' : '') + '>Service</option><option value="Otro" ' + (tipo == 'Otro' ? 'selected' : '') + '>Otro</option></select></div>';
+    html += '<div class="form-group" style="' + showRep + '" id="div-u-' + n + '-tiporep"><label>Tipo Reparación</label><select id="u-' + n + '-tiporep" onchange="autoLoadComponents(' + n + ')"><option value="">-- Elegir reparación --</option><option value="cambio_eje" ' + (tipoRep == 'cambio_eje' ? 'selected' : '') + '>Cambio de eje</option><option value="cambio_cinta" ' + (tipoRep == 'cambio_cinta' ? 'selected' : '') + '>Cambio de cinta</option><option value="cambio_laterales" ' + (tipoRep == 'cambio_laterales' ? 'selected' : '') + '>Cambio de laterales</option><option value="cambio_resortes" ' + (tipoRep == 'cambio_resortes' ? 'selected' : '') + '>Cambio de resortes</option><option value="cambio_polea_tacos" ' + (tipoRep == 'cambio_polea_tacos' ? 'selected' : '') + '>Cambio polea, tacos y punteras</option><option value="bobinado_motor" ' + (tipoRep == 'bobinado_motor' ? 'selected' : '') + '>Bobinado de motor</option></select></div>';
+    html += '<div class="form-group" style="' + hideAccion + '"><label>Accionamiento</label><select id="u-' + n + '-accion" onchange="autoLoadComponents(' + n + ')"><option value="motor" ' + (accion == 'motor' ? 'selected' : '') + '>Con motor</option><option value="manual_cinta" ' + (accion == 'manual_cinta' ? 'selected' : '') + '>Manual a cinta</option><option value="manual_antognetti" ' + (accion == 'manual_antognetti' ? 'selected' : '') + '>Manual Antognetti</option></select></div>';
+    html += '<div class="form-group"><label>Producto Base</label>';
+    html += `<select id="u-${n}-prod" onchange="autoLoadComponents(${n})">${prodOpts}</select></div></div>`;
+
     // Auto-select billing mode
     if (unidadCount === 1) {
         let jobType = uData ? uData.Tipo_trabajo : '';
@@ -377,14 +386,6 @@ function addUnidadUI(n, uData) {
         }
     }
 
-    let html = '<div class="unidad-card" id="unidad-' + n + '" data-db-id="' + uId + '"><div class="unidad-header"><h3>Unidad ' + n + '</h3><div style="display:flex;gap:8px;align-items:center"><span class="unidad-subtotal" id="sub-u-' + n + '">$0</span><button class="btn-remove" onclick="removeUnidad(' + n + ')" title="Eliminar">🗑</button></div></div>';
-    html += '<div class="form-row" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;"><div class="form-group"><label>Ambiente</label><input id="u-' + n + '-nombre" placeholder="Ej: Dormitorio principal" value="' + nombre + '"></div>';
-    html += '<div class="form-group"><label>Ubicación</label><input id="u-' + n + '-ubic" placeholder="Ej: Contra frente" value="' + ubic + '"></div>';
-    html += '<div class="form-group"><label>Tipo Trabajo</label><select id="u-' + n + '-tipo" onchange="autoLoadComponents(' + n + ')"><option value="Instalacion_nueva" ' + (tipo == 'Instalacion_nueva' ? 'selected' : '') + '>Instalación nueva</option><option value="Cambio_pano" ' + (tipo == 'Cambio_pano' ? 'selected' : '') + '>Cambio paño</option><option value="Motorizacion" ' + (tipo == 'Motorizacion' ? 'selected' : '') + '>Motorización</option><option value="Cambio_guias" ' + (tipo == 'Cambio_guias' ? 'selected' : '') + '>Cambio guías</option><option value="Reparacion" ' + (tipo == 'Reparacion' ? 'selected' : '') + '>Reparación</option><option value="Service" ' + (tipo == 'Service' ? 'selected' : '') + '>Service</option><option value="Otro" ' + (tipo == 'Otro' ? 'selected' : '') + '>Otro</option></select></div>';
-    html += '<div class="form-group" style="' + showRep + '" id="div-u-' + n + '-tiporep"><label>Tipo Reparación</label><select id="u-' + n + '-tiporep" onchange="autoLoadComponents(' + n + ')"><option value="">-- Elegir reparación --</option><option value="cambio_eje" ' + (tipoRep == 'cambio_eje' ? 'selected' : '') + '>Cambio de eje</option><option value="cambio_cinta" ' + (tipoRep == 'cambio_cinta' ? 'selected' : '') + '>Cambio de cinta</option><option value="cambio_laterales" ' + (tipoRep == 'cambio_laterales' ? 'selected' : '') + '>Cambio de laterales</option><option value="cambio_resortes" ' + (tipoRep == 'cambio_resortes' ? 'selected' : '') + '>Cambio de resortes</option><option value="cambio_polea_tacos" ' + (tipoRep == 'cambio_polea_tacos' ? 'selected' : '') + '>Cambio polea, tacos y punteras</option><option value="bobinado_motor" ' + (tipoRep == 'bobinado_motor' ? 'selected' : '') + '>Bobinado de motor</option></select></div>';
-    html += '<div class="form-group" style="' + hideAccion + '"><label>Accionamiento</label><select id="u-' + n + '-accion" onchange="autoLoadComponents(' + n + ')"><option value="motor" ' + (accion == 'motor' ? 'selected' : '') + '>Con motor</option><option value="manual_cinta" ' + (accion == 'manual_cinta' ? 'selected' : '') + '>Manual a cinta</option><option value="manual_antognetti" ' + (accion == 'manual_antognetti' ? 'selected' : '') + '>Manual Antognetti</option></select></div>';
-    html += '<div class="form-group"><label>Producto Base</label>';
-    html += `<select id="u-${n}-prod" onchange="autoLoadComponents(${n})">${prodOpts}</select></div></div>`;
     html += '<div class="form-row" style="grid-template-columns:1fr 1fr 2fr"><div class="form-group"><label>Ancho (m)</label><input type="number" id="u-' + n + '-ancho" step="0.01" oninput="autoLoadComponents(' + n + ')" value="' + ancho + '"></div>';
     html += '<div class="form-group"><label>Alto (m)</label><input type="number" id="u-' + n + '-alto" step="0.01" oninput="autoLoadComponents(' + n + ')" value="' + alto + '"></div><div></div></div>';
     html += '<table class="comp-table"><thead><tr><th>Componente</th><th>Cant.</th><th class="hide-margin">Costo</th><th class="hide-margin">Moneda</th><th class="hide-margin">Margen%</th><th>Precio Unit.</th><th>Subtotal</th><th>IVA%</th><th></th></tr></thead><tbody id="comps-u-' + n + '"></tbody></table>';
@@ -1017,42 +1018,27 @@ async function generarPDF(presId) {
         `;
 
         for (let u of presUnidades) {
-            let unitLines = presLineas.filter(l => l._unidadId == u.Id);
-            unitLines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
-            let unitTotal = unitLines.reduce((acc, l) => acc + (parseFloat(l.Subtotal_ARS) || 0), 0);
-            let measures = u.Ancho_m && u.Alto_m ? ` (${u.Ancho_m}m × ${u.Alto_m}m)` : '';
+            let uLines = presLineas.filter(l => (l._unidadId || l.Unidad?.Id || l.Unidad) == u.Id);
+            uLines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
+
+            let billingMode = pres.Facturacion || 'con_iva';
+            let isRepair = u.Tipo_trabajo === 'Reparacion' || u.Tipo_trabajo === 'Service';
+
+            let unitTotal = uLines.reduce((acc, l) => acc + (parseFloat(l.Subtotal_con_IVA) || 0), 0);
+            let measures = (u.Ancho_m && u.Alto_m) ? ` (${u.Ancho_m}m x ${u.Alto_m}m)` : '';
+
             html += `
                 <div class="pdf-unit" style="margin-bottom: 25px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
                     <div class="pdf-unit-header" style="background: #f3f4f6; padding: 10px; border-radius: 4px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-weight: bold; font-size: 1.1em; color: #1f2937;">${cleanLabel(u.Nombre)} - ${cleanLabel(u.Ubicacion) || ''}${measures}</span>
-        for (let u of presUnits) {
-            let uLines = presLines.filter(l => (l.Unidad?.Id || l.Unidad) == u.Id);
-            uLines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
-            
-            let billingMode = pres.Facturacion || 'con_iva';
-            let isRepair = u.Tipo_trabajo === 'Reparacion' || u.Tipo_trabajo === 'Service';
-            
-            // PRECIO UNIDAD: suma de ítems (con IVA si es con_iva/reparación, sin desglose si es sin_iva)
-            let unitTotal = 0;
-            if (billingMode === 'con_iva' || isRepair) {
-                unitTotal = uLines.reduce((acc, l) => acc + (parseFloat(l.Subtotal_con_IVA) || 0), 0);
-            } else {
-                unitTotal = uLines.reduce((acc, l) => acc + (parseFloat(l.Subtotal_con_IVA) || 0), 0);
-            }
-
-            let measures = (u.Ancho_m && u.Alto_m) ? ` (${ u.Ancho_m }m x ${ u.Alto_m }m)` : '';
-            html += `
-                < div class="pdf-unit" >
-                    <div class="pdf-unit-header">
-                        <span>${cleanLabel(u.Nombre)} - ${cleanLabel(u.Ubicacion) || ''}${measures}</span>
-                        <span>${cleanLabel(u.Tipo_trabajo) || ''}</span>
+                        <span style="color: #4b5563; font-weight: normal;">${cleanLabel(u.Tipo_trabajo) || ''}</span>
                     </div>
-                    <ul>
+                    <ul style="margin: 0; padding-left: 25px; font-size: 1em; color: #374151; list-style-type: disc;">
             `;
 
             if (isRepair) {
                 let repLabel = REPAIR_LABELS[u.Tipo_reparacion] || 'Reparación / Service';
-                html += `<li>${repLabel}</li><li>Incluye mano de obra</li>`;
+                html += `<li style="margin-bottom: 4px;">${repLabel}</li><li style="margin-bottom: 4px;">Incluye mano de obra</li>`;
             }
 
             let hasMO = false, hasMotorMO = false, hasGuiasMO = false;
@@ -1062,7 +1048,7 @@ async function generarPDF(presId) {
 
                 if (isRepair) {
                     if (compObj?.Nombre?.toLowerCase().includes('viático')) {
-                        html += `<li>${cleanLabel(l.Descripcion_pdf || 'Viático')}</li>`;
+                        html += `<li style="margin-bottom: 4px;">${cleanLabel(l.Descripcion_pdf || 'Viático')}</li>`;
                     }
                     continue;
                 }
@@ -1075,50 +1061,57 @@ async function generarPDF(presId) {
                 }
 
                 let pWithIva = billingMode === 'con_iva' ? ` (${fmt(l.Subtotal_con_IVA / l.Cantidad)})` : '';
-                html += `<li>${cleanLabel(l.Descripcion_pdf)}${pWithIva}</li>`;
+                html += `<li style="margin-bottom: 4px;">${cleanLabel(l.Descripcion_pdf)}${pWithIva}</li>`;
             }
 
-            if (!isRepair && (hasMO || hasMotorMO || hasGuiasMO)) html += `<li>Incluye instalación completa</li>`;
-            
+            if (!isRepair && (hasMO || hasMotorMO || hasGuiasMO)) html += `<li style="margin-bottom: 4px;">Incluye instalación completa</li>`;
+
             html += `
                     </ul>
-                    <div class="pdf-unit-total">Precio unidad: ${fmt(unitTotal)}</div>
-                </div >
-                `;
+                    <div style="text-align: right; margin-top: 12px; font-size: 1.1em; font-weight: bold; color: #111;">
+                        Precio unidad: ${fmt(unitTotal)}
+                    </div>
+                </div>
+            `;
         }
 
         let billingMode = pres.Facturacion || 'con_iva';
         let total = pres.Total_con_IVA || 0;
 
-        html += `< div class="pdf-summary" > `;
+        html += `<div class="pdf-totals" style="margin-top: 30px;">
+                    <div class="pdf-totals-box" style="background: #f9fafb; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb; margin-left: auto; width: fit-content; min-width: 250px;">`;
+
         if (billingMode === 'con_iva') {
             html += `
-                < div class="pdf-total-row final" ><span>TOTAL:</span> <span>${fmt(total)}</span></div >
-                <div class="pdf-total-row info"><span>Precios con IVA incluido</span></div>
-                <div class="pdf-total-row discount"><span>Dto. 10% sin factura:</span> <span>-${fmt(total * 0.1)}</span></div>
-                <div class="pdf-total-row result"><span>Total sin factura:</span> <span>${fmt(total * 0.9)}</span></div>
+                <div class="pdf-total-row final" style="display: flex; justify-content: space-between; font-size: 1.4em; font-weight: bold; color: #111; margin-bottom: 5px;"><span>TOTAL:</span> <span>${fmt(total)}</span></div>
+                <div class="pdf-total-row info" style="font-size: 0.8em; color: #6b7280; text-align: right; margin-bottom: 15px;">Precios con IVA incluido</div>
+                <div class="pdf-total-row discount" style="display: flex; justify-content: space-between; font-size: 0.9em; color: #4b5563; margin-bottom: 5px;"><span>Dto. 10% sin factura:</span> <span>-${fmt(total * 0.1)}</span></div>
+                <div class="pdf-total-row result" style="display: flex; justify-content: space-between; font-size: 1.1em; font-weight: bold; color: #059669; border-top: 1px solid #e5e7eb; padding-top: 10px;"><span>Total sin factura:</span> <span>${fmt(total * 0.9)}</span></div>
             `;
         } else {
             html += `
-                < div class="pdf-total-row final" ><span>TOTAL:</span> <span>${fmt(total)}</span></div >
-                    `;
+                <div class="pdf-total-row final" style="display: flex; justify-content: space-between; font-size: 1.4em; font-weight: bold; color: #111;"><span>TOTAL:</span> <span>${fmt(total)}</span></div>
+            `;
         }
-        
+
         html += `
-                    < div class="pdf-total-row" style = "margin-top:10px; font-size:0.8em; color:#6b7280" >
-                        Condición de pago: ${ cleanLabel(pago) }
-                    </div >
-                </div >
-            </div >
-                <div class="pdf-footer">
-                    <div><p>Presupuesto válido por 15 días.</p><p>Los precios pueden sufrir modificaciones sin previo aviso.</p></div>
-                    <div class="pdf-signature">Firma y Aclaración</div>
+                    <div class="pdf-total-row" style="margin-top:20px; font-size:0.8em; color:#6b7280; border-top: 1px solid #e5e7eb; padding-top: 10px;">
+                        Condición de pago: ${cleanLabel(pago)}
+                    </div>
                 </div>
-        </div > `;
+            </div>`;
+
+        html += `
+                <div class="pdf-footer" style="margin-top: 50px; border-top: 1px solid #eee; padding-top: 20px; display: flex; justify-content: space-between; align-items: flex-end;">
+                    <div style="font-size: 0.8em; color: #6b7280;"><p>Presupuesto válido por 15 días.</p><p>Los precios pueden sufrir modificaciones sin previo aviso.</p></div>
+                    <div class="pdf-signature" style="border-top: 1px solid #374151; width: 200px; text-align: center; font-size: 0.8em; color: #374151; padding-top: 8px; margin-bottom: 10px;">Firma y Aclaración</div>
+                </div>
+            </div>
+        `;
         let container = document.getElementById('pdf-content');
         if (!container) { alert('Error: Contenedor PDF no encontrado'); return; }
         container.innerHTML = html;
-        let opt = { margin: 0, filename: `Presupuesto_${ pres.Numero }.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+        let opt = { margin: 0, filename: `Presupuesto_${pres.Numero}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
         html2pdf().from(container.firstElementChild).set(opt).save();
     } catch (e) { console.error(e); alert('Error generando PDF: ' + e.message); }
 }
@@ -1213,12 +1206,12 @@ async function viewPresupuesto(presId) {
         let uLines = res.lineas.filter(l => l._unidadId == u.Id);
         uLines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
         let unitTotal = uLines.reduce((acc, l) => acc + (parseFloat(l.Subtotal_ARS) || 0), 0);
-        let measures = u.Ancho_m && u.Alto_m ? ` (${ u.Ancho_m }m × ${ u.Alto_m }m)` : '';
+        let measures = u.Ancho_m && u.Alto_m ? ` (${u.Ancho_m}m × ${u.Alto_m}m)` : '';
         let isRepair = u.Tipo_trabajo === 'Reparacion' || u.Tipo_trabajo === 'Service';
-        let prodLine = `< strong > Producto:</strong > ${ cleanLabel(prodName) || '-' } `;
+        let prodLine = `< strong > Producto:</strong > ${cleanLabel(prodName) || '-'} `;
         if (isRepair) {
             let repName = REPAIR_LABELS[u.Tipo_reparacion] || 'Reparación / Service';
-            prodLine = `< strong > Reparación:</strong > ${ repName } `;
+            prodLine = `< strong > Reparación:</strong > ${repName} `;
         }
         html += `< div style = "background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:12px" >
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #e5e7eb; padding-bottom:4px">
