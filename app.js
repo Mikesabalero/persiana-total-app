@@ -150,11 +150,19 @@ function filterPres() {
     let estado = document.getElementById('pres-filter-estado').value;
     let rows = document.querySelectorAll('#pres-table tr');
     rows.forEach(r => {
-        let num = r.cells[0]?.textContent.toLowerCase() || '';
+        let nro = r.cells[0]?.textContent.toLowerCase() || '';
         let cli = r.cells[2]?.textContent.toLowerCase() || '';
-        let est = r.cells[7]?.textContent || '';
-        let show = (num.includes(search) || cli.includes(search)) && (!estado || est === estado);
-        r.style.display = show ? '' : 'none';
+        let dir = r.cells[3]?.textContent.toLowerCase() || '';
+        let zona = r.cells[4]?.textContent.toLowerCase() || '';
+        let est = r.cells[8]?.textContent || ''; // Columna Estado (9na col. index 8)
+
+        // El texto busca en todas estas columnas
+        let matchesSearch = nro.includes(search) || cli.includes(search) || dir.includes(search) || zona.includes(search);
+
+        // El estado debe coincidir exactamente si no es vacío
+        let matchesEstado = !estado || est === estado;
+
+        r.style.display = (matchesSearch && matchesEstado) ? '' : 'none';
     });
 }
 function showClientDetail(id) {
