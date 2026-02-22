@@ -578,6 +578,58 @@
             </div>
         </div>
     </div>
+    <!-- MODAL VER FICHA CLIENTE -->
+    <div class="modal-overlay" id="modal-ver-cliente">
+        <div class="modal" style="max-width: 800px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+                <h2 id="vc-nombre">Ficha de Cliente</h2>
+                <button onclick="closeVerCliente()"
+                    style="background:none;border:none;font-size:1.5em;cursor:pointer;color:var(--text-light)">✕</button>
+            </div>
+            <div class="card-header" style="margin-bottom:20px">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+                    <div>
+                        <p><strong>Teléfono:</strong> <span id="vc-telefono">-</span></p>
+                        <p><strong>Mail:</strong> <span id="vc-mail">-</span></p>
+                        <p><strong>Tipo:</strong> <span id="vc-tipo">-</span></p>
+                    </div>
+                    <div>
+                        <p><strong>Condición Fiscal:</strong> <span id="vc-fiscal">-</span></p>
+                        <p><strong>CUIT/DNI:</strong> <span id="vc-documento">-</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <h3 style="font-size:1.1em; color:var(--grad1)">Propiedades Vinculadas</h3>
+                <button class="btn btn-sm btn-primary" id="vc-btn-nueva-prop">+ Agregar Propiedad</button>
+            </div>
+
+            <div style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:8px">
+                <table class="table" style="font-size:0.9em">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Dirección</th>
+                            <th>Localidad</th>
+                            <th>Tipo</th>
+                            <th>Principal</th>
+                            <th>Teléfono</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vc-prop-table"></tbody>
+                </table>
+                <div id="vc-no-prop" style="text-align:center;padding:20px;color:var(--text-light);display:none">
+                    Este cliente no tiene propiedades cargadas.
+                </div>
+            </div>
+
+            <div style="display:flex;justify-content:flex-end;margin-top:20px">
+                <button class="btn btn-secondary" onclick="closeVerCliente()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- PANEL DETALLE CLIENTE -->
     <div class="detail-panel" id="panel-cliente">
         <button class="detail-close" onclick="closeDetail()">✕</button>

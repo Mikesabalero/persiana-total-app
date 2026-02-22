@@ -18,6 +18,7 @@ function showConfigTab(id, btn) { document.querySelectorAll('.config-section').f
 function closeModal() { document.getElementById('modal-pres').classList.remove('show'); }
 function closeDetail() { document.getElementById('panel-cliente').classList.remove('open'); }
 function closeVerPres() { document.getElementById('modal-ver-pres').classList.remove('show'); }
+function closeVerCliente() { document.getElementById('modal-ver-cliente').classList.remove('show'); }
 function resolveLink(row, field) { let v = row[field]; if (!v) return null; if (typeof v === 'object' && Array.isArray(v) && v.length > 0) return v[0]; if (typeof v === 'object' && v.Id) return v; return null; }
 function resolveName(row, field, list, idField) { let link = resolveLink(row, field); if (!link) return '-'; let id = link.Id || link.id || link; let found = list.find(i => i.Id == id); return found ? found.Nombre || found.Title || '-' : '-'; }
 const REPAIR_LABELS = {
@@ -178,6 +179,7 @@ function renderClientes() {
             <td>${presCount}</td>
             <td>
                 <div style="display:flex;gap:4px">
+                    <button class="btn-remove" onclick="viewCliente(${c.id || c.Id})" title="Ver" style="background:#f3f4f6;color:var(--text)">👁</button>
                     <button class="btn-remove" onclick="openNewCliente(${JSON.stringify(c).replace(/"/g, '&quot;')})" title="Editar" style="background:#f3f4f6;color:var(--text)">✏️</button>
                     <button class="btn-remove" onclick="deleteCliente(${c.id || c.Id}, '${c.Nombre.replace(/'/g, "\\'")}')" title="Eliminar" style="color:var(--danger)">🗑</button>
                 </div>
@@ -273,6 +275,49 @@ function showClientDetail(id) {
     html += '<div class="detail-field"><span>Razón Social</span><span>' + cleanLabel(c.Razon_social || '-') + '</span></div></div>';
     document.getElementById('detail-content').innerHTML = html;
     document.getElementById('panel-cliente').classList.add('open');
+}
+
+function viewCliente(clientId) {
+    let c = DATA.clientes.find(x => x.Id == clientId);
+    if (!c) return;
+
+    document.getElementById('vc-nombre').textContent = cleanLabel(c.Nombre);
+    document.getElementById('vc-telefono').textContent = c.Telefono || '-';
+    document.getElementById('vc-mail').textContent = c.Mail || '-';
+    document.getElementById('vc-tipo').textContent = cleanLabel(c.Tipo || '-');
+    document.getElementById('vc-fiscal').textContent = cleanLabel(c.Condicion_fiscal || '-');
+    document.getElementById('vc-documento').textContent = c.CUIT_CUIL_DNI || '-';
+
+    let props = DATA.propiedades.filter(p => {
+        let link = resolveLink(p, 'Clientes');
+        return link && (link.Id == clientId || link.id == clientId);
+    });
+
+    let tb = document.getElementById('vc-prop-table');
+    tb.innerHTML = '';
+    if (props.length > 0) {
+        document.getElementById('vc-no-prop').style.display = 'none';
+        props.forEach(p => {
+            let principal = p.Principal ? '✅ Sí' : 'No';
+            tb.innerHTML += `<tr>
+                <td><strong>${cleanLabel(p.Nombre)}</strong></td>
+                <td>${p.Direccion || '-'}</td>
+                <td>${p.Localidad || '-'}</td>
+                <td>${cleanLabel(p.Tipo_Propiedad || p.Tipo_propiedad || p.Tipo || '-')}</td>
+                <td>${principal}</td>
+                <td>${p.Telefono || '-'}</td>
+            </tr>`;
+        });
+    } else {
+        document.getElementById('vc-no-prop').style.display = 'block';
+    }
+
+    document.getElementById('vc-btn-nueva-prop').onclick = () => {
+        closeVerCliente();
+        openNewPropiedad(null, clientId, true);
+    };
+
+    document.getElementById('modal-ver-cliente').classList.add('show');
 }
 function loadConfig() {
     document.getElementById('cfg-tc-valor').value = DATA.tc.Dolar_oficial || '';
@@ -405,7 +450,7 @@ async function deleteCliente(id, name) {
     }
 }
 
-async function openNewPropiedad(propData = null, preselectedClientId = null) {
+async function openNewPropiedad(propData = null, preselectedClientId = null, forceDisableClient = false) {
     document.getElementById('mp-title').textContent = propData ? 'Editar Propiedad' : 'Nueva Propiedad';
     let modal = document.getElementById('modal-propiedad');
     modal.setAttribute('data-db-id', propData ? (propData.id || propData.Id) : '');
@@ -423,6 +468,10 @@ async function openNewPropiedad(propData = null, preselectedClientId = null) {
         let sel = (selectedClientId == c.Id) ? 'selected' : '';
         cs.innerHTML += `<option value="${c.Id}" ${sel}>${cleanLabel(c.Nombre)}</option>`;
     });
+
+    // Deshabilitar/Habilitar según corresponda
+    cs.disabled = forceDisableClient;
+    document.getElementById('np-prop-cliente-search').disabled = forceDisableClient;
 
     document.getElementById('np-prop-nombre').value = propData ? propData.Nombre : '';
     document.getElementById('np-prop-direccion').value = propData ? propData.Direccion || '' : '';
@@ -1603,6 +1652,7 @@ window.onclick = function (event) {
     if (event.target.classList.contains('modal-overlay')) {
         if (event.target.id === 'modal-pres') closeModal();
         else if (event.target.id === 'modal-ver-pres') closeVerPres();
+        else if (event.target.id === 'modal-ver-cliente') closeVerCliente();
         else if (event.target.id === 'modal-cliente') closeModalCliente();
         else if (event.target.id === 'modal-propiedad') closeModalPropiedad();
     }
