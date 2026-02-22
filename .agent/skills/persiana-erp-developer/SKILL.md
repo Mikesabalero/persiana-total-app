@@ -18,46 +18,68 @@ Asegurar que cada cambio al ERP de Persiana Total sea correcto, probado y pushea
 
 ## Checklist OBLIGATORIO antes de escribir codigo
 
-### Paso 1: Verificar nombres de campos en NocoDB
-Antes de escribir CUALQUIER POST o PATCH a NocoDB, SIEMPRE ejecutar:
+### Paso 1: Voy a verificar nombres de campos en NocoDB
+Antes de hacer cualquier POST o PATCH a NocoDB, voy a ejecutar:
 curl -s -H "xc-token: dZMS2te8v6cf47Jlmlnk3S3ft9LT_QO8bjNdOcZZ" "http://93.127.212.235:32770/api/v2/meta/tables/TABLE_ID" | python3 -c "import sys,json; [print(c['title'], '|', c['uidt'], '|', c.get('dtxp','')) for c in json.loads(sys.stdin.read())['columns']]"
-Usar los nombres EXACTOS que devuelve la API. Nunca adivinar nombres de campos.
+Voy a usar los nombres EXACTOS que devuelve la API. No voy a adivinar nombres de campos.
 
-### Paso 2: Entender la estructura actual del codigo
-Antes de modificar una funcion, leerla primero:
+### Paso 2: Voy a entender la estructura actual del codigo
+Antes de modificar una funcion, voy a leerla primero:
 grep -n "function NOMBRE_FUNCION" /root/persiana-app/app.js
 sed -n 'INICIO,FINp' /root/persiana-app/app.js
 
-### Paso 3: Contar funciones antes de los cambios
+### Paso 3: Voy a contar funciones antes de los cambios
 grep -c "function " /root/persiana-app/app.js
-Guardar este numero. Despues de los cambios, debe ser igual o mayor.
+Voy a guardar este numero. Despues de los cambios, debe ser igual o mayor.
 
 ## Checklist OBLIGATORIO despues de cada cambio (antes de CADA commit)
 
-### Paso 1: Verificar sintaxis
+### Paso 1: Voy a verificar sintaxis
 node -c /root/persiana-app/app.js
-Si falla, CORREGIR EL ERROR antes de continuar. NUNCA commitear con errores de sintaxis.
+Si falla, voy a corregir el error antes de continuar. No voy a commitear con errores de sintaxis.
 
-### Paso 2: Verificar que la app carga
+### Paso 2: Voy a verificar que la app carga
 curl -s http://localhost:3000 | grep -c "showPage"
-Debe devolver >= 1. Si devuelve 0, la app esta rota.
+Debe devolver >= 1. Si devuelve 0, la app esta rota y voy a corregirlo.
 
-### Paso 3: Verificar cantidad de funciones
+### Paso 3: Voy a verificar cantidad de funciones
 grep -c "function " /root/persiana-app/app.js
-Comparar con el Paso 3 del checklist previo. Si es menor, investigar que se borro accidentalmente.
+Voy a comparar con el Paso 3 del checklist previo. Si es menor, voy a investigar que se borro accidentalmente.
 
-### Paso 4: Eliminar logs de debug
+### Paso 4: Voy a eliminar logs de debug
 grep -n "console.log" /root/persiana-app/app.js | grep -i "debug\|test\|TODO"
-Eliminar cualquier console.log temporal de diagnostico.
+Voy a eliminar cualquier console.log temporal de diagnostico.
 
-### Paso 5: Commitear y pushear
+### Paso 5: Voy a commitear y pushear
 git add -A && git commit -m "MENSAJE" && git push
-SIEMPRE pushear. Nunca dejar commits sin pushear.
+Siempre voy a pushear. No voy a dejar commits sin pushear.
+
+## Errores Comunes (voy a evitar estos)
+
+### Error 1: Nombres de campos incorrectos en NocoDB
+Ya paso 4 veces que el POST devolvio 400 porque los nombres de campos no coincidian. Voy a SIEMPRE consultar la API antes de escribir POST o PATCH.
+
+### Error 2: Variables no definidas por scope incorrecto
+Ya paso con editPresId. Cuando necesite una variable compartida entre funciones, voy a declararla como variable global al inicio del archivo.
+
+### Error 3: Modales que se superponen
+Cuando abro un modal desde otro modal, voy a cerrar el primero antes de abrir el segundo.
+
+### Error 4: Commits sin pushear
+Voy a ejecutar siempre git push despues del commit y verificar que fue exitoso.
+
+### Error 5: Funciones borradas accidentalmente
+Voy a contar funciones antes y despues para detectar esto.
+
+### Error 6: Select con valores que no coinciden con NocoDB
+Los campos SingleSelect solo aceptan valores especificos. Voy a verificar los valores permitidos antes de crear selects.
+
+### Error 7: Links de NocoDB mal vinculados
+Voy a verificar si se usa foreign key directo o apiLink y usar el metodo correcto.
 
 ## IDs de Tablas NocoDB (referencia)
 - Clientes: mwby85581fhjy27
 - Propiedades: m0dwlr7ccoim1kf
-- Historial: mimh9lp8bkew4t0
 - Categorias: mulo5ve82d9ex7q
 - Productos: mdr6mo695g0qz6d
 - Componentes: mgh9e1zivvhpg26
@@ -66,12 +88,11 @@ SIEMPRE pushear. Nunca dejar commits sin pushear.
 - Zonas: mottig5nmj5e3kx
 - Presupuestos: mn1yyjyovvoyxme
 - Lineas: mv1e9trh23j0q3o
-- Servicios: mz8qrki3hz4y7iv
 - Formas Pago: m2t4fnjie88gfo0
 - Unidades: mix059xkpsz15um
 - Anchos: mayai71j546g3as
 
-## IDs de Motores (NO cambiar NUNCA)
+## IDs de Motores (no voy a cambiar estos)
 - Tubular 60: ID 56
 - Tubular 140: ID 55
 - Paralelo 600: ID 50
@@ -104,19 +125,19 @@ SIEMPRE pushear. Nunca dejar commits sin pushear.
 - Plus cableado: 103
 
 ## Reglas Criticas
-1. NUNCA modificar selectMotor() salvo que se pida explicitamente
-2. NUNCA modificar la logica existente de precarga Seguridad/Exterior salvo que se pida
-3. NUNCA cambiar IDs de motores ni de componentes
-4. NUNCA modificar la generacion de PDF salvo que se pida explicitamente
-5. NUNCA modificar funciones de guardado/carga salvo que se pida
-6. Al agregar nuevas funcionalidades, agregarlas en bloques NUEVOS de codigo, no reescribir bloques existentes
-7. Siempre usar addCompRowWithData() para agregar filas de componentes
+1. No voy a modificar selectMotor() salvo que se pida explicitamente
+2. No voy a modificar la logica existente de precarga Seguridad/Exterior salvo que se pida
+3. No voy a cambiar IDs de motores ni de componentes
+4. No voy a modificar la generacion de PDF salvo que se pida explicitamente
+5. No voy a modificar funciones de guardado/carga salvo que se pida
+6. Al agregar nuevas funcionalidades, voy a agregarlas en bloques NUEVOS de codigo
+7. Siempre voy a usar addCompRowWithData() para agregar filas de componentes
 8. Todos los precios en ARS salvo que se indique lo contrario
 9. IVA por defecto: 21%
 
 ## Restricciones
 - Esta es una app en PRODUCCION usada por personas reales
 - Cada error de sintaxis rompe TODA la aplicacion
-- Probar los cambios exhaustivamente antes de pushear
-- Si no estas seguro de un nombre de campo, CONSULTA la API primero
-- Nunca borrar funciones accidentalmente al editar codigo cercano
+- Voy a probar los cambios exhaustivamente antes de pushear
+- Si no estoy seguro de un nombre de campo, voy a consultar la API primero
+- No voy a borrar funciones accidentalmente al editar codigo cercano
