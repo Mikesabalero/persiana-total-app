@@ -197,11 +197,8 @@ function renderClientes() {
     let tb = document.getElementById('cli-table');
     tb.innerHTML = '';
     DATA.clientes.forEach(c => {
-        let presCount = DATA.presupuestos.filter(p => {
-            let link = resolveLink(p, 'Clientes');
-            let cid = link ? (link.Id || link.id) : p.Clientes_id;
-            return cid == (c.Id || c.id);
-        }).length;
+        let presCount = DATA.presupuestos.filter(p => p._clienteId == (c.Id || c.id)).length;
+
         tb.innerHTML += `<tr>
             <td><strong>${cleanLabel(c.Nombre)}</strong></td>
             <td>${c.Telefono || '-'}</td>
@@ -353,9 +350,8 @@ function viewCliente(clientId) {
     };
 
     // Historial de Presupuestos
-    let clientPres = DATA.presupuestos.filter(p => {
-        return p._clienteId == clientId;
-    });
+    let clientPres = DATA.presupuestos.filter(p => p._clienteId == clientId);
+
 
     // Ordenar por fecha descendente
     clientPres.sort((a, b) => {
