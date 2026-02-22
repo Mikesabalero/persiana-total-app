@@ -58,9 +58,39 @@ async function loadAll() {
     console.log('Propiedades:', DATA.propiedades.length);
     DATA.anchos = await apiGet(TBL.anchos);
     for (let p of DATA.presupuestos) {
-        try { let cl = await apiGetLinks(TBL.presupuestos, 'canpten8owymbde', p.Id); if (cl.length > 0) p._clienteNombre = cl[0].Nombre || cl[0].Title || '-'; else p._clienteNombre = '-'; } catch (e) { p._clienteNombre = '-'; }
-        try { let zl = await apiGetLinks(TBL.presupuestos, 'cr3s0ox51qopwl4', p.Id); if (zl.length > 0) p._zonaNombre = zl[0].Nombre || zl[0].Title || '-'; else p._zonaNombre = '-'; } catch (e) { p._zonaNombre = '-'; }
-        try { let pl = await apiGetLinks(TBL.presupuestos, 'cpf764utp1w7yj0', p.Id); if (pl.length > 0) { let propFull = DATA.propiedades.find(pr => pr.Id == pl[0].Id); p._propiedadDir = propFull ? (propFull.Direccion || '-') + ' - ' + (propFull.Localidad || '-') : (pl[0].Nombre || '-'); } else p._propiedadDir = '-'; } catch (e) { p._propiedadDir = '-'; }
+        try {
+            let cl = await apiGetLinks(TBL.presupuestos, 'canpten8owymbde', p.Id);
+            if (cl.length > 0) {
+                p._clienteNombre = cl[0].Nombre || cl[0].Title || '-';
+                p._clienteId = cl[0].Id;
+            } else {
+                p._clienteNombre = '-';
+                p._clienteId = null;
+            }
+        } catch (e) { p._clienteNombre = '-'; p._clienteId = null; }
+
+        try {
+            let zl = await apiGetLinks(TBL.presupuestos, 'cr3s0ox51qopwl4', p.Id);
+            if (zl.length > 0) {
+                p._zonaNombre = zl[0].Nombre || zl[0].Title || '-';
+                p._zonaId = zl[0].Id;
+            } else {
+                p._zonaNombre = '-';
+                p._zonaId = null;
+            }
+        } catch (e) { p._zonaNombre = '-'; p._zonaId = null; }
+
+        try {
+            let pl = await apiGetLinks(TBL.presupuestos, 'cpf764utp1w7yj0', p.Id);
+            if (pl.length > 0) {
+                p._propiedadId = pl[0].Id;
+                let propFull = DATA.propiedades.find(pr => pr.Id == pl[0].Id);
+                p._propiedadDir = propFull ? (propFull.Direccion || '-') + ' - ' + (propFull.Localidad || '-') : (pl[0].Nombre || '-');
+            } else {
+                p._propiedadDir = '-';
+                p._propiedadId = null;
+            }
+        } catch (e) { p._propiedadDir = '-'; p._propiedadId = null; }
     }
     loadDashboard();
     renderPropiedades();
@@ -322,8 +352,7 @@ function viewCliente(clientId) {
 
     // Historial de Presupuestos
     let clientPres = DATA.presupuestos.filter(p => {
-        let link = resolveLink(p, 'Clientes');
-        return link && (link.Id == clientId || link.id == clientId);
+        return p._clienteId == clientId;
     });
 
     // Ordenar por fecha descendente
@@ -1355,10 +1384,7 @@ async function savePres() {
     let sinFact = totalConIva * 0.9;
     await apiPatch(TBL.presupuestos, { Id: presId, Subtotal_neto: subtotalNeto, Subtotal_items: subtotalNeto, IVA_21: totalIva21, IVA_105: totalIva105, Total_con_IVA: totalConIva, Total: totalConIva, Descuento_sin_factura_pct: 10, Total_sin_factura: sinFact });
 
-    DATA.presupuestos = await apiGet(TBL.presupuestos);
-    DATA.lineas = await apiGet(TBL.lineas);
-    DATA.unidades = await apiGet(TBL.unidades);
-    loadDashboard();
+    await loadAll();
     showPage('presupuestos', document.querySelectorAll('.nav-item')[1]);
     closeModal();
     if (confirm('Presupuesto ' + num + ' guardado. ¿Ver ahora?')) viewPresupuesto(presId);
@@ -1608,15 +1634,8 @@ async function viewPresupuesto(presId) {
     let client = res.client;
     let zona = res.zona;
     let pago = res.pago;
-    let propAddr = '-';
-    if (pres._propiedadDir && pres._propiedadDir !== '-') propAddr = pres._propiedadDir;
-    else {
-        let pLink = resolveLink(pres, 'Propiedades');
-        if (pLink) {
-            let pData = DATA.propiedades.find(x => x.Id == (pLink.Id || pLink.id));
-            if (pData) propAddr = (pData.Direccion || '-') + ' - ' + (pData.Localidad || '-');
-        }
-    }
+    let propAddr = pres._propiedadDir || res.propDir || '-';
+
     document.getElementById('vp-titulo').textContent = 'Presupuesto #' + pres.Numero;
     document.getElementById('vp-fecha').textContent = new Date(pres.Fecha).toLocaleDateString();
     document.getElementById('vp-cliente').textContent = cleanLabel(client.Nombre) || '-';
@@ -1724,10 +1743,7 @@ async function duplicatePresupuesto(presId) {
     }
     await apiPatch(TBL.presupuestos, { Id: newId, Subtotal_neto: oldP.Subtotal_neto, Subtotal_items: oldP.Subtotal_items, IVA_21: oldP.IVA_21, IVA_105: oldP.IVA_105, Total_con_IVA: oldP.Total_con_IVA, Total: oldP.Total });
     alert('Presupuesto duplicado exitosamente.');
-    DATA.presupuestos = await apiGet(TBL.presupuestos);
-    DATA.unidades = await apiGet(TBL.unidades);
-    DATA.lineas = await apiGet(TBL.lineas);
-    loadDashboard();
+    await loadAll();
     showPage('presupuestos', document.querySelectorAll('.nav-item')[1]);
 }
 
