@@ -159,7 +159,7 @@ function loadClientes() {
             <td>
                 <div style="display:flex;gap:4px">
                     <button class="btn-remove" onclick="openNewCliente(${JSON.stringify(c).replace(/"/g, '&quot;')})" title="Editar" style="background:#f3f4f6;color:var(--text)">✏️</button>
-                    <button class="btn-remove" onclick="deleteCliente(${c.Id}, '${c.Nombre.replace(/'/g, "\\'")}')" title="Eliminar" style="color:var(--danger)">🗑</button>
+                    <button class="btn-remove" onclick="deleteCliente(${c.id || c.Id}, '${c.Nombre.replace(/'/g, "\\'")}')" title="Eliminar" style="color:var(--danger)">🗑</button>
                 </div>
             </td>
         </tr>`;
@@ -271,7 +271,7 @@ function loadPropiedadesSelect(presData) {
 async function openNewCliente(clientData = null) {
     document.getElementById('mc-title').textContent = clientData ? 'Editar Cliente' : 'Nuevo Cliente';
     let modal = document.getElementById('modal-cliente');
-    modal.setAttribute('data-db-id', clientData ? clientData.Id : '');
+    modal.setAttribute('data-db-id', clientData ? (clientData.id || clientData.Id) : '');
 
     document.getElementById('nc-nombre').value = clientData ? clientData.Nombre : '';
     document.getElementById('nc-telefono').value = clientData ? clientData.Telefono || '' : '';
@@ -302,7 +302,7 @@ async function saveCliente() {
 
     try {
         if (id) {
-            await apiPatch(TBL.clientes, { Id: id, ...data });
+            await apiPatch(TBL.clientes, { id: id, ...data });
         } else {
             await apiPost(TBL.clientes, data);
         }
@@ -318,7 +318,7 @@ async function saveCliente() {
 async function deleteCliente(id, name) {
     if (!confirm(`¿Eliminar cliente ${name}?`)) return;
     try {
-        await apiDelete(TBL.clientes, id);
+        let r = await fetch(API + '/api/v2/tables/' + TBL.clientes + '/records', { method: 'DELETE', headers: H, body: JSON.stringify({ id: id }) });
         await loadAll();
         loadClientes();
     } catch (e) {
