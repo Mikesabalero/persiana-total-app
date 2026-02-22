@@ -200,7 +200,7 @@ function renderPropiedades() {
             <td>${p.Localidad || '-'}</td>
             <td><a href="#" onclick="viewCliente(${resolveLink(p, 'Clientes')?.Id || 0}); return false;" style="color:var(--grad1);text-decoration:none;font-weight:600">${cliName}</a></td>
             <td>${p.Telefono || '-'}</td>
-            <td>${cleanLabel(p.Tipo_Propiedad_ || p.Tipo_Propiedad || p.Tipo || '-')}</td>
+            <td>${cleanLabel(p.Tipo_Propiedad || p.Tipo_Propiedad_ || p.Tipo || '-')}</td>
             <td>${principal}</td>
             <td>
                 <div style="display:flex;gap:4px">
@@ -303,7 +303,7 @@ function viewCliente(clientId) {
                 <td><strong>${cleanLabel(p.Nombre)}</strong></td>
                 <td>${p.Direccion || '-'}</td>
                 <td>${p.Localidad || '-'}</td>
-                <td>${cleanLabel(p.Tipo_Propiedad_ || p.Tipo_Propiedad || p.Tipo || '-')}</td>
+                <td>${cleanLabel(p.Tipo_Propiedad || p.Tipo_Propiedad_ || p.Tipo || '-')}</td>
                 <td>${principal}</td>
                 <td>${p.Telefono || '-'}</td>
             </tr>`;
@@ -515,10 +515,10 @@ async function openNewPropiedad(propData = null, preselectedClientId = null, for
     document.getElementById('np-prop-direccion').value = propData ? propData.Direccion || '' : '';
     document.getElementById('np-prop-localidad').value = propData ? propData.Localidad || '' : '';
     document.getElementById('np-prop-telefono').value = propData ? propData.Telefono || '' : '';
-    document.getElementById('np-prop-tipo').value = propData ? (propData.Tipo_Propiedad_ || propData.Tipo_Propiedad || 'Casa') : 'Casa';
+    document.getElementById('np-prop-tipo').value = propData ? (propData.Tipo_Propiedad || propData.Tipo_Propiedad_ || 'Casa') : 'Casa';
     document.getElementById('np-prop-inquilino').value = propData ? propData.Contacto_Inquilino || '' : '';
-    document.getElementById('np-prop-maps').value = propData ? propData.Ubicacion_Maps_ || propData.Ubicacion_maps || '' : '';
-    document.getElementById('np-prop-horario').value = propData ? propData.Horario_Disponible_ || propData.Horario_Disponible || '' : '';
+    document.getElementById('np-prop-maps').value = propData ? propData.Ubicacion_Maps || propData.Ubicacion_Maps_ || '' : '';
+    document.getElementById('np-prop-horario').value = propData ? propData.Horario_Disponible || propData.Horario_Disponible_ || '' : '';
     document.getElementById('np-prop-principal').checked = propData ? !!propData.Principal : false;
 
     // Sincronizar buscador de clientes
@@ -571,12 +571,12 @@ async function savePropiedad() {
         Direccion: document.getElementById('np-prop-direccion').value,
         Localidad: document.getElementById('np-prop-localidad').value,
         Telefono: document.getElementById('np-prop-telefono').value,
-        Tipo_Propiedad_: document.getElementById('np-prop-tipo').value,
+        Tipo_Propiedad: document.getElementById('np-prop-tipo').value,
         Contacto_Inquilino: document.getElementById('np-prop-inquilino').value,
-        Ubicacion_Maps_: document.getElementById('np-prop-maps').value,
-        Horario_Disponible_: document.getElementById('np-prop-horario').value,
+        Ubicacion_Maps: document.getElementById('np-prop-maps').value,
+        Horario_Disponible: document.getElementById('np-prop-horario').value,
         Principal: isPrincipal,
-        Clientes: [{ Id: parseInt(cliId) }]
+        Clientes_id: parseInt(cliId)
     };
 
     if (!data.Nombre) { alert('El nombre es obligatorio'); return; }
