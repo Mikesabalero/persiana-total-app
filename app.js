@@ -180,7 +180,7 @@ function renderPropiedades() {
             <td>${p.Localidad || '-'}</td>
             <td>${cliName}</td>
             <td>${p.Telefono || '-'}</td>
-            <td>${cleanLabel(p.Tipo_propiedad || '-')}</td>
+            <td>${cleanLabel(p.Tipo_Propiedad || '-')}</td>
             <td>${principal}</td>
             <td>
                 <div style="display:flex;gap:4px">
@@ -197,7 +197,8 @@ function filterSelectOptions(inputId, selectId) {
     let options = select.options;
     for (let i = 0; i < options.length; i++) {
         let txt = options[i].text.toLowerCase();
-        options[i].style.display = txt.includes(search) || options[i].value === "" ? '' : 'none';
+        let show = txt.includes(search) || (i === 0 && options[i].value === "");
+        options[i].style.display = show ? '' : 'none';
     }
 }
 function filterPropiedades() {
@@ -409,11 +410,18 @@ async function openNewPropiedad(propData = null, preselectedClientId = null) {
     document.getElementById('np-prop-direccion').value = propData ? propData.Direccion || '' : '';
     document.getElementById('np-prop-localidad').value = propData ? propData.Localidad || '' : '';
     document.getElementById('np-prop-telefono').value = propData ? propData.Telefono || '' : '';
-    document.getElementById('np-prop-tipo').value = propData ? (propData.Tipo_propiedad || 'Casa') : 'Casa';
+    document.getElementById('np-prop-tipo').value = propData ? (propData.Tipo_Propiedad || 'Casa') : 'Casa';
     document.getElementById('np-prop-inquilino').value = propData ? propData.Contacto_inquilino || '' : '';
     document.getElementById('np-prop-maps').value = propData ? propData.Ubicacion_maps || '' : '';
     document.getElementById('np-prop-horario').value = propData ? propData.Horario_disponible || '' : '';
     document.getElementById('np-prop-principal').checked = propData ? !!propData.Principal : false;
+
+    // Resetear buscador de clientes
+    let searchInput = document.getElementById('np-prop-cliente-search');
+    if (searchInput) {
+        searchInput.value = '';
+        filterSelectOptions('np-prop-cliente-search', 'np-prop-cliente');
+    }
 
     modal.classList.add('show');
 }
@@ -433,7 +441,7 @@ async function savePropiedad() {
         Direccion: document.getElementById('np-prop-direccion').value,
         Localidad: document.getElementById('np-prop-localidad').value,
         Telefono: document.getElementById('np-prop-telefono').value,
-        Tipo_propiedad: document.getElementById('np-prop-tipo').value,
+        Tipo_Propiedad: document.getElementById('np-prop-tipo').value,
         Contacto_Inquilino: document.getElementById('np-prop-inquilino').value,
         Ubicacion_Maps: document.getElementById('np-prop-maps').value,
         Horario_Disponible: document.getElementById('np-prop-horario').value,
@@ -477,6 +485,13 @@ async function deletePropiedad(id, name) {
 
 async function openNewPres(presData = null) {
     if (DATA.clientes.length === 0) await loadAll();
+
+    // Resetear buscador de clientes
+    let searchInput = document.getElementById('np-pres-cliente-search');
+    if (searchInput) {
+        searchInput.value = '';
+        filterSelectOptions('np-pres-cliente-search', 'np-cliente');
+    }
 
     // Reset Modal
     document.getElementById('modal-title').textContent = presData ? ('Editar Presupuesto ' + presData.Numero) : 'Nuevo Presupuesto';
