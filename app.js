@@ -148,7 +148,21 @@ function loadClientes() {
         let presCount = 0;
         let pl = c.Presupuestos;
         if (Array.isArray(pl)) presCount = pl.length;
-        tb.innerHTML += '<tr style="cursor:pointer" onclick="showClientDetail(' + c.Id + ')"><td><strong>' + cleanLabel(c.Nombre) + '</strong></td><td>' + (c.Telefono || '-') + '</td><td>' + (c.Mail || '-') + '</td><td>' + cleanLabel(c.Tipo || '-') + '</td><td>' + cleanLabel(c.Condicion_fiscal || '-') + '</td><td>' + (c.CUIT_CUIL_DNI || '-') + '</td><td>' + presCount + '</td></tr>';
+        tb.innerHTML += `<tr>
+            <td><strong>${cleanLabel(c.Nombre)}</strong></td>
+            <td>${c.Telefono || '-'}</td>
+            <td>${c.Mail || '-'}</td>
+            <td>${cleanLabel(c.Tipo || '-')}</td>
+            <td>${cleanLabel(c.Condicion_fiscal || '-')}</td>
+            <td>${c.CUIT_CUIL_DNI || '-'}</td>
+            <td>${presCount}</td>
+            <td>
+                <div style="display:flex;gap:4px">
+                    <button class="btn-remove" onclick="openNewCliente(${JSON.stringify(c).replace(/"/g, '&quot;')})" title="Editar" style="background:#f3f4f6;color:var(--text)">✏️</button>
+                    <button class="btn-remove" onclick="deleteCliente(${c.Id}, '${c.Nombre.replace(/'/g, "\\'")}')" title="Eliminar" style="color:var(--danger)">🗑</button>
+                </div>
+            </td>
+        </tr>`;
     });
 }
 function filterCli() {
@@ -252,6 +266,65 @@ function loadPropiedadesSelect(presData) {
         let sel = (selectedPropId && (p.Id == selectedPropId)) ? 'selected' : (props.length === 1 ? 'selected' : '');
         ps.innerHTML += '<option value="' + p.Id + '" ' + sel + '>' + cleanLabel(p.Direccion) + ' - ' + cleanLabel(p.Localidad) + '</option>';
     });
+}
+
+async function openNewCliente(clientData = null) {
+    document.getElementById('mc-title').textContent = clientData ? 'Editar Cliente' : 'Nuevo Cliente';
+    let modal = document.getElementById('modal-cliente');
+    modal.setAttribute('data-db-id', clientData ? clientData.Id : '');
+
+    document.getElementById('nc-nombre').value = clientData ? clientData.Nombre : '';
+    document.getElementById('nc-telefono').value = clientData ? clientData.Telefono || '' : '';
+    document.getElementById('nc-mail').value = clientData ? clientData.Mail || '' : '';
+    document.getElementById('nc-tipo').value = clientData ? (clientData.Tipo || 'Particular') : 'Particular';
+    document.getElementById('nc-cond-fiscal').value = clientData ? (clientData.Condicion_fiscal || 'Consumidor Final') : 'Consumidor Final';
+    document.getElementById('nc-cuit').value = clientData ? clientData.CUIT_CUIL_DNI || '' : '';
+
+    modal.classList.add('show');
+}
+
+function closeModalCliente() {
+    document.getElementById('modal-cliente').classList.remove('show');
+}
+
+async function saveCliente() {
+    let id = document.getElementById('modal-cliente').getAttribute('data-db-id');
+    let data = {
+        Nombre: document.getElementById('nc-nombre').value,
+        Telefono: document.getElementById('nc-telefono').value,
+        Mail: document.getElementById('nc-mail').value,
+        Tipo: document.getElementById('nc-tipo').value,
+        Condicion_fiscal: document.getElementById('nc-cond-fiscal').value,
+        CUIT_CUIL_DNI: document.getElementById('nc-cuit').value
+    };
+
+    if (!data.Nombre) { alert('El nombre es obligatorio'); return; }
+
+    try {
+        if (id) {
+            await apiPatch(TBL.clientes, { Id: id, ...data });
+        } else {
+            await apiPost(TBL.clientes, data);
+        }
+        closeModalCliente();
+        await loadAll();
+        loadClientes();
+    } catch (e) {
+        console.error(e);
+        alert('Error al guardar cliente');
+    }
+}
+
+async function deleteCliente(id, name) {
+    if (!confirm(`¿Eliminar cliente ${name}?`)) return;
+    try {
+        await apiDelete(TBL.clientes, id);
+        await loadAll();
+        loadClientes();
+    } catch (e) {
+        console.error(e);
+        alert('Error al eliminar cliente');
+    }
 }
 
 async function openNewPres(presData = null) {
@@ -1345,6 +1418,7 @@ window.onclick = function (event) {
     if (event.target.classList.contains('modal-overlay')) {
         if (event.target.id === 'modal-pres') closeModal();
         else if (event.target.id === 'modal-ver-pres') closeVerPres();
+        else if (event.target.id === 'modal-cliente') closeModalCliente();
     }
     if (event.target.classList.contains('detail-panel')) closeDetail();
 };

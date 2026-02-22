@@ -187,9 +187,11 @@
         </div>
         <!-- CLIENTES -->
         <div id="page-clientes" class="page">
-            <div class="page-header">
-                <h1>Clientes</h1>
-                <p>Base de clientes y datos fiscales</p>
+            <div class="page-header" style="display:flex;justify-content:space-between;align-items:center">
+                <div>
+                    <h1>Clientes</h1>
+                    <p>Base de clientes y datos fiscales</p>
+                </div><button class="btn btn-primary" onclick="openNewCliente()">+ Nuevo Cliente</button>
             </div>
             <div class="filters">
                 <input type="text" id="cli-search" placeholder="Buscar cliente..." oninput="filterCli()">
@@ -213,6 +215,7 @@
                             <th>Cond. Fiscal</th>
                             <th>CUIT/DNI</th>
                             <th>Presup.</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="cli-table"></tbody>
@@ -322,6 +325,62 @@
             </div>
         </div>
     </main>
+    <!-- MODAL CLIENTE -->
+    <div class="modal-overlay" id="modal-cliente">
+        <div class="modal" style="max-width: 600px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 24px;">
+                <h2 id="mc-title" style="margin:0">Nuevo Cliente</h2>
+                <button class="btn-remove" onclick="closeModalCliente()"
+                    style="font-size: 1.5em; background:none; border:none; cursor:pointer; color:var(--text-light)">✕</button>
+            </div>
+            <form id="form-cliente" onsubmit="event.preventDefault(); saveCliente();">
+                <div class="form-group">
+                    <label>Nombre *</label>
+                    <input type="text" id="nc-nombre" required placeholder="Nombre del cliente o empresa">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Teléfono</label>
+                        <input type="text" id="nc-telefono" placeholder="Ej: 342 1234567">
+                    </div>
+                    <div class="form-group">
+                        <label>Mail</label>
+                        <input type="email" id="nc-mail" placeholder="ejemplo@correo.com">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Tipo</label>
+                        <select id="nc-tipo">
+                            <option>Particular</option>
+                            <option>Empresa</option>
+                            <option>Consorcio</option>
+                            <option>Inmobiliaria</option>
+                            <option>Arquitecto</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Condición Fiscal</label>
+                        <select id="nc-cond-fiscal">
+                            <option>Consumidor Final</option>
+                            <option>Monotributo</option>
+                            <option>Responsable Inscripto</option>
+                            <option>Exento</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>CUIT/DNI</label>
+                    <input type="text" id="nc-cuit" placeholder="Sin guiones">
+                </div>
+                <div style="display:flex; gap:12px; justify-content:flex-end; margin-top: 24px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModalCliente()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cliente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- MODAL NUEVO PRESUPUESTO -->
     <div class="modal-overlay" id="modal-pres">
         <div class="modal" data-db-id="">
