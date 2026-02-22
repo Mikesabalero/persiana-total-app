@@ -412,6 +412,18 @@ function loadPropiedadesSelect(presData) {
         let sel = (selectedPropId && (p.Id == selectedPropId)) ? 'selected' : (props.length === 1 ? 'selected' : '');
         ps.innerHTML += '<option value="' + p.Id + '" ' + sel + '>' + cleanLabel(p.Direccion) + ' - ' + cleanLabel(p.Localidad) + '</option>';
     });
+    if (props.length === 1 || selectedPropId) {
+        let pId = selectedPropId || props[0].Id;
+        updateZonaFromProp(pId);
+    }
+}
+
+function updateZonaFromProp(propId) {
+    if (!propId) return;
+    let prop = DATA.propiedades.find(p => p.Id == propId);
+    if (!prop || !prop.Localidad) return;
+    let zone = DATA.zonas.find(z => z.Nombre === prop.Localidad);
+    if (zone) document.getElementById('np-zona').value = zone.Id;
 }
 
 async function openNewCliente(clientData = null) {
@@ -1174,6 +1186,8 @@ async function savePres() {
         });
         await apiLink(TBL.presupuestos, 'canpten8owymbde', editPresId, [{ Id: parseInt(clienteId) }]);
         await apiLink(TBL.presupuestos, 'cr3s0ox51qopwl4', editPresId, [{ Id: parseInt(zonaId) }]);
+        let pagoId = document.getElementById('np-pago').value;
+        if (pagoId) await apiLink(TBL.presupuestos, 'cr9l2n9wiubrcra', editPresId, [{ Id: parseInt(pagoId) }]);
         let propId = document.getElementById('np-propiedad').value;
         if (propId) await apiLink(TBL.presupuestos, 'cpf764utp1w7yj0', editPresId, [{ Id: parseInt(propId) }]);
     } else {
@@ -1202,6 +1216,12 @@ async function savePres() {
         let pres = await apiPost(TBL.presupuestos, presData);
         presId = pres.Id || pres.id;
         if (!presId) { alert('Error creando presupuesto'); return; }
+
+        // Asegurar links mediante apiLink después del POST
+        if (client) await apiLink(TBL.presupuestos, 'canpten8owymbde', presId, [{ Id: parseInt(client) }]);
+        if (prop) await apiLink(TBL.presupuestos, 'cpf764utp1w7yj0', presId, [{ Id: parseInt(prop) }]);
+        if (zona) await apiLink(TBL.presupuestos, 'cr3s0ox51qopwl4', presId, [{ Id: parseInt(zona) }]);
+        if (pago) await apiLink(TBL.presupuestos, 'cr9l2n9wiubrcra', presId, [{ Id: parseInt(pago) }]);
     }
 
     let subtotalNeto = 0, totalIva21 = 0, totalIva105 = 0;

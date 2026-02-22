@@ -504,7 +504,8 @@
                         style="margin-bottom:4px">
                     <select id="np-cliente" onchange="updatePropiedadesSelect()" style="display:none"></select>
                 </div>
-                <div class="form-group"><label>Propiedad / Dirección</label><select id="np-propiedad"></select></div>
+                <div class="form-group"><label>Propiedad / Dirección</label><select id="np-propiedad"
+                        onchange="updateZonaFromProp(this.value)"></select></div>
                 <div class="form-group"><label>Zona</label><select id="np-zona"></select></div>
                 <div class="form-group"><label>Forma de Pago</label><select id="np-pago"></select></div>
             </div>
