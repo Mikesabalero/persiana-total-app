@@ -62,6 +62,24 @@ async function loadAll() {
     }
     loadDashboard();
     renderPropiedades();
+    renderClientDatalist();
+}
+function renderClientDatalist() {
+    let dl = document.getElementById('client-datalist');
+    if (!dl) return;
+    let html = '';
+    DATA.clientes.forEach(c => {
+        html += `<option value="${cleanLabel(c.Nombre)}">`;
+    });
+    dl.innerHTML = html;
+}
+function syncClientSelect(input, selectId) {
+    let name = input.value;
+    let client = DATA.clientes.find(c => cleanLabel(c.Nombre) === name);
+    if (client) {
+        document.getElementById(selectId).value = client.Id;
+        if (selectId === 'np-cliente') updatePropiedadesSelect();
+    }
 }
 function loadDashboard() {
     let ps = DATA.presupuestos;
@@ -180,7 +198,7 @@ function renderPropiedades() {
             <td>${p.Localidad || '-'}</td>
             <td>${cliName}</td>
             <td>${p.Telefono || '-'}</td>
-            <td>${cleanLabel(p.Tipo_Propiedad || '-')}</td>
+            <td>${cleanLabel(p.Tipo_Propiedad || p.Tipo_propiedad || p.Tipo || '-')}</td>
             <td>${principal}</td>
             <td>
                 <div style="display:flex;gap:4px">
@@ -413,14 +431,13 @@ async function openNewPropiedad(propData = null, preselectedClientId = null) {
     document.getElementById('np-prop-tipo').value = propData ? (propData.Tipo_Propiedad || 'Casa') : 'Casa';
     document.getElementById('np-prop-inquilino').value = propData ? propData.Contacto_inquilino || '' : '';
     document.getElementById('np-prop-maps').value = propData ? propData.Ubicacion_maps || '' : '';
-    document.getElementById('np-prop-horario').value = propData ? propData.Horario_disponible || '' : '';
+    document.getElementById('np-prop-horario').value = propData ? propData.Horario_Disponible || '' : '';
     document.getElementById('np-prop-principal').checked = propData ? !!propData.Principal : false;
 
-    // Resetear buscador de clientes
+    // Sincronizar buscador de clientes
     let searchInput = document.getElementById('np-prop-cliente-search');
     if (searchInput) {
-        searchInput.value = '';
-        filterSelectOptions('np-prop-cliente-search', 'np-prop-cliente');
+        searchInput.value = propData ? resolveName(propData, 'Clientes', DATA.clientes) : '';
     }
 
     modal.classList.add('show');
@@ -486,13 +503,6 @@ async function deletePropiedad(id, name) {
 async function openNewPres(presData = null) {
     if (DATA.clientes.length === 0) await loadAll();
 
-    // Resetear buscador de clientes
-    let searchInput = document.getElementById('np-pres-cliente-search');
-    if (searchInput) {
-        searchInput.value = '';
-        filterSelectOptions('np-pres-cliente-search', 'np-cliente');
-    }
-
     // Reset Modal
     document.getElementById('modal-title').textContent = presData ? ('Editar Presupuesto ' + presData.Numero) : 'Nuevo Presupuesto';
     let modalEl = document.querySelector('#modal-pres .modal');
@@ -505,6 +515,12 @@ async function openNewPres(presData = null) {
         let sel = (presData && presData._clienteData && (presData._clienteData.Id == c.Id)) ? 'selected' : '';
         cs.innerHTML += '<option value="' + c.Id + '" ' + sel + '>' + cleanLabel(c.Nombre) + ' - ' + (c.Telefono || '') + '</option>';
     });
+
+    // Sincronizar buscador de clientes
+    let searchInput = document.getElementById('np-pres-cliente-search');
+    if (searchInput) {
+        searchInput.value = presData ? resolveName(presData, 'Clientes', DATA.clientes) : '';
+    }
 
     let zs = document.getElementById('np-zona');
     zs.innerHTML = '<option value="">Seleccionar zona...</option>';
@@ -523,9 +539,15 @@ async function openNewPres(presData = null) {
 
     loadPropiedadesSelect(presData);
 
-    document.getElementById('np-pago').value = resolveLink(presData, 'Formas_pago')?.Id || '';
-    document.getElementById('np-canal').value = presData ? (presData.Canal || 'Manual') : 'Manual';
-    document.getElementById('np-factura').value = presData ? (presData.Facturacion || 'con_iva') : 'con_iva';
+    if (presData) {
+        document.getElementById('np-pago').value = resolveLink(presData, 'Formas_pago')?.Id || '';
+        document.getElementById('np-canal').value = presData.Canal || 'Manual';
+        document.getElementById('np-factura').value = presData.Facturacion || 'con_iva';
+    } else {
+        document.getElementById('np-pago').value = '';
+        document.getElementById('np-canal').value = 'Manual';
+        document.getElementById('np-factura').value = 'con_iva';
+    }
 
     document.getElementById('np-unidades').innerHTML = '';
     document.getElementById('np-resumen').style.display = 'none';
