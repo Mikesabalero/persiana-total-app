@@ -319,6 +319,41 @@ function viewCliente(clientId) {
         openNewPropiedad(null, clientId, true);
     };
 
+    // Historial de Presupuestos
+    let clientPres = DATA.presupuestos.filter(p => {
+        let link = resolveLink(p, 'Clientes');
+        return link && (link.Id == clientId || link.id == clientId);
+    });
+
+    // Ordenar por fecha descendente
+    clientPres.sort((a, b) => {
+        let dateA = new Date(a.Fecha || 0);
+        let dateB = new Date(b.Fecha || 0);
+        return dateB - dateA;
+    });
+
+    let tp = document.getElementById('vc-pres-table');
+    tp.innerHTML = '';
+    if (clientPres.length > 0) {
+        document.getElementById('vc-no-pres').style.display = 'none';
+        clientPres.forEach(p => {
+            let id = p.Id || p.id;
+            let addr = resolveName(p, 'Propiedades', DATA.propiedades);
+            tp.innerHTML += `<tr>
+                <td><strong>${p.Numero || '-'}</strong></td>
+                <td>${p.Fecha || '-'}</td>
+                <td>${addr}</td>
+                <td><strong>${fmt(p.Total_con_IVA || p.Total)}</strong></td>
+                <td>${badgeHtml(p.Estado || 'Borrador')}</td>
+                <td>
+                    <button class="btn btn-sm btn-secondary" onclick="closeVerCliente(); viewPresupuesto(${id})">Ver</button>
+                </td>
+            </tr>`;
+        });
+    } else {
+        document.getElementById('vc-no-pres').style.display = 'block';
+    }
+
     document.getElementById('modal-ver-cliente').classList.add('show');
 }
 function loadConfig() {
