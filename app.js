@@ -5,6 +5,7 @@ const H = { 'xc-token': TOKEN, 'Content-Type': 'application/json' };
 const TBL = { clientes: 'mwby85581fhjy27', propiedades: 'm0dwlr7ccoim1kf', historial: 'mimh9lp8bkew4t0', categorias: 'mulo5ve82d9ex7q', productos: 'mdr6mo695g0qz6d', componentes: 'mgh9e1zivvhpg26', prod_comp: 'mmjzqw7v4que9q3', tc: 'mhj9fovlmv9036x', zonas: 'mottig5nmj5e3kx', presupuestos: 'mn1yyjyovvoyxme', lineas: 'mv1e9trh23j0q3o', servicios: 'mz8qrki3hz4y7iv', formas_pago: 'm2t4fnjie88gfo0', unidades: 'mix059xkpsz15um', anchos: 'mayai71j546g3as' };
 let DATA = { clientes: [], propiedades: [], zonas: [], componentes: [], productos: [], prod_comp: [], presupuestos: [], lineas: [], unidades: [], formas_pago: [], tc: null, anchos: [] };
 let unidadCount = 0;
+let editPresId = null;
 async function apiGet(tid, params = '') { let r = await fetch(API + '/api/v2/tables/' + tid + '/records?limit=200' + params, { headers: H }); if (!r.ok) return []; let d = await r.json(); return d.list || []; }
 async function apiGetLinks(tid, colId, rowId) { let r = await fetch(API + '/api/v2/tables/' + tid + '/links/' + colId + '/records/' + rowId + '?limit=10', { headers: H }); if (!r.ok) return []; let d = await r.json(); return d.list || []; }
 async function apiPost(tid, body) { let r = await fetch(API + '/api/v2/tables/' + tid + '/records', { method: 'POST', headers: H, body: JSON.stringify(body) }); return r.json(); }
@@ -521,6 +522,14 @@ async function openNewPropiedad(propData = null, preselectedClientId = null, for
     document.getElementById('np-prop-horario').value = propData ? propData.Horario_Disponible || propData.Horario_Disponible_ || '' : '';
     document.getElementById('np-prop-principal').checked = propData ? !!propData.Principal : false;
 
+    // Poblar select de Zonas (Localidad)
+    let zs = document.getElementById('np-prop-localidad');
+    zs.innerHTML = '<option value="">Seleccionar zona...</option>';
+    DATA.zonas.forEach(z => {
+        let sel = (propData && propData.Localidad === z.Nombre) ? 'selected' : '';
+        zs.innerHTML += `<option value="${z.Nombre}" ${sel}>${cleanLabel(z.Nombre)}</option>`;
+    });
+
     // Sincronizar buscador de clientes
     if (si) {
         if (propData) {
@@ -636,6 +645,7 @@ async function deletePropiedad(id, name) {
 
 async function openNewPres(presData = null) {
     if (DATA.clientes.length === 0) await loadAll();
+    editPresId = presData ? (presData.Id || presData.id) : null;
 
     // Reset Modal
     document.getElementById('modal-title').textContent = presData ? ('Editar Presupuesto ' + presData.Numero) : 'Nuevo Presupuesto';
