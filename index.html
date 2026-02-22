@@ -432,6 +432,9 @@
                     </div>
                     <div class="form-group">
                         <label>Cliente *</label>
+                        <input type="text" id="np-prop-cliente-search" placeholder="Buscar cliente..."
+                            oninput="filterSelectOptions('np-prop-cliente-search', 'np-prop-cliente')"
+                            style="margin-bottom:4px">
                         <select id="np-prop-cliente" required></select>
                     </div>
                 </div>
@@ -495,8 +498,11 @@
                     style="background:none;border:none;font-size:1.5em;cursor:pointer;color:var(--text-light)">✕</button>
             </div>
             <div class="form-row-4">
-                <div class="form-group"><label>Cliente</label><select id="np-cliente"
-                        onchange="updatePropiedadesSelect()"></select></div>
+                <div class="form-group"><label>Cliente</label>
+                    <input type="text" id="np-pres-cliente-search" placeholder="Buscar cliente..."
+                        oninput="filterSelectOptions('np-pres-cliente-search', 'np-cliente')" style="margin-bottom:4px">
+                    <select id="np-cliente" onchange="updatePropiedadesSelect()"></select>
+                </div>
                 <div class="form-group"><label>Propiedad / Dirección</label><select id="np-propiedad"></select></div>
                 <div class="form-group"><label>Zona</label><select id="np-zona"></select></div>
                 <div class="form-group"><label>Forma de Pago</label><select id="np-pago"></select></div>

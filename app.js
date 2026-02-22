@@ -53,6 +53,7 @@ async function loadAll() {
     DATA.unidades = await apiGet(TBL.unidades);
     DATA.formas_pago = await apiGet(TBL.formas_pago);
     DATA.propiedades = await apiGet(TBL.propiedades);
+    console.log('Propiedades:', DATA.propiedades.length);
     DATA.anchos = await apiGet(TBL.anchos);
     for (let p of DATA.presupuestos) {
         try { let cl = await apiGetLinks(TBL.presupuestos, 'canpten8owymbde', p.Id); if (cl.length > 0) p._clienteNombre = cl[0].Nombre || cl[0].Title || '-'; else p._clienteNombre = '-'; } catch (e) { p._clienteNombre = '-'; }
@@ -60,6 +61,7 @@ async function loadAll() {
         try { let pl = await apiGetLinks(TBL.presupuestos, 'cpf764utp1w7yj0', p.Id); if (pl.length > 0) { let propFull = DATA.propiedades.find(pr => pr.Id == pl[0].Id); p._propiedadDir = propFull ? (propFull.Direccion || '-') + ' - ' + (propFull.Localidad || '-') : (pl[0].Nombre || '-'); } else p._propiedadDir = '-'; } catch (e) { p._propiedadDir = '-'; }
     }
     loadDashboard();
+    renderPropiedades();
 }
 function loadDashboard() {
     let ps = DATA.presupuestos;
@@ -167,10 +169,11 @@ function renderClientes() {
 }
 function renderPropiedades() {
     let tb = document.getElementById('prop-table');
+    if (!tb) return;
     tb.innerHTML = '';
     DATA.propiedades.forEach(p => {
         let cliName = resolveName(p, 'Clientes', DATA.clientes);
-        let principal = p.Principal ? '✅' : '-';
+        let principal = p.Principal ? '✅ Sí' : 'No';
         tb.innerHTML += `<tr>
             <td><strong>${cleanLabel(p.Nombre)}</strong></td>
             <td>${p.Direccion || '-'}</td>
@@ -187,6 +190,15 @@ function renderPropiedades() {
             </td>
         </tr>`;
     });
+}
+function filterSelectOptions(inputId, selectId) {
+    let search = document.getElementById(inputId).value.toLowerCase();
+    let select = document.getElementById(selectId);
+    let options = select.options;
+    for (let i = 0; i < options.length; i++) {
+        let txt = options[i].text.toLowerCase();
+        options[i].style.display = txt.includes(search) || options[i].value === "" ? '' : 'none';
+    }
 }
 function filterPropiedades() {
     let search = document.getElementById('prop-search').value.toLowerCase();
