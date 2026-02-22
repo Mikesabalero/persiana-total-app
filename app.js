@@ -197,9 +197,11 @@ function renderClientes() {
     let tb = document.getElementById('cli-table');
     tb.innerHTML = '';
     DATA.clientes.forEach(c => {
-        let presCount = 0;
-        let pl = c.Presupuestos;
-        if (Array.isArray(pl)) presCount = pl.length;
+        let presCount = DATA.presupuestos.filter(p => {
+            let link = resolveLink(p, 'Clientes');
+            let cid = link ? (link.Id || link.id) : p.Clientes_id;
+            return cid == (c.Id || c.id);
+        }).length;
         tb.innerHTML += `<tr>
             <td><strong>${cleanLabel(c.Nombre)}</strong></td>
             <td>${c.Telefono || '-'}</td>
