@@ -522,6 +522,15 @@ async function savePropiedad() {
 
     if (!cliId) { alert('Debe seleccionar un cliente'); return; }
 
+    // Si es la primera propiedad del cliente, marcar como principal automáticamente
+    let clientProps = DATA.propiedades.filter(p => {
+        let link = resolveLink(p, 'Clientes');
+        return link && (link.Id == cliId || link.id == cliId);
+    });
+
+    let isPrincipal = document.getElementById('np-prop-principal').checked;
+    if (!id && clientProps.length === 0) isPrincipal = true;
+
     let data = {
         Nombre: document.getElementById('np-prop-nombre').value,
         Direccion: document.getElementById('np-prop-direccion').value,
@@ -531,18 +540,34 @@ async function savePropiedad() {
         Contacto_Inquilino: document.getElementById('np-prop-inquilino').value,
         Ubicacion_Maps: document.getElementById('np-prop-maps').value,
         Horario_Disponible: document.getElementById('np-prop-horario').value,
-        Principal: document.getElementById('np-prop-principal').checked,
+        Principal: isPrincipal,
         Clientes: [{ Id: parseInt(cliId) }]
     };
 
     if (!data.Nombre) { alert('El nombre es obligatorio'); return; }
 
     try {
+        let savedRes;
         if (id) {
-            await apiPatch(TBL.propiedades, { id: id, ...data });
+            savedRes = await apiPatch(TBL.propiedades, { id: id, ...data });
         } else {
-            await apiPost(TBL.propiedades, data);
+            savedRes = await apiPost(TBL.propiedades, data);
         }
+        let savedId = id || savedRes.Id || savedRes.id;
+
+        // Si esta es principal, quitar principal a las otras del mismo cliente
+        if (data.Principal) {
+            let others = DATA.propiedades.filter(p => {
+                let link = resolveLink(p, 'Clientes');
+                let sameCli = link && (link.Id == cliId || link.id == cliId);
+                let pId = p.Id || p.id;
+                return sameCli && pId != savedId && p.Principal;
+            });
+            for (let other of others) {
+                await apiPatch(TBL.propiedades, { id: other.Id || other.id, Principal: false });
+            }
+        }
+
         DATA.propiedades = await apiGet(TBL.propiedades);
         renderPropiedades();
         closeModalPropiedad();
