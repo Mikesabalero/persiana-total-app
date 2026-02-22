@@ -313,7 +313,6 @@ function viewCliente(clientId) {
     }
 
     document.getElementById('vc-btn-nueva-prop').onclick = () => {
-        closeVerCliente();
         openNewPropiedad(null, clientId, true);
     };
 
@@ -471,7 +470,8 @@ async function openNewPropiedad(propData = null, preselectedClientId = null, for
 
     // Deshabilitar/Habilitar según corresponda
     cs.disabled = forceDisableClient;
-    document.getElementById('np-prop-cliente-search').disabled = forceDisableClient;
+    let si = document.getElementById('np-prop-cliente-search');
+    if (si) si.disabled = forceDisableClient;
 
     document.getElementById('np-prop-nombre').value = propData ? propData.Nombre : '';
     document.getElementById('np-prop-direccion').value = propData ? propData.Direccion || '' : '';
@@ -484,9 +484,15 @@ async function openNewPropiedad(propData = null, preselectedClientId = null, for
     document.getElementById('np-prop-principal').checked = propData ? !!propData.Principal : false;
 
     // Sincronizar buscador de clientes
-    let searchInput = document.getElementById('np-prop-cliente-search');
-    if (searchInput) {
-        searchInput.value = propData ? resolveName(propData, 'Clientes', DATA.clientes) : '';
+    if (si) {
+        if (propData) {
+            si.value = resolveName(propData, 'Clientes', DATA.clientes);
+        } else if (preselectedClientId) {
+            let client = DATA.clientes.find(c => c.Id == preselectedClientId);
+            si.value = client ? cleanLabel(client.Nombre) : '';
+        } else {
+            si.value = '';
+        }
     }
 
     modal.classList.add('show');
@@ -494,6 +500,10 @@ async function openNewPropiedad(propData = null, preselectedClientId = null, for
 
 function closeModalPropiedad() {
     document.getElementById('modal-propiedad').classList.remove('show');
+    // Restaurar campos habilitados
+    document.getElementById('np-prop-cliente').disabled = false;
+    let si = document.getElementById('np-prop-cliente-search');
+    if (si) si.disabled = false;
 }
 
 async function savePropiedad() {
@@ -530,6 +540,11 @@ async function savePropiedad() {
         let panel = document.getElementById('panel-cliente');
         if (panel.classList.contains('open')) {
             showClientDetail(parseInt(cliId));
+        }
+        // Si el modal de ficha cliente está abierto, actualizarlo
+        let modalVer = document.getElementById('modal-ver-cliente');
+        if (modalVer.classList.contains('show')) {
+            viewCliente(parseInt(cliId));
         }
     } catch (e) {
         console.error(e);
