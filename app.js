@@ -366,7 +366,7 @@ function viewCliente(clientId) {
         document.getElementById('vc-no-pres').style.display = 'none';
         clientPres.forEach(p => {
             let id = p.Id || p.id;
-            let addr = resolveName(p, 'Propiedades', DATA.propiedades);
+            let addr = p._propiedadDir || '-';
             tp.innerHTML += `<tr>
                 <td><strong>${p.Numero || '-'}</strong></td>
                 <td>${p.Fecha || '-'}</td>
