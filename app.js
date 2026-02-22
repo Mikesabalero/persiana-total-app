@@ -13,7 +13,7 @@ async function apiDelete(tid, id) { let r = await fetch(API + '/api/v2/tables/' 
 async function apiLink(tid, colId, rowId, linked) { let r = await fetch(API + '/api/v2/tables/' + tid + '/links/' + colId + '/records/' + rowId, { method: 'POST', headers: H, body: JSON.stringify(linked) }); return r.json(); }
 function fmt(n) { if (n == null) return '$0'; return '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
 function badgeHtml(estado) { let c = { 'Borrador': 'borrador', 'Enviado': 'enviado', 'Aprobado': 'aprobado', 'Rechazado': 'rechazado', 'Vencido': 'vencido', 'Facturado': 'facturado' }; return '<span class="badge badge-' + (c[estado] || 'borrador') + '">' + cleanLabel(estado) + '</span>'; }
-function showPage(id, btn) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById('page-' + id).classList.add('active'); document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active')); if (btn) btn.classList.add('active'); if (id === 'dashboard') loadDashboard(); if (id === 'presupuestos') loadPresupuestos(); if (id === 'precios') loadPrecios(); if (id === 'clientes') renderClientes(); if (id === 'config') loadConfig(); }
+function showPage(id, btn) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById('page-' + id).classList.add('active'); document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active')); if (btn) btn.classList.add('active'); if (id === 'dashboard') loadDashboard(); if (id === 'presupuestos') loadPresupuestos(); if (id === 'precios') loadPrecios(); if (id === 'clientes') renderClientes(); if (id === 'propiedades') renderPropiedades(); if (id === 'config') loadConfig(); }
 function showConfigTab(id, btn) { document.querySelectorAll('.config-section').forEach(s => s.style.display = 'none'); document.getElementById('config-' + id).style.display = 'block'; document.querySelectorAll('.config-tab').forEach(t => t.classList.remove('active')); btn.classList.add('active'); }
 function closeModal() { document.getElementById('modal-pres').classList.remove('show'); }
 function closeDetail() { document.getElementById('panel-cliente').classList.remove('open'); }
@@ -163,6 +163,38 @@ function renderClientes() {
                 </div>
             </td>
         </tr>`;
+    });
+}
+function renderPropiedades() {
+    let tb = document.getElementById('prop-table');
+    tb.innerHTML = '';
+    DATA.propiedades.forEach(p => {
+        let cliName = resolveName(p, 'Clientes', DATA.clientes);
+        let principal = p.Principal ? '✅' : '-';
+        tb.innerHTML += `<tr>
+            <td><strong>${cleanLabel(p.Nombre)}</strong></td>
+            <td>${p.Direccion || '-'}</td>
+            <td>${p.Localidad || '-'}</td>
+            <td>${cliName}</td>
+            <td>${p.Telefono || '-'}</td>
+            <td>${cleanLabel(p.Tipo_propiedad || '-')}</td>
+            <td>${principal}</td>
+            <td>
+                <div style="display:flex;gap:4px">
+                    <button class="btn-remove" onclick="openNewPropiedad(${JSON.stringify(p).replace(/"/g, '&quot;')})" title="Editar" style="background:#f3f4f6;color:var(--text)">✏️</button>
+                    <button class="btn-remove" onclick="deletePropiedad(${p.id || p.Id}, '${p.Nombre.replace(/'/g, "\\'")}')" title="Eliminar" style="color:var(--danger)">🗑</button>
+                </div>
+            </td>
+        </tr>`;
+    });
+}
+function filterPropiedades() {
+    let search = document.getElementById('prop-search').value.toLowerCase();
+    let rows = document.querySelectorAll('#prop-table tr');
+    rows.forEach(r => {
+        let text = r.textContent.toLowerCase();
+        let show = text.includes(search);
+        r.style.display = show ? '' : 'none';
     });
 }
 function filterCli() {
@@ -339,6 +371,95 @@ async function deleteCliente(id, name) {
     } catch (e) {
         console.error(e);
         alert('Error al eliminar cliente');
+    }
+}
+
+async function openNewPropiedad(propData = null, preselectedClientId = null) {
+    document.getElementById('mp-title').textContent = propData ? 'Editar Propiedad' : 'Nueva Propiedad';
+    let modal = document.getElementById('modal-propiedad');
+    modal.setAttribute('data-db-id', propData ? (propData.id || propData.Id) : '');
+
+    // Llenar select de clientes
+    let cs = document.getElementById('np-prop-cliente');
+    cs.innerHTML = '<option value="">Seleccionar cliente...</option>';
+    let selectedClientId = preselectedClientId;
+    if (propData) {
+        let link = resolveLink(propData, 'Clientes');
+        if (link) selectedClientId = link.Id || link.id;
+    }
+
+    DATA.clientes.forEach(c => {
+        let sel = (selectedClientId == c.Id) ? 'selected' : '';
+        cs.innerHTML += `<option value="${c.Id}" ${sel}>${cleanLabel(c.Nombre)}</option>`;
+    });
+
+    document.getElementById('np-prop-nombre').value = propData ? propData.Nombre : '';
+    document.getElementById('np-prop-direccion').value = propData ? propData.Direccion || '' : '';
+    document.getElementById('np-prop-localidad').value = propData ? propData.Localidad || '' : '';
+    document.getElementById('np-prop-telefono').value = propData ? propData.Telefono || '' : '';
+    document.getElementById('np-prop-tipo').value = propData ? (propData.Tipo_propiedad || 'Casa') : 'Casa';
+    document.getElementById('np-prop-inquilino').value = propData ? propData.Contacto_inquilino || '' : '';
+    document.getElementById('np-prop-maps').value = propData ? propData.Ubicacion_maps || '' : '';
+    document.getElementById('np-prop-horario').value = propData ? propData.Horario_disponible || '' : '';
+    document.getElementById('np-prop-principal').checked = propData ? !!propData.Principal : false;
+
+    modal.classList.add('show');
+}
+
+function closeModalPropiedad() {
+    document.getElementById('modal-propiedad').classList.remove('show');
+}
+
+async function savePropiedad() {
+    let id = document.getElementById('modal-propiedad').getAttribute('data-db-id');
+    let cliId = document.getElementById('np-prop-cliente').value;
+
+    if (!cliId) { alert('Debe seleccionar un cliente'); return; }
+
+    let data = {
+        Nombre: document.getElementById('np-prop-nombre').value,
+        Direccion: document.getElementById('np-prop-direccion').value,
+        Localidad: document.getElementById('np-prop-localidad').value,
+        Telefono: document.getElementById('np-prop-telefono').value,
+        Tipo_propiedad: document.getElementById('np-prop-tipo').value,
+        Contacto_Inquilino: document.getElementById('np-prop-inquilino').value,
+        Ubicacion_Maps: document.getElementById('np-prop-maps').value,
+        Horario_Disponible: document.getElementById('np-prop-horario').value,
+        Principal: document.getElementById('np-prop-principal').checked,
+        Clientes: [{ Id: parseInt(cliId) }]
+    };
+
+    if (!data.Nombre) { alert('El nombre es obligatorio'); return; }
+
+    try {
+        if (id) {
+            await apiPatch(TBL.propiedades, { id: id, ...data });
+        } else {
+            await apiPost(TBL.propiedades, data);
+        }
+        DATA.propiedades = await apiGet(TBL.propiedades);
+        renderPropiedades();
+        closeModalPropiedad();
+        // Si el panel de cliente está abierto, actualizarlo
+        let panel = document.getElementById('panel-cliente');
+        if (panel.classList.contains('open')) {
+            showClientDetail(parseInt(cliId));
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Error al guardar propiedad');
+    }
+}
+
+async function deletePropiedad(id, name) {
+    if (!confirm(`¿Eliminar propiedad ${name}?`)) return;
+    try {
+        await apiDelete(TBL.propiedades, id);
+        DATA.propiedades = await apiGet(TBL.propiedades);
+        renderPropiedades();
+    } catch (e) {
+        console.error(e);
+        alert('Error al eliminar propiedad');
     }
 }
 
@@ -1434,6 +1555,7 @@ window.onclick = function (event) {
         if (event.target.id === 'modal-pres') closeModal();
         else if (event.target.id === 'modal-ver-pres') closeVerPres();
         else if (event.target.id === 'modal-cliente') closeModalCliente();
+        else if (event.target.id === 'modal-propiedad') closeModalPropiedad();
     }
     if (event.target.classList.contains('detail-panel')) closeDetail();
 };

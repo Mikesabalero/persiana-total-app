@@ -37,6 +37,11 @@
                     <circle cx="9" cy="7" r="4" />
                     <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
                 </svg>Clientes</button>
+            <button class="nav-item" onclick="showPage('propiedades',this)"><svg viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                    <polyline points="9 22 9 12 15 12 15 22" />
+                </svg>Propiedades</button>
             <button class="nav-item" onclick="showPage('config',this)"><svg viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="3" />
@@ -222,6 +227,36 @@
                 </table>
             </div>
         </div>
+        <!-- PROPIEDADES -->
+        <div id="page-propiedades" class="page">
+            <div class="page-header" style="display:flex;justify-content:space-between;align-items:center">
+                <div>
+                    <h1>Propiedades</h1>
+                    <p>Gestión de domicilios y vinculación con clientes</p>
+                </div><button class="btn btn-primary" onclick="openNewPropiedad()">+ Nueva Propiedad</button>
+            </div>
+            <div class="filters">
+                <input type="text" id="prop-search" placeholder="Buscar por nombre, dirección, localidad o cliente..."
+                    oninput="filterPropiedades()">
+            </div>
+            <div class="card">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Dirección</th>
+                            <th>Localidad</th>
+                            <th>Cliente</th>
+                            <th>Teléfono</th>
+                            <th>Tipo</th>
+                            <th>Principal</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="prop-table"></tbody>
+                </table>
+            </div>
+        </div>
         <!-- CONFIG -->
         <div id="page-config" class="page">
             <div class="page-header">
@@ -381,7 +416,77 @@
         </div>
     </div>
 
-    <!-- MODAL NUEVO PRESUPUESTO -->
+    <!-- MODAL PROPIEDAD -->
+    <div class="modal-overlay" id="modal-propiedad">
+        <div class="modal" style="max-width: 600px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 24px;">
+                <h2 id="mp-title" style="margin:0">Nueva Propiedad</h2>
+                <button class="btn-remove" onclick="closeModalPropiedad()"
+                    style="font-size: 1.5em; background:none; border:none; cursor:pointer; color:var(--text-light)">✕</button>
+            </div>
+            <form id="form-propiedad" onsubmit="event.preventDefault(); savePropiedad();">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Nombre *</label>
+                        <input type="text" id="np-prop-nombre" required placeholder="Ej: Casa Particular">
+                    </div>
+                    <div class="form-group">
+                        <label>Cliente *</label>
+                        <select id="np-prop-cliente" required></select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Dirección</label>
+                        <input type="text" id="np-prop-direccion" placeholder="Ej: San Martín 1234">
+                    </div>
+                    <div class="form-group">
+                        <label>Localidad</label>
+                        <input type="text" id="np-prop-localidad" placeholder="Ej: Santa Fe">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Teléfono</label>
+                        <input type="text" id="np-prop-telefono" placeholder="Tel. de la propiedad">
+                    </div>
+                    <div class="form-group">
+                        <label>Tipo Propiedad</label>
+                        <select id="np-prop-tipo">
+                            <option value="Casa">Casa</option>
+                            <option value="Departamento">Departamento</option>
+                            <option value="Comercio">Comercio</option>
+                            <option value="Oficina">Oficina</option>
+                            <option value="Industria">Industria</option>
+                            <option value="Otro">Otro</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Contacto Inquilino</label>
+                        <input type="text" id="np-prop-inquilino" placeholder="Nombre si aplica">
+                    </div>
+                    <div class="form-group">
+                        <label>Ubicación Maps</label>
+                        <input type="text" id="np-prop-maps" placeholder="Link de Google Maps">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Horario Disponible</label>
+                    <input type="text" id="np-prop-horario" placeholder="Ej: Lunes a Viernes 9-18hs">
+                </div>
+                <div class="form-group" style="flex-direction:row; align-items:center; gap:8px">
+                    <input type="checkbox" id="np-prop-principal" style="width:auto">
+                    <label for="np-prop-principal" style="margin:0">Es dirección principal</label>
+                </div>
+                <div style="display:flex; gap:12px; justify-content:flex-end; margin-top: 24px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModalPropiedad()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Propiedad</button>
+                </div>
+            </form>
+        </div>
+    </div>
     <div class="modal-overlay" id="modal-pres">
         <div class="modal" data-db-id="">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
