@@ -13,7 +13,7 @@ async function apiDelete(tid, id) { let r = await fetch(API + '/api/v2/tables/' 
 async function apiLink(tid, colId, rowId, linked) { let r = await fetch(API + '/api/v2/tables/' + tid + '/links/' + colId + '/records/' + rowId, { method: 'POST', headers: H, body: JSON.stringify(linked) }); return r.json(); }
 function fmt(n) { if (n == null) return '$0'; return '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
 function badgeHtml(estado) { let c = { 'Borrador': 'borrador', 'Enviado': 'enviado', 'Aprobado': 'aprobado', 'Rechazado': 'rechazado', 'Vencido': 'vencido', 'Facturado': 'facturado' }; return '<span class="badge badge-' + (c[estado] || 'borrador') + '">' + cleanLabel(estado) + '</span>'; }
-function showPage(id, btn) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById('page-' + id).classList.add('active'); document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active')); if (btn) btn.classList.add('active'); if (id === 'dashboard') loadDashboard(); if (id === 'presupuestos') loadPresupuestos(); if (id === 'precios') loadPrecios(); if (id === 'clientes') loadClientes(); if (id === 'config') loadConfig(); }
+function showPage(id, btn) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById('page-' + id).classList.add('active'); document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active')); if (btn) btn.classList.add('active'); if (id === 'dashboard') loadDashboard(); if (id === 'presupuestos') loadPresupuestos(); if (id === 'precios') loadPrecios(); if (id === 'clientes') renderClientes(); if (id === 'config') loadConfig(); }
 function showConfigTab(id, btn) { document.querySelectorAll('.config-section').forEach(s => s.style.display = 'none'); document.getElementById('config-' + id).style.display = 'block'; document.querySelectorAll('.config-tab').forEach(t => t.classList.remove('active')); btn.classList.add('active'); }
 function closeModal() { document.getElementById('modal-pres').classList.remove('show'); }
 function closeDetail() { document.getElementById('panel-cliente').classList.remove('open'); }
@@ -141,7 +141,7 @@ function filterComp() {
         r.style.display = show ? '' : 'none';
     });
 }
-function loadClientes() {
+function renderClientes() {
     let tb = document.getElementById('cli-table');
     tb.innerHTML = '';
     DATA.clientes.forEach(c => {
@@ -289,6 +289,21 @@ function closeModalCliente() {
 
 async function saveCliente() {
     let id = document.getElementById('modal-cliente').getAttribute('data-db-id');
+    let rawPhone = document.getElementById('nc-telefono').value;
+    let cleanPhone = rawPhone.replace(/\D/g, '');
+
+    if (cleanPhone) {
+        let existing = DATA.clientes.find(c => {
+            let existingPhone = (c.Telefono || '').replace(/\D/g, '');
+            let existingId = c.Id || c.id;
+            return existingPhone === cleanPhone && existingId != id;
+        });
+        if (existing) {
+            alert(`Ya existe un cliente con ese teléfono: ${existing.Nombre}. Verificá antes de continuar.`);
+            return;
+        }
+    }
+
     let data = {
         Nombre: document.getElementById('nc-nombre').value,
         Telefono: document.getElementById('nc-telefono').value,
@@ -306,9 +321,9 @@ async function saveCliente() {
         } else {
             await apiPost(TBL.clientes, data);
         }
+        DATA.clientes = await apiGet(TBL.clientes);
+        renderClientes();
         closeModalCliente();
-        await loadAll();
-        loadClientes();
     } catch (e) {
         console.error(e);
         alert('Error al guardar cliente');
@@ -318,9 +333,9 @@ async function saveCliente() {
 async function deleteCliente(id, name) {
     if (!confirm(`¿Eliminar cliente ${name}?`)) return;
     try {
-        let r = await fetch(API + '/api/v2/tables/' + TBL.clientes + '/records', { method: 'DELETE', headers: H, body: JSON.stringify({ id: id }) });
-        await loadAll();
-        loadClientes();
+        await apiDelete(TBL.clientes, id);
+        DATA.clientes = await apiGet(TBL.clientes);
+        renderClientes();
     } catch (e) {
         console.error(e);
         alert('Error al eliminar cliente');
