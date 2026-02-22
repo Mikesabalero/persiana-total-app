@@ -198,7 +198,7 @@ function renderPropiedades() {
             <td><strong>${cleanLabel(p.Nombre)}</strong></td>
             <td>${p.Direccion || '-'}</td>
             <td>${p.Localidad || '-'}</td>
-            <td>${cliName}</td>
+            <td><a href="#" onclick="viewCliente(${resolveLink(p, 'Clientes')?.Id || 0}); return false;" style="color:var(--grad1);text-decoration:none;font-weight:600">${cliName}</a></td>
             <td>${p.Telefono || '-'}</td>
             <td>${cleanLabel(p.Tipo_Propiedad || p.Tipo_propiedad || p.Tipo || '-')}</td>
             <td>${principal}</td>
@@ -313,6 +313,9 @@ function viewCliente(clientId) {
     }
 
     document.getElementById('vc-btn-nueva-prop').onclick = () => {
+        let modalProp = document.getElementById('modal-propiedad');
+        modalProp.setAttribute('data-reopen-client-id', clientId);
+        closeVerCliente();
         openNewPropiedad(null, clientId, true);
     };
 
@@ -499,11 +502,18 @@ async function openNewPropiedad(propData = null, preselectedClientId = null, for
 }
 
 function closeModalPropiedad() {
-    document.getElementById('modal-propiedad').classList.remove('show');
+    let modal = document.getElementById('modal-propiedad');
+    let reopenId = modal.getAttribute('data-reopen-client-id');
+    modal.classList.remove('show');
     // Restaurar campos habilitados
     document.getElementById('np-prop-cliente').disabled = false;
     let si = document.getElementById('np-prop-cliente-search');
     if (si) si.disabled = false;
+
+    if (reopenId) {
+        modal.removeAttribute('data-reopen-client-id');
+        viewCliente(reopenId);
+    }
 }
 
 async function savePropiedad() {
