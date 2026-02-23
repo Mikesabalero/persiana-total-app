@@ -716,7 +716,7 @@ async function openNewPres(presData = null) {
     let cs = document.getElementById('np-cliente');
     cs.innerHTML = '<option value="">Seleccionar cliente...</option>';
     DATA.clientes.forEach(c => {
-        let sel = (presData && presData._clienteData && (presData._clienteData.Id == c.Id)) ? 'selected' : '';
+        let sel = (presData && presData._clienteId == c.Id) ? 'selected' : '';
         cs.innerHTML += '<option value="' + c.Id + '" ' + sel + '>' + cleanLabel(c.Nombre) + ' - ' + (c.Telefono || '') + '</option>';
     });
 
@@ -730,7 +730,7 @@ async function openNewPres(presData = null) {
     zs.disabled = false;
     zs.innerHTML = '<option value="">Seleccionar zona...</option>';
     DATA.zonas.forEach(z => {
-        let sel = (presData && presData._zonaData && (presData._zonaData.Id == z.Id)) ? 'selected' : '';
+        let sel = (presData && presData._zonaId == z.Id) ? 'selected' : '';
         zs.innerHTML += '<option value="' + z.Id + '" ' + sel + '>' + cleanLabel(z.Nombre) + '</option>';
     });
 
@@ -751,6 +751,8 @@ async function openNewPres(presData = null) {
         document.getElementById('np-cliente').disabled = true;
         let searchInput = document.getElementById('np-pres-cliente-search');
         if (searchInput) searchInput.disabled = true;
+        document.getElementById('np-propiedad').disabled = true;
+        document.getElementById('np-zona').disabled = true;
     } else {
         document.getElementById('np-pago').value = '';
         document.getElementById('np-canal').value = 'Manual';
@@ -758,6 +760,8 @@ async function openNewPres(presData = null) {
         document.getElementById('np-cliente').disabled = false;
         let searchInput = document.getElementById('np-pres-cliente-search');
         if (searchInput) searchInput.disabled = false;
+        document.getElementById('np-propiedad').disabled = false;
+        document.getElementById('np-zona').disabled = false;
     }
 
     document.getElementById('np-unidades').innerHTML = '';
