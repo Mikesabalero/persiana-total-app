@@ -4,6 +4,7 @@ const BASE = 'pru2fsphj43juyr';
 const H = { 'xc-token': TOKEN, 'Content-Type': 'application/json' };
 const TBL = { clientes: 'mwby85581fhjy27', propiedades: 'm0dwlr7ccoim1kf', historial: 'mimh9lp8bkew4t0', categorias: 'mulo5ve82d9ex7q', productos: 'mdr6mo695g0qz6d', componentes: 'mgh9e1zivvhpg26', prod_comp: 'mmjzqw7v4que9q3', tc: 'mhj9fovlmv9036x', zonas: 'mottig5nmj5e3kx', presupuestos: 'mn1yyjyovvoyxme', lineas: 'mv1e9trh23j0q3o', servicios: 'mz8qrki3hz4y7iv', formas_pago: 'm2t4fnjie88gfo0', unidades: 'mix059xkpsz15um', anchos: 'mayai71j546g3as' };
 let DATA = { clientes: [], propiedades: [], zonas: [], componentes: [], productos: [], prod_comp: [], presupuestos: [], lineas: [], unidades: [], formas_pago: [], tc: null, anchos: [] };
+let _loadingEdit = false;
 let unidadCount = 0;
 let editPresId = null;
 async function apiGet(tid, params = '') { let r = await fetch(API + '/api/v2/tables/' + tid + '/records?limit=200' + params, { headers: H }); if (!r.ok) return []; let d = await r.json(); return d.list || []; }
@@ -366,7 +367,15 @@ function viewCliente(clientId) {
         document.getElementById('vc-no-pres').style.display = 'none';
         clientPres.forEach(p => {
             let id = p.Id || p.id;
-            let addr = p._propiedadDir || '-';
+            let addr = p._propiedadDir;
+            if (!addr || addr === '-') {
+                let pr = resolveLink(p, 'Propiedades');
+                if (pr) {
+                    let pfull = DATA.propiedades.find(x => x.Id == (pr.Id || pr.id));
+                    if (pfull) addr = (pfull.Direccion || '-') + ' - ' + (pfull.Localidad || '-');
+                }
+            }
+            if (!addr) addr = '-';
             tp.innerHTML += `<tr>
                 <td><strong>${p.Numero || '-'}</strong></td>
                 <td>${p.Fecha || '-'}</td>
@@ -737,6 +746,7 @@ async function openNewPres(presData = null) {
     unidadCount = 0;
 
     if (presData && presData._unidades && presData._unidades.length > 0) {
+        _loadingEdit = true;
         // Load existing units
         for (let u of presData._unidades) {
             unidadCount++;
@@ -774,6 +784,7 @@ async function openNewPres(presData = null) {
     }
 
     recalcTotal();
+    _loadingEdit = false;
     document.getElementById('modal-pres').classList.add('show');
 }
 
@@ -893,6 +904,7 @@ function selectMotor(cat, peso, ancho, m2) {
 }
 
 function autoLoadComponents(n) {
+    if (_loadingEdit) return;
     console.log(`>>> autoLoadComponents(${n}) START`);
     let prodSelect = document.getElementById('u-' + n + '-prod');
     if (!prodSelect) { console.log("Missing prodSelect"); return; }
