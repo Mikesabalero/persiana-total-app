@@ -455,11 +455,23 @@ function loadPropiedadesSelect(presData) {
 }
 
 function updateZonaFromProp(propId) {
-    if (!propId) return;
+    let zonaSelect = document.getElementById('np-zona');
+    if (!propId) {
+        if (zonaSelect) zonaSelect.disabled = false;
+        return;
+    }
     let prop = DATA.propiedades.find(p => p.Id == propId);
-    if (!prop || !prop.Localidad) return;
+    if (!prop || !prop.Localidad) {
+        if (zonaSelect) zonaSelect.disabled = false;
+        return;
+    }
     let zone = DATA.zonas.find(z => z.Nombre === prop.Localidad);
-    if (zone) document.getElementById('np-zona').value = zone.Id;
+    if (zone && zonaSelect) {
+        zonaSelect.value = zone.Id;
+        zonaSelect.disabled = true;
+    } else if (zonaSelect) {
+        zonaSelect.disabled = false;
+    }
 }
 
 async function openNewCliente(clientData = null) {
@@ -715,6 +727,7 @@ async function openNewPres(presData = null) {
     }
 
     let zs = document.getElementById('np-zona');
+    zs.disabled = false;
     zs.innerHTML = '<option value="">Seleccionar zona...</option>';
     DATA.zonas.forEach(z => {
         let sel = (presData && presData._zonaData && (presData._zonaData.Id == z.Id)) ? 'selected' : '';
@@ -735,10 +748,16 @@ async function openNewPres(presData = null) {
         document.getElementById('np-pago').value = resolveLink(presData, 'Formas_pago')?.Id || '';
         document.getElementById('np-canal').value = presData.Canal || 'Manual';
         document.getElementById('np-factura').value = presData.Facturacion || 'con_iva';
+        document.getElementById('np-cliente').disabled = true;
+        let searchInput = document.getElementById('np-pres-cliente-search');
+        if (searchInput) searchInput.disabled = true;
     } else {
         document.getElementById('np-pago').value = '';
         document.getElementById('np-canal').value = 'Manual';
         document.getElementById('np-factura').value = 'con_iva';
+        document.getElementById('np-cliente').disabled = false;
+        let searchInput = document.getElementById('np-pres-cliente-search');
+        if (searchInput) searchInput.disabled = false;
     }
 
     document.getElementById('np-unidades').innerHTML = '';
