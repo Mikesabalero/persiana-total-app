@@ -1290,6 +1290,15 @@ async function savePres() {
     let unidadCards = document.querySelectorAll('[id^="unidad-"]');
     let processedUnitIds = [];
 
+    // --- Cargar datos reales de las relaciones para evitar conteos ---
+    let originalUnitsData = [];
+    let originalLinesData = [];
+    if (editPresId) {
+        let deepData = await fetchBudgetDeepData(editPresId);
+        originalUnitsData = deepData.unidades || [];
+        originalLinesData = deepData.lineas || [];
+    }
+
     for (let card of unidadCards) {
         let n = card.id.split('-')[1];
         let cardDbId = card.getAttribute('data-db-id');
@@ -1325,9 +1334,9 @@ async function savePres() {
 
         // --- BORRAR LÍNEAS VIEJAS DE LA UNIDAD ANTES DE CREAR LAS NUEVAS ---
         if (cardDbId) {
-            let originalLinesForUnit = DATA.lineas.filter(l => {
-                let link = l.Unidad;
-                return (link && (link.Id || link) == cardDbId);
+            let originalLinesForUnit = originalLinesData.filter(l => {
+                let link = l._unidadId || (l.Unidad?.Id) || l.Unidad;
+                return (link == cardDbId);
             });
             for (let ol of originalLinesForUnit) {
                 let imid = ol.Id || ol.id;
@@ -1390,16 +1399,13 @@ async function savePres() {
     }
 
     if (editPresId) {
-        let originalUnits = DATA.unidades.filter(u => {
-            let link = u.Presupuesto;
-            return (link && (link.Id || link) == editPresId);
-        });
+        let originalUnits = originalUnitsData;
         for (let ou of originalUnits) {
             let ouId = ou.Id || ou.id;
             if (!processedUnitIds.includes(String(ouId)) && !processedUnitIds.includes(Number(ouId))) {
-                let uLines = DATA.lineas.filter(l => {
-                    let link = l.Unidad;
-                    return (link && (link.Id || link) == ouId);
+                let uLines = originalLinesData.filter(l => {
+                    let link = l._unidadId || (l.Unidad?.Id) || l.Unidad;
+                    return (link == ouId);
                 });
                 for (let l of uLines) await apiDelete(TBL.lineas, l.Id || l.id);
                 await apiDelete(TBL.unidades, ouId);
