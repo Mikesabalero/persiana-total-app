@@ -716,21 +716,21 @@ async function openNewPres(presData = null) {
     let cs = document.getElementById('np-cliente');
     cs.innerHTML = '<option value="">Seleccionar cliente...</option>';
     DATA.clientes.forEach(c => {
-        let sel = (presData && presData._clienteId == c.Id) ? 'selected' : '';
+        let sel = (presData && presData._clienteData && (presData._clienteData.Id == c.Id)) ? 'selected' : '';
         cs.innerHTML += '<option value="' + c.Id + '" ' + sel + '>' + cleanLabel(c.Nombre) + ' - ' + (c.Telefono || '') + '</option>';
     });
 
     // Sincronizar buscador de clientes
     let searchInput = document.getElementById('np-pres-cliente-search');
     if (searchInput) {
-        searchInput.value = presData ? resolveName(presData, 'Clientes', DATA.clientes) : '';
+        searchInput.value = (presData && presData._clienteData) ? cleanLabel(presData._clienteData.Nombre) : (presData ? resolveName(presData, 'Clientes', DATA.clientes) : '');
     }
 
     let zs = document.getElementById('np-zona');
     zs.disabled = false;
     zs.innerHTML = '<option value="">Seleccionar zona...</option>';
     DATA.zonas.forEach(z => {
-        let sel = (presData && presData._zonaId == z.Id) ? 'selected' : '';
+        let sel = (presData && presData._zonaData && (presData._zonaData.Id == z.Id)) ? 'selected' : '';
         zs.innerHTML += '<option value="' + z.Id + '" ' + sel + '>' + cleanLabel(z.Nombre) + '</option>';
     });
 
