@@ -1317,25 +1317,30 @@ async function savePres() {
         } else {
             let unidad = await apiPost(TBL.unidades, uData);
             uId = unidad.Id || unidad.id;
+            processedUnitIds.push(uId);
             await apiLink(TBL.unidades, 'cm5xv0vmlne7r6u', uId, [{ Id: presId }]);
             let prodSelVal = document.getElementById('u-' + n + '-prod')?.value;
             if (prodSelVal) await apiLink(TBL.unidades, 'co1b5kwpl8d2rya', uId, [{ Id: parseInt(prodSelVal) }]);
         }
 
-        let rows = document.querySelectorAll('#comps-u-' + n + ' tr');
-        let orden = 0;
-        let originalLinesForUnit = [];
+        // --- BORRAR LÍNEAS VIEJAS DE LA UNIDAD ANTES DE CREAR LAS NUEVAS ---
         if (cardDbId) {
-            originalLinesForUnit = DATA.lineas.filter(l => {
+            let originalLinesForUnit = DATA.lineas.filter(l => {
                 let link = l.Unidad;
                 return (link && (link.Id || link) == cardDbId);
             });
+            for (let ol of originalLinesForUnit) {
+                let imid = ol.Id || ol.id;
+                await apiDelete(TBL.lineas, imid);
+            }
         }
-        let processedLineIds = [];
+
+        let rows = document.querySelectorAll('#comps-u-' + n + ' tr');
+        let orden = 0;
 
         for (let r of rows) {
             orden++;
-            let rowDbId = r.getAttribute('data-db-id');
+            // Se ignora el data-db-id de la fila para forzar la creación como nueva línea
             let input = r.querySelector('input.filter-input');
             let compName = input ? input.value : '';
             let compId = DATA.componentes.find(c => cleanLabel(c.Nombre) === compName)?.Id || null;
@@ -1370,28 +1375,17 @@ async function savePres() {
                 Visible_pdf: true
             };
 
-            if (rowDbId) {
-                await apiPatch(TBL.lineas, { Id: rowDbId, ...lineaData });
-                processedLineIds.push(rowDbId);
-            } else {
-                let linea = await apiPost(TBL.lineas, lineaData);
-                let lineaId = linea.Id || linea.id;
-                if (lineaId) {
-                    await apiLink(TBL.lineas, 'c4hnodnss6zlr32', lineaId, [{ Id: presId }]);
-                    if (compId) await apiLink(TBL.lineas, 'czka6po5myr5wu6', lineaId, [{ Id: parseInt(compId) }]);
-                    if (uId) await apiLink(TBL.lineas, 'cn9406tc3q1jmw0', lineaId, [{ Id: uId }]);
-                }
+            let linea = await apiPost(TBL.lineas, lineaData);
+            let lineaId = linea.Id || linea.id;
+            if (lineaId) {
+                await apiLink(TBL.lineas, 'c4hnodnss6zlr32', lineaId, [{ Id: presId }]);
+                if (compId) await apiLink(TBL.lineas, 'czka6po5myr5wu6', lineaId, [{ Id: parseInt(compId) }]);
+                if (uId) await apiLink(TBL.lineas, 'cn9406tc3q1jmw0', lineaId, [{ Id: uId }]);
             }
+            
             subtotalNeto += sub;
             if (iva === '10.5') totalIva105 += montoIva;
             else totalIva21 += montoIva;
-        }
-
-        if (cardDbId) {
-            for (let ol of originalLinesForUnit) {
-                let imid = ol.Id || ol.id;
-                if (!processedLineIds.includes(imid)) await apiDelete(TBL.lineas, imid);
-            }
         }
     }
 
@@ -1402,7 +1396,7 @@ async function savePres() {
         });
         for (let ou of originalUnits) {
             let ouId = ou.Id || ou.id;
-            if (!processedUnitIds.includes(ouId)) {
+            if (!processedUnitIds.includes(String(ouId)) && !processedUnitIds.includes(Number(ouId))) {
                 let uLines = DATA.lineas.filter(l => {
                     let link = l.Unidad;
                     return (link && (link.Id || link) == ouId);
