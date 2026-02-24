@@ -853,7 +853,7 @@ function addUnidadUI(n, uData) {
     let tipoRep = uData ? (uData.Tipo_reparacion || '') : '';
     let showRep = (tipo == 'Reparacion' || tipo == 'Service') ? 'display:block' : 'display:none';
 
-    let html = '<div class="unidad-card" id="unidad-' + n + '" data-db-id="' + uId + '"><div class="unidad-header"><h3>Unidad ' + n + '</h3><div style="display:flex;gap:8px;align-items:center"><span class="unidad-subtotal" id="sub-u-' + n + '">$0</span><button class="btn-remove" onclick="removeUnidad(' + n + ')" title="Eliminar">🗑</button></div></div>';
+    let html = '<div class="unidad-card" id="unidad-' + n + '" data-db-id="' + uId + '"><div class="unidad-header"><h3>Unidad ' + n + '</h3><div style="display:flex;gap:8px;align-items:center"><span class="unidad-subtotal" id="sub-u-' + n + '">$0</span><button class="btn-remove" onclick="duplicateUnidad(' + n + ')" title="Duplicar unidad">📋</button><button class="btn-remove" onclick="removeUnidad(' + n + ')" title="Eliminar">🗑</button></div></div>';
     html += '<div class="form-row" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;"><div class="form-group"><label>Ambiente</label><input id="u-' + n + '-nombre" placeholder="Ej: Dormitorio principal" value="' + nombre + '"></div>';
     html += '<div class="form-group"><label>Ubicación</label><input id="u-' + n + '-ubic" placeholder="Ej: Contra frente" value="' + ubic + '"></div>';
     html += '<div class="form-group"><label>Tipo Trabajo</label><select id="u-' + n + '-tipo" onchange="autoLoadComponents(' + n + ')"><option value="Instalacion_nueva" ' + (tipo == 'Instalacion_nueva' ? 'selected' : '') + '>Instalación nueva</option><option value="Cambio_pano" ' + (tipo == 'Cambio_pano' ? 'selected' : '') + '>Cambio paño</option><option value="Motorizacion" ' + (tipo == 'Motorizacion' ? 'selected' : '') + '>Motorización</option><option value="Cambio_guias" ' + (tipo == 'Cambio_guias' ? 'selected' : '') + '>Cambio guías</option><option value="Reparacion" ' + (tipo == 'Reparacion' ? 'selected' : '') + '>Reparación</option><option value="Service" ' + (tipo == 'Service' ? 'selected' : '') + '>Service</option><option value="Otro" ' + (tipo == 'Otro' ? 'selected' : '') + '>Otro</option></select></div>';
@@ -885,6 +885,69 @@ function addUnidadUI(n, uData) {
 
 function removeUnidad(n) { document.getElementById('unidad-' + n)?.remove(); recalcTotal(); }
 
+function duplicateUnidad(origN) {
+    let oldProd = document.getElementById('u-' + origN + '-prod')?.value || '';
+    let oldNombre = document.getElementById('u-' + origN + '-nombre')?.value || '';
+    let oldUbic = document.getElementById('u-' + origN + '-ubic')?.value || '';
+    let oldTipo = document.getElementById('u-' + origN + '-tipo')?.value || '';
+    let oldTipoRep = document.getElementById('u-' + origN + '-tiporep')?.value || '';
+    let oldAccion = document.getElementById('u-' + origN + '-accion')?.value || '';
+    let oldAncho = document.getElementById('u-' + origN + '-ancho')?.value || '';
+    let oldAlto = document.getElementById('u-' + origN + '-alto')?.value || '';
+
+    _loadingEdit = true;
+    
+    addUnidad();
+    let newN = unidadCount;
+
+    if(document.getElementById('u-' + newN + '-prod')) document.getElementById('u-' + newN + '-prod').value = oldProd;
+    if(document.getElementById('u-' + newN + '-nombre')) document.getElementById('u-' + newN + '-nombre').value = oldNombre;
+    if(document.getElementById('u-' + newN + '-ubic')) document.getElementById('u-' + newN + '-ubic').value = oldUbic;
+    if(document.getElementById('u-' + newN + '-tipo')) document.getElementById('u-' + newN + '-tipo').value = oldTipo;
+    if(document.getElementById('u-' + newN + '-tiporep')) document.getElementById('u-' + newN + '-tiporep').value = oldTipoRep;
+    if(document.getElementById('u-' + newN + '-accion')) document.getElementById('u-' + newN + '-accion').value = oldAccion;
+    if(document.getElementById('u-' + newN + '-ancho')) document.getElementById('u-' + newN + '-ancho').value = oldAncho;
+    if(document.getElementById('u-' + newN + '-alto')) document.getElementById('u-' + newN + '-alto').value = oldAlto;
+
+    let cat = getCategoria(oldProd);
+    let hideAccion = (cat === 'Seguridad') ? 'none' : 'block';
+    if(document.getElementById('u-' + newN + '-accion')) document.getElementById('u-' + newN + '-accion').parentElement.style.display = hideAccion;
+    
+    let showRep = (oldTipo == 'Reparacion' || oldTipo == 'Service') ? 'block' : 'none';
+    if(document.getElementById('div-u-' + newN + '-tiporep')) document.getElementById('div-u-' + newN + '-tiporep').style.display = showRep;
+
+    let origTbody = document.getElementById('comps-u-' + origN);
+    document.getElementById('comps-u-' + newN).innerHTML = '';
+
+    let rows = origTbody.querySelectorAll('tr');
+    rows.forEach(r => {
+        let selectComp = r.querySelector('.comp-select');
+        let compId = selectComp ? selectComp.value : null;
+        let qtyInput = r.querySelector('input[type="number"]');
+        let qty = qtyInput ? qtyInput.value : 1;
+        let forcedPriceInput = r.cells[5]?.querySelector('input');
+        let forcedPrice = forcedPriceInput ? forcedPriceInput.value : null;
+        
+        if (compId) {
+            let foundComp = DATA.componentes.find(c => String(c.Id) === String(compId));
+            if (!foundComp) {
+                foundComp = { 
+                    Id: compId, 
+                    Nombre: selectComp.options[selectComp.selectedIndex]?.text || '',
+                    Costo_unitario: 0,
+                    Moneda_costo: 'ARS',
+                    Margen_default: 0,
+                    Alicuota_IVA_venta: '21'
+                };
+            }
+            addCompRowWithData(newN, foundComp, qty, null, forcedPrice);
+        }
+    });
+
+    recalcUnidad(newN);
+    recalcTotal();
+    _loadingEdit = false;
+}
 
 // ===== AUTO-LOAD COMPONENTS =====
 const PESO_M2 = {
