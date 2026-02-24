@@ -2,7 +2,7 @@ const API = 'http://93.127.212.235:32770';
 const TOKEN = 'dZMS2te8v6cf47Jlmlnk3S3ft9LT_QO8bjNdOcZZ';
 const BASE = 'pru2fsphj43juyr';
 const H = { 'xc-token': TOKEN, 'Content-Type': 'application/json' };
-const TBL = { clientes: 'mwby85581fhjy27', propiedades: 'm0dwlr7ccoim1kf', historial: 'mimh9lp8bkew4t0', categorias: 'mulo5ve82d9ex7q', productos: 'mdr6mo695g0qz6d', componentes: 'mgh9e1zivvhpg26', prod_comp: 'mmjzqw7v4que9q3', tc: 'mhj9fovlmv9036x', zonas: 'mottig5nmj5e3kx', presupuestos: 'mn1yyjyovvoyxme', lineas: 'mv1e9trh23j0q3o', servicios: 'mz8qrki3hz4y7iv', formas_pago: 'm2t4fnjie88gfo0', unidades: 'mix059xkpsz15um', anchos: 'mayai71j546g3as' };
+const TBL = { clientes: 'mwby85581fhjy27', propiedades: 'm0dwlr7ccoim1kf', historial: 'mimh9lp8bkew4t0', categorias: 'mulo5ve82d9ex7q', productos: 'mdr6mo695g0qz6d', componentes: 'mgh9e1zivvhpg26', prod_comp: 'mmjzqw7v4que9q3', tc: 'mhj9fovlmv9036x', zonas: 'mottig5nmj5e3kx', presupuestos: 'mn1yyjyovvoyxme', lineas: 'mv1e9trh23j0q3o', servicios: 'mz8qrki3hz4y7iv', formas_pago: 'm2t4fnjie88gfo0', unidades: 'mix059xkpsz15um', anchos: 'mayai71j546g3as', historial_aumentos: 'myumlbp9hemi3cu' };
 let DATA = { clientes: [], propiedades: [], zonas: [], componentes: [], productos: [], prod_comp: [], presupuestos: [], lineas: [], unidades: [], formas_pago: [], tc: null, anchos: [] };
 let appReady = false;
 
@@ -191,6 +191,9 @@ function loadPrecios() {
     document.getElementById('precios-tc').textContent = 'TC: 1 USD = $' + Number(tc).toLocaleString('es-AR') + ' ARS';
     let inputTc = document.getElementById('precios-tc-input');
     if(inputTc) inputTc.value = tc;
+    
+    toggleAumentoModo();
+    loadHistorialPrecios();
 
     let tb = document.getElementById('precios-table');
     tb.innerHTML = '';
@@ -297,12 +300,20 @@ function openModalEditComp(compData) {
 
 async function saveComponent() {
     let id = document.getElementById('ec-id').value;
+    let oldCosto = 0;
+    if (id) {
+        let oldComp = DATA.componentes.find(c => String(c.Id) === String(id) || String(c.id) === String(id));
+        if (oldComp) oldCosto = parseFloat(oldComp.Costo_unitario || 0);
+    }
+    
+    let newCosto = parseFloat(document.getElementById('ec-costo').value);
+    
     let data = {
         Nombre: document.getElementById('ec-nombre').value,
         Codigo_interno: document.getElementById('ec-codigo').value,
         Tipo_componente: document.getElementById('ec-tipo').value,
         Unidad: document.getElementById('ec-unidad').value,
-        Costo_unitario: parseFloat(document.getElementById('ec-costo').value),
+        Costo_unitario: newCosto,
         Moneda_costo: document.getElementById('ec-moneda').value,
         Margen_default: parseFloat(document.getElementById('ec-margen').value),
         Proveedor: document.getElementById('ec-proveedor').value,
@@ -317,6 +328,17 @@ async function saveComponent() {
         if (id) {
             data.Id = parseInt(id);
             await apiPatch(TBL.componentes, data);
+            
+            if (oldCosto > 0 && newCosto !== oldCosto) {
+                let pct = ((newCosto - oldCosto) / oldCosto) * 100;
+                await apiPost(TBL.historial_aumentos, [{
+                    Fecha: data.Fecha_ult_actualizacion,
+                    Tipo: 'individual',
+                    Detalle: data.Nombre,
+                    Porcentaje: parseFloat(pct.toFixed(2)),
+                    Componentes_afectados: 1
+                }]);
+            }
         } else {
             await apiPost(TBL.componentes, [data]);
         }
@@ -1723,44 +1745,117 @@ async function savePres() {
 
 async function aplicarAumento() {
     let pctVal = document.getElementById('aumento-pct').value;
-    let cat = document.getElementById('aumento-cat').value;
-    let monedaEl = document.getElementById('aumento-moneda');
-    let moneda = monedaEl ? monedaEl.value : '';
+    let mode = document.querySelector('input[name="aumento-modo"]:checked').value;
+    let selEl = document.getElementById('aumento-filtro');
+    let selVal = selEl ? selEl.value : '';
+    
     if (!pctVal) { alert('Ingresá un porcentaje'); return; }
     let pct = parseFloat(pctVal);
     if (pct === 0) return;
-    
-    let msgConfirm = '¿Estás seguro de aumentar ' + pct + '% a ' + cleanLabel(cat);
-    if (moneda) msgConfirm += ' (' + moneda + ')';
-    msgConfirm += '?';
-    if (!confirm(msgConfirm)) return;
+    if (!selVal) { alert('Seleccioná un valor de filtro válido'); return; }
+
+    if (!confirm(`¿Aplicar aumento del ${pct}% a componentes (filtro: ${selVal})? Esta acción no se puede deshacer.`)) return;
 
     let toUpdate = DATA.componentes.filter(c => {
-        let matchCat = (cat === 'Todos' || c.Tipo_componente === cat);
-        let matchMoneda = (!moneda || c.Moneda_costo === moneda);
-        return matchCat && matchMoneda;
+        if (mode === 'proveedor') return (c.Proveedor || '').trim() === selVal;
+        if (mode === 'moneda') return c.Moneda_costo === selVal;
+        if (mode === 'categoria') return c.Tipo_componente === selVal;
+        return false;
     });
-    if (toUpdate.length === 0) { alert('No hay componentes para actualizar'); return; }
+
+    if (toUpdate.length === 0) { alert('No hay componentes para actualizar con ese filtro'); return; }
 
     let patchData = [];
+    let todayIso = new Date().toISOString().split('T')[0];
     toUpdate.forEach(c => {
         let costo = parseFloat(c.Costo_unitario || 0);
         let newCosto = costo * (1 + pct / 100);
-        patchData.push({ Id: c.Id, Costo_unitario: newCosto });
+        patchData.push({ 
+            Id: c.Id || c.id, 
+            Costo_unitario: newCosto,
+            Fecha_ult_actualizacion: todayIso
+        });
         c.Costo_unitario = newCosto;
+        c.Fecha_ult_actualizacion = todayIso;
     });
 
     try {
         await apiPatch(TBL.componentes, patchData);
-        alert('Se actualizaron ' + patchData.length + ' componentes correctamente.');
+        await apiPost(TBL.historial_aumentos, [{
+            Fecha: todayIso,
+            Tipo: mode,
+            Detalle: selVal,
+            Porcentaje: pct,
+            Componentes_afectados: patchData.length
+        }]);
+        
+        alert(`Se actualizaron ${patchData.length} componentes correctamente.`);
+        DATA.componentes = await apiGet(TBL.componentes);
         loadPrecios();
-        let tbody = document.getElementById('aumento-historial');
-        let row = '<tr><td>' + new Date().toLocaleString() + '</td><td>' + pct + '%</td><td>' + cleanLabel(cat) + '</td><td>' + patchData.length + '</td></tr>';
-        tbody.insertAdjacentHTML('afterbegin', row);
         document.getElementById('aumento-pct').value = '';
     } catch (e) {
         console.error(e);
         alert('Error al actualizar precios: ' + e.message);
+    }
+}
+
+function toggleAumentoModo() {
+    let modeEl = document.querySelector('input[name="aumento-modo"]:checked');
+    if (!modeEl) return;
+    let mode = modeEl.value;
+    let label = document.getElementById('label-aumento-filtro');
+    let select = document.getElementById('aumento-filtro');
+    if (!label || !select) return;
+    
+    select.innerHTML = '';
+    
+    if (mode === 'proveedor') {
+        label.textContent = 'Proveedor';
+        let provs = [...new Set(DATA.componentes.filter(c => c.Proveedor).map(c => c.Proveedor.trim()))].sort();
+        if (provs.length === 0) {
+            select.innerHTML = '<option value="">No hay proveedores definidos</option>';
+        } else {
+            provs.forEach(p => { select.innerHTML += `<option value="${p}">${p}</option>`; });
+        }
+    } else if (mode === 'moneda') {
+        label.textContent = 'Moneda';
+        select.innerHTML = '<option value="ARS">Solo ARS</option><option value="USD">Solo USD</option>';
+    } else if (mode === 'categoria') {
+        label.textContent = 'Tipo de Componente';
+        let cats = ['Material', 'Motor', 'Accesorio', 'Mano_obra', 'Viatico', 'Reparacion'];
+        cats.forEach(c => { select.innerHTML += `<option value="${c}">${c}</option>`; });
+    }
+}
+
+async function loadHistorialPrecios() {
+    let body = document.getElementById('historial-precios-table');
+    if (!body) return;
+    body.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando historial...</td></tr>';
+    try {
+        let history = await apiGet(TBL.historial_aumentos, '&sort=-Id');
+        body.innerHTML = '';
+        if (history.length === 0) {
+            body.innerHTML = '<tr><td colspan="5" style="text-align:center;">No hay registros</td></tr>';
+        } else {
+            history.forEach(h => {
+                let pDateStr = '-';
+                if (h.Fecha) {
+                    let pDate = new Date(h.Fecha);
+                    let pDateLocal = new Date(pDate.getTime() + pDate.getTimezoneOffset() * 60000);
+                    pDateStr = pDateLocal.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                }
+                body.innerHTML += `<tr>
+                    <td>${pDateStr}</td>
+                    <td style="text-transform: capitalize;">${cleanLabel(h.Tipo || '-')}</td>
+                    <td>${cleanLabel(h.Detalle || '-')}</td>
+                    <td>${h.Porcentaje || 0}%</td>
+                    <td>${h.Componentes_afectados || 0}</td>
+                </tr>`;
+            });
+        }
+    } catch (e) {
+        console.error(e);
+        body.innerHTML = '<tr><td colspan="5" style="text-align:center;">Error al cargar historial</td></tr>';
     }
 }
 async function generarPDF(presId) {

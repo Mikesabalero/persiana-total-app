@@ -165,6 +165,48 @@
                     <button class="btn btn-sm btn-primary" onclick="updateTcFromPrecios()">Actualizar TC</button>
                 </div>
             </div>
+            
+            <details style="margin-bottom: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px;">
+                <summary style="font-weight: bold; cursor: pointer; color: var(--text);">🚀 Actualización Masiva de Precios</summary>
+                <div style="margin-top: 16px;">
+                    <div style="display:flex; gap:16px; margin-bottom: 12px;">
+                        <label style="display:flex; align-items:center; gap:4px; margin:0; cursor:pointer;"><input type="radio" name="aumento-modo" value="proveedor" checked onchange="toggleAumentoModo()"> Por Proveedor</label>
+                        <label style="display:flex; align-items:center; gap:4px; margin:0; cursor:pointer;"><input type="radio" name="aumento-modo" value="moneda" onchange="toggleAumentoModo()"> Por Moneda</label>
+                        <label style="display:flex; align-items:center; gap:4px; margin:0; cursor:pointer;"><input type="radio" name="aumento-modo" value="categoria" onchange="toggleAumentoModo()"> Por Categoría</label>
+                    </div>
+                    <div class="form-row" style="align-items: flex-end;">
+                        <div class="form-group" id="container-aumento-filtro" style="flex:1;">
+                            <label id="label-aumento-filtro">Proveedor</label>
+                            <select id="aumento-filtro"></select>
+                        </div>
+                        <div class="form-group" style="width:150px; flex:none;">
+                            <label>% de Aumento</label>
+                            <input type="number" id="aumento-pct" placeholder="Ej: 5.0" step="0.1">
+                        </div>
+                        <div class="form-group" style="flex:none;">
+                            <button class="btn btn-primary" onclick="aplicarAumento()">Aplicar</button>
+                        </div>
+                    </div>
+                </div>
+            </details>
+            
+            <details id="details-historial-precios" style="margin-bottom: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px;">
+                <summary style="font-weight: bold; cursor: pointer; color: var(--text);">🕒 Historial de Aumentos</summary>
+                <div style="margin-top: 16px; overflow-x: auto;">
+                    <table style="min-width: 600px;">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Tipo</th>
+                                <th>Detalle</th>
+                                <th>Porcentaje</th>
+                                <th>Afectados</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historial-precios-table"></tbody>
+                    </table>
+                </div>
+            </details>
             <div class="filters" style="display:flex;gap:12px;align-items:center">
                 <input type="text" id="comp-search" placeholder="Buscar componente..." oninput="filterComp()" style="flex:1;">
                 <select id="comp-filter-tipo" onchange="filterComp()" style="width:200px;">
@@ -285,7 +327,6 @@
                 <button class="config-tab" onclick="showConfigTab('zonas',this)">Zonas</button>
                 <button class="config-tab" onclick="showConfigTab('pagos',this)">Formas de Pago</button>
                 <button class="config-tab" onclick="showConfigTab('anchos',this)">Anchos PVC</button>
-                <button class="config-tab" onclick="showConfigTab('aumentos',this)">Aumentos</button>
             </div>
             <div id="config-tc" class="config-section">
                 <div class="card">
@@ -343,40 +384,6 @@
                             </tr>
                         </thead>
                         <tbody id="cfg-anchos-table"></tbody>
-                    </table>
-                </div>
-            </div>
-            <div id="config-aumentos" class="config-section" style="display:none">
-                <div class="card">
-                    <h2 style="margin-bottom:16px">Aumentos Mensuales</h2>
-                    <div class="form-row">
-                        <div class="form-group"><label>% de Aumento</label><input type="number" id="aumento-pct"
-                                placeholder="Ej: 5.0" step="0.1"></div>
-                        <div class="form-group"><label>Aplicar a</label><select id="aumento-cat">
-                                <option value="Todos">Todos los componentes</option>
-                                <option value="Material">Solo materiales</option>
-                                <option value="Motor">Solo motores</option>
-                                <option value="Accesorio">Solo accesorios</option>
-                                <option value="Mano_obra">Solo mano de obra</option>
-                            </select></div>
-                        <div class="form-group"><label>Moneda</label><select id="aumento-moneda">
-                                <option value="">Todas</option>
-                                <option value="ARS">Solo ARS</option>
-                                <option value="USD">Solo USD</option>
-                            </select></div>
-                    </div>
-                    <button class="btn btn-primary" onclick="aplicarAumento()">Aplicar Aumento</button>
-                    <h3 style="margin-top:24px;margin-bottom:12px;font-size:1em">Historial de Aumentos (Sesión)</h3>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Porcentaje</th>
-                                <th>Categoría</th>
-                                <th>Items Actualizados</th>
-                            </tr>
-                        </thead>
-                        <tbody id="aumento-historial"></tbody>
                     </table>
                 </div>
             </div>
