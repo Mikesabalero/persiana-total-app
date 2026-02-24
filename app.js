@@ -2054,8 +2054,8 @@ async function generarPDF(presId) {
         let diasValidez = DATA.tc.Validez_dias || 15;
         let venc = new Date(new Date(pres.Fecha).getTime() + diasValidez * 24 * 60 * 60 * 1000).toLocaleDateString();
         let html = `
-            <div id="pdf-content" style="width: 800px; margin: 0 auto; font-family: 'Segoe UI', Arial, sans-serif; color: #1f2937;">
-                <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 15px; border-bottom: 2px solid #e5e7eb; margin-bottom: 15px;">
+            <div id="pdf-content" style="width: 750px; margin: 0 auto; font-family: 'Montserrat', 'Segoe UI', Arial, sans-serif; color: #1f2937;">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 2px solid #e5e7eb; margin-bottom: 15px;">
                     <div><img src="logo-pdf.png" alt="Persiana Total" style="max-width: 300px;"></div>
                     <div style="text-align: right; font-size: 0.85em; color: #4b5563;">
                         <h3 style="margin: 0 0 5px 0;">PRESUPUESTO #${pres.Numero || '-'}</h3>
@@ -2065,7 +2065,7 @@ async function generarPDF(presId) {
                         <p style="margin: 2px 0;">${DATA.tc.Empresa_web || ''}</p>
                     </div>
                 </div>
-                <div style="display: flex; justify-content: space-between; background: #f3f4f6; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
+                <div style="display: flex; justify-content: space-between; background: #f3f4f6; padding: 10px; margin: 10px 0; border-radius: 4px;">
                     <div style="font-size: 0.9em;">
                         <p style="margin: 3px 0;">Fecha: ${fecha}</p>
                         <p style="margin: 3px 0;">Válido hasta: ${venc}</p>
@@ -2096,12 +2096,12 @@ async function generarPDF(presId) {
             let measures = (u.Ancho_m && u.Alto_m) ? ` (${u.Ancho_m}m x ${u.Alto_m}m)` : '';
 
             html += `
-                <div style="margin-bottom: 25px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
-                    <div style="background: #f3f4f6; padding: 10px; border-radius: 4px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+                    <div style="background: #f3f4f6; padding: 8px; border-radius: 4px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-weight: bold; font-size: 1.1em; color: #1f2937;">${cleanLabel(u.Nombre)} - ${cleanLabel(u.Ubicacion) || ''}${measures}</span>
                         <span style="color: #4b5563; font-weight: normal;">${cleanLabel(u.Tipo_trabajo) || ''}</span>
                     </div>
-                    <ul style="margin: 0; padding-left: 25px; font-size: 1em; color: #374151; list-style-type: disc;">
+                    <ul style="margin: 5px 0; padding-left: 25px; font-size: 0.9em; color: #374151; list-style-type: disc;">
             `;
 
             if (isRepair) {
@@ -2135,7 +2135,7 @@ async function generarPDF(presId) {
 
             html += `
                     </ul>
-                    <div style="text-align: right; margin-top: 12px; font-size: 1.1em; font-weight: bold; color: #111;">
+                    <div style="text-align: right; margin-top: 8px; font-size: 1.1em; font-weight: bold; color: #111;">
                         Precio unidad: ${fmt(unitTotal)}
                     </div>
                 </div>
@@ -2149,7 +2149,7 @@ async function generarPDF(presId) {
         }
         let total = pres.Total_con_IVA || 0;
 
-        html += `<div style="margin-top: 30px; margin-left: auto; width: fit-content; min-width: 280px; background: #f9fafb; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb;">`;
+        html += `<div style="margin-top: 20px; margin-left: auto; width: fit-content; min-width: 280px; background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">`;
 
         if (billingMode === 'con_iva') {
             html += `
@@ -2167,14 +2167,14 @@ async function generarPDF(presId) {
                         Condición de pago: ${cleanLabel(pago)}
                     </div>
                 </div>
-                <div style="margin-top: 30px;">
+                <div style="margin-top: 15px;">
                     <img src="footer-pdf.png" style="width: 100%; display: block;">
                 </div>
             </div>`;
         let container = document.getElementById('pdf-content');
         if (!container) { alert('Error: Contenedor PDF no encontrado'); return; }
         container.innerHTML = html;
-        let opt = { margin: 0, filename: `Presupuesto_${pres.Numero}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+        let opt = { margin: [5, 10, 5, 10], filename: `Presupuesto_${pres.Numero}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
         html2pdf().from(container.firstElementChild).set(opt).save();
     } catch (e) { console.error(e); alert('Error generando PDF: ' + e.message); }
 }
