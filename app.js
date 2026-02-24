@@ -2054,29 +2054,29 @@ async function generarPDF(presId) {
         let diasValidez = DATA.tc.Validez_dias || 15;
         let venc = new Date(new Date(pres.Fecha).getTime() + diasValidez * 24 * 60 * 60 * 1000).toLocaleDateString();
         let html = `
-            <div id="pdf-content" style="font-family: 'Segoe UI', Arial, sans-serif; padding: 30px; color: #333; max-width: 800px; margin: 0 auto; line-height: 1.5;">
-                <div class="pdf-header" style="background-color: #1a1a2e; color: #fff; padding: 25px 30px; display: flex; justify-content: space-between; align-items: center; border-radius: 8px 8px 0 0; margin-bottom: 25px;">
-                    <div class="pdf-logo" style="flex: 1;"><img src="logo-pdf.png" alt="Persiana Total" style="max-height: 70px;"></div>
-                    <div class="pdf-company-info" style="flex: 1; text-align: right; font-size: 0.9em; line-height: 1.5;">
-                        <h3 style="margin: 0 0 12px 0; color: #fff; font-size: 1.3em; letter-spacing: 1px;">PRESUPUESTO #${pres.Numero || '-'}</h3>
-                        <p style="margin: 0;">Tel: ${DATA.tc.Empresa_telefono || ''}</p>
-                        <p style="margin: 0;">WhatsApp: ${DATA.tc.Empresa_whatsapp || ''}</p>
-                        <p style="margin: 0;">${DATA.tc.Empresa_email || ''}</p>
-                        <p style="margin: 0;">${DATA.tc.Empresa_web || ''}</p>
+            <div id="pdf-content">
+                <div class="pdf-header">
+                    <div class="pdf-logo"><img src="logo-pdf.png" alt="Persiana Total"></div>
+                    <div class="pdf-company-info">
+                        <h3>PRESUPUESTO #${pres.Numero || '-'}</h3>
+                        <p>Tel: ${DATA.tc.Empresa_telefono || ''}</p>
+                        <p>WhatsApp: ${DATA.tc.Empresa_whatsapp || ''}</p>
+                        <p>${DATA.tc.Empresa_email || ''}</p>
+                        <p>${DATA.tc.Empresa_web || ''}</p>
                     </div>
                 </div>
-                <div class="pdf-title-row" style="background-color: #f8f9fa; padding: 25px 30px; border-radius: 8px; display: flex; justify-content: space-between; margin-bottom: 35px; border: 1px solid #e9ecef;">
-                    <div class="pdf-meta" style="flex: 1; font-size: 0.95em; color: #495057;">
-                        <p style="margin: 0 0 8px 0;"><strong>Fecha:</strong> ${fecha}</p>
-                        <p style="margin: 0 0 8px 0;"><strong>Válido hasta:</strong> ${venc}</p>
-                        <p style="margin: 0;"><strong>Estado:</strong> ${cleanLabel(pres.Estado || '')}</p>
+                <div class="pdf-title-row">
+                    <div class="pdf-meta">
+                        <p>Fecha: ${fecha}</p>
+                        <p>Válido hasta: ${venc}</p>
+                        <p>Estado: ${badgeHtml(pres.Estado)}</p>
                     </div>
-                    <div class="pdf-meta" style="flex: 1; text-align: right;">
-                        <h3 style="margin: 0 0 10px 0; font-size: 1.1em; color: #1a1a2e; text-transform: uppercase;">Datos del Cliente</h3>
-                        <p style="margin: 0 0 5px 0; font-size: 1.1em;"><strong>${cleanLabel(client.Nombre) || '-'}</strong></p>
-                        <p style="margin: 0 0 5px 0; color: #495057;">${client.Telefono || ''}</p>
-                        <p style="margin: 0 0 5px 0; color: #495057;">${res.propDir || ''}</p>
-                        <p style="margin: 0; color: #495057;">${zona.Nombre ? 'Zona: ' + cleanLabel(zona.Nombre) : ''}</p>
+                    <div class="pdf-meta" style="text-align:right">
+                        <h3>CLIENTE</h3>
+                        <p><strong>${cleanLabel(client.Nombre) || '-'}</strong></p>
+                        <p>${client.Telefono || ''}</p>
+                        <p>${res.propDir || ''}</p>
+                        <p>${zona.Nombre ? 'Zona: ' + cleanLabel(zona.Nombre) : ''}</p>
                     </div>
                 </div>
         `;
@@ -2096,17 +2096,17 @@ async function generarPDF(presId) {
             let measures = (u.Ancho_m && u.Alto_m) ? ` (${u.Ancho_m}m x ${u.Alto_m}m)` : '';
 
             html += `
-                <div class="pdf-unit" style="margin-bottom: 25px; border: 1px solid #e9ecef; border-radius: 8px; padding-bottom: 15px; background: #fff;">
-                    <div class="pdf-unit-header" style="background: linear-gradient(to right, #f8f9fa, #fff); padding: 12px 20px; border-bottom: 1px solid #e9ecef; border-radius: 8px 8px 0 0; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-weight: 600; font-size: 1.1em; color: #1a1a2e;">${cleanLabel(u.Nombre)} - ${cleanLabel(u.Ubicacion) || ''}${measures}</span>
-                        <span style="color: #6c757d; font-weight: 600; font-size: 0.85em; text-transform: uppercase;">${cleanLabel(u.Tipo_trabajo) || ''}</span>
+                <div class="pdf-unit" style="margin-bottom: 25px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
+                    <div class="pdf-unit-header" style="background: #f3f4f6; padding: 10px; border-radius: 4px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: bold; font-size: 1.1em; color: #1f2937;">${cleanLabel(u.Nombre)} - ${cleanLabel(u.Ubicacion) || ''}${measures}</span>
+                        <span style="color: #4b5563; font-weight: normal;">${cleanLabel(u.Tipo_trabajo) || ''}</span>
                     </div>
-                    <ul style="margin: 0; padding-left: 40px; font-size: 0.95em; color: #495057; list-style-type: none;">
+                    <ul style="margin: 0; padding-left: 25px; font-size: 1em; color: #374151; list-style-type: disc;">
             `;
 
             if (isRepair) {
                 let repLabel = REPAIR_LABELS[u.Tipo_reparacion] || 'Reparación / Service';
-                html += `<li style="margin-bottom: 6px;">&#8226; ${repLabel}</li><li style="margin-bottom: 6px;">&#8226; Incluye mano de obra</li>`;
+                html += `<li style="margin-bottom: 4px;">${repLabel}</li><li style="margin-bottom: 4px;">Incluye mano de obra</li>`;
             }
 
             let hasMO = false, hasMotorMO = false, hasGuiasMO = false;
@@ -2116,7 +2116,7 @@ async function generarPDF(presId) {
 
                 if (isRepair) {
                     if (compObj?.Nombre?.toLowerCase().includes('viático')) {
-                        html += `<li style="margin-bottom: 6px;">&#8226; ${cleanLabel(l.Descripcion_pdf || 'Viático')}</li>`;
+                        html += `<li style="margin-bottom: 4px;">${cleanLabel(l.Descripcion_pdf || 'Viático')}</li>`;
                     }
                     continue;
                 }
@@ -2128,15 +2128,15 @@ async function generarPDF(presId) {
                     continue;
                 }
 
-                html += `<li style="margin-bottom: 6px;">&#8226; ${cleanLabel(l.Descripcion_pdf)}</li>`;
+                html += `<li style="margin-bottom: 4px;">${cleanLabel(l.Descripcion_pdf)}</li>`;
             }
 
-            if (!isRepair && (hasMO || hasMotorMO || hasGuiasMO)) html += `<li style="margin-bottom: 6px; font-weight: bold; color: #059669;">&#10003; Incluye instalación completa</li>`;
+            if (!isRepair && (hasMO || hasMotorMO || hasGuiasMO)) html += `<li style="margin-bottom: 4px;">Incluye instalación completa</li>`;
 
             html += `
                     </ul>
-                    <div style="text-align: right; margin-top: 15px; margin-right: 20px; font-size: 1.1em; color: #1a1a2e;">
-                        <span style="background-color: #f8f9fa; border: 1px solid #e9ecef; padding: 8px 15px; border-radius: 4px; font-weight: bold;">Precio unidad: ${fmt(unitTotal)}</span>
+                    <div style="text-align: right; margin-top: 12px; font-size: 1.1em; font-weight: bold; color: #111;">
+                        Precio unidad: ${fmt(unitTotal)}
                     </div>
                 </div>
             `;
@@ -2149,38 +2149,36 @@ async function generarPDF(presId) {
         }
         let total = pres.Total_con_IVA || 0;
 
-        html += `<div class="pdf-totals" style="margin-top: 40px; display: flex; justify-content: flex-end;">
-                    <div class="pdf-totals-box" style="background: #f8f9fa; padding: 25px 30px; border-radius: 8px; border: 2px solid #1a1a2e; min-width: 320px;">`;
+        html += `<div class="pdf-totals" style="margin-top: 30px;">
+                    <div class="pdf-totals-box" style="background: #f9fafb; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb; margin-left: auto; width: fit-content; min-width: 250px;">`;
 
         if (billingMode === 'con_iva') {
             html += `
-                <div class="pdf-total-row final" style="display: flex; justify-content: space-between; align-items: center; font-size: 1.6em; font-weight: bold; color: #1a1a2e; margin-bottom: 5px;"><span>TOTAL:</span> <span>${fmt(total)}</span></div>
-                <div class="pdf-total-row info" style="font-size: 0.85em; color: #6c757d; text-align: right; margin-bottom: 15px;">Precios con IVA incluido</div>
+                <div class="pdf-total-row final" style="display: flex; justify-content: space-between; font-size: 1.4em; font-weight: bold; color: #111; margin-bottom: 5px;"><span>TOTAL:</span> <span>${fmt(total)}</span></div>
+                <div class="pdf-total-row info" style="font-size: 0.8em; color: #6b7280; text-align: right; margin-bottom: 15px;">Precios con IVA incluido</div>
             `;
         } else {
             html += `
-                <div class="pdf-total-row final" style="display: flex; justify-content: space-between; align-items: center; font-size: 1.6em; font-weight: bold; color: #1a1a2e; margin-bottom: 15px;"><span>TOTAL:</span> <span>${fmt(total)}</span></div>
+                <div class="pdf-total-row final" style="display: flex; justify-content: space-between; font-size: 1.4em; font-weight: bold; color: #111;"><span>TOTAL:</span> <span>${fmt(total)}</span></div>
             `;
         }
 
         html += `
-                    <div class="pdf-total-row" style="margin-top: 15px; font-size: 0.9em; color: #495057; border-top: 1px solid #dee2e6; padding-top: 15px;">
-                        <strong>Condición de pago:</strong> ${cleanLabel(pago)}
+                    <div class="pdf-total-row" style="margin-top:20px; font-size:0.8em; color:#6b7280; border-top: 1px solid #e5e7eb; padding-top: 10px;">
+                        Condición de pago: ${cleanLabel(pago)}
                     </div>
                 </div>
             </div>`;
 
         html += `
-                <div class="pdf-footer" style="margin-top: 60px; border-top: 1px solid #dee2e6; padding-top: 30px; display: flex; justify-content: space-between; align-items: flex-start; font-size: 0.85em; color: #6c757d; line-height: 1.6;">
-                    <div style="flex: 2; padding-right: 40px;">
-                        <p style="margin: 0 0 10px 0; font-weight: bold; color: #495057;">Presupuesto válido por ${DATA.tc.Validez_dias || 15} días.</p>
-                        <p style="margin: 0 0 8px 0;">${DATA.tc.PDF_condiciones || ''}</p>
-                        ${DATA.tc.PDF_garantia ? `<p style="margin: 0 0 8px 0;">${DATA.tc.PDF_garantia}</p>` : ''}
-                        ${DATA.tc.PDF_nota_pie ? `<p style="margin: 0;">${DATA.tc.PDF_nota_pie}</p>` : ''}
+                <div class="pdf-footer" style="margin-top: 50px; border-top: 1px solid #eee; padding-top: 20px; display: flex; justify-content: space-between; align-items: flex-end;">
+                    <div style="font-size: 0.8em; color: #6b7280;">
+                        <p>Presupuesto válido por ${DATA.tc.Validez_dias || 15} días.</p>
+                        <p>${DATA.tc.PDF_condiciones || ''}</p>
+                        ${DATA.tc.PDF_garantia ? `<p>${DATA.tc.PDF_garantia}</p>` : ''}
+                        ${DATA.tc.PDF_nota_pie ? `<p>${DATA.tc.PDF_nota_pie}</p>` : ''}
                     </div>
-                    <div class="pdf-signature" style="flex: 1; border-top: 1px solid #495057; text-align: center; padding-top: 10px; margin-top: 30px; max-width: 200px;">
-                        Firma y Aclaración
-                    </div>
+                    <div class="pdf-signature" style="border-top: 1px solid #374151; width: 200px; text-align: center; font-size: 0.8em; color: #374151; padding-top: 8px; margin-bottom: 10px;">Firma y Aclaración</div>
                 </div>
             </div>`;
         let container = document.getElementById('pdf-content');
