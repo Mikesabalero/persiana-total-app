@@ -650,8 +650,7 @@ function viewCliente(clientId) {
     document.getElementById('modal-ver-cliente').classList.add('show');
 }
 function loadConfig() {
-    document.getElementById('cfg-tc-valor').value = DATA.tc.Dolar_oficial || '';
-    document.getElementById('cfg-tc-fecha').value = DATA.tc.Fecha || '';
+    loadConfigEmpresa();
     let zt = document.getElementById('cfg-zonas-table');
     zt.innerHTML = '';
     DATA.zonas.forEach(z => {
@@ -668,14 +667,41 @@ function loadConfig() {
         at.innerHTML += '<tr><td>' + a.Ancho_solicitado_hasta + '</td><td>' + a.Ancho_real_pano + '</td><td>' + (a.Notas || '-') + '</td></tr>';
     });
 }
-async function saveTc() {
-    let val = document.getElementById('cfg-tc-valor').value;
-    let fecha = document.getElementById('cfg-tc-fecha').value;
-    if (!val) { alert('Ingresá el valor del dólar'); return; }
-    await apiPatch(TBL.tc, { Id: DATA.tc.Id, Dolar_oficial: parseFloat(val), Fecha: fecha || null });
-    DATA.tc.Dolar_oficial = parseFloat(val);
-    alert('Tipo de cambio actualizado');
-    loadDashboard();
+function loadConfigEmpresa() {
+    document.getElementById('cfg-emp-nombre').value = DATA.tc.Empresa_nombre || '';
+    document.getElementById('cfg-emp-cuit').value = DATA.tc.Empresa_cuit || '';
+    document.getElementById('cfg-emp-telefono').value = DATA.tc.Empresa_telefono || '';
+    document.getElementById('cfg-emp-whatsapp').value = DATA.tc.Empresa_whatsapp || '';
+    document.getElementById('cfg-emp-email').value = DATA.tc.Empresa_email || '';
+    document.getElementById('cfg-emp-web').value = DATA.tc.Empresa_web || '';
+    document.getElementById('cfg-emp-validez').value = DATA.tc.Validez_dias || 15;
+    document.getElementById('cfg-emp-condiciones').value = DATA.tc.PDF_condiciones || '';
+    document.getElementById('cfg-emp-garantia').value = DATA.tc.PDF_garantia || '';
+    document.getElementById('cfg-emp-nota').value = DATA.tc.PDF_nota_pie || '';
+}
+
+async function saveConfigEmpresa() {
+    let empData = {
+        Id: 3,
+        Empresa_nombre: document.getElementById('cfg-emp-nombre').value,
+        Empresa_cuit: document.getElementById('cfg-emp-cuit').value,
+        Empresa_telefono: document.getElementById('cfg-emp-telefono').value,
+        Empresa_whatsapp: document.getElementById('cfg-emp-whatsapp').value,
+        Empresa_email: document.getElementById('cfg-emp-email').value,
+        Empresa_web: document.getElementById('cfg-emp-web').value,
+        Validez_dias: parseInt(document.getElementById('cfg-emp-validez').value) || 15,
+        PDF_condiciones: document.getElementById('cfg-emp-condiciones').value,
+        PDF_garantia: document.getElementById('cfg-emp-garantia').value,
+        PDF_nota_pie: document.getElementById('cfg-emp-nota').value
+    };
+    try {
+        await apiPatch('mhj9fovlmv9036x', empData);
+        Object.assign(DATA.tc, empData);
+        alert('Configuración guardada correctamente.');
+    } catch (e) {
+        console.error(e);
+        alert('Error guardando configuración: ' + e.message);
+    }
 }
 
 function updatePropiedadesSelect() {
@@ -1865,17 +1891,18 @@ async function generarPDF(presId) {
         let presUnidades = res.unidades;
         let presLineas = res.lineas;
         let fecha = new Date(pres.Fecha).toLocaleDateString() || '-';
-        let venc = new Date(new Date(pres.Fecha).getTime() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString();
+        let diasValidez = DATA.tc.Validez_dias || 15;
+        let venc = new Date(new Date(pres.Fecha).getTime() + diasValidez * 24 * 60 * 60 * 1000).toLocaleDateString();
         let html = `
             <div id="pdf-content">
                 <div class="pdf-header">
                     <div class="pdf-logo"><img src="logo-pdf.png" alt="Persiana Total"></div>
                     <div class="pdf-company-info">
                         <h3>PRESUPUESTO #${pres.Numero || '-'}</h3>
-                        <p>Tel: 0342 4895492</p>
-                        <p>WhatsApp: 3426393439</p>
-                        <p>persianatotal@hotmail.com</p>
-                        <p>www.persianatotal.com.ar</p>
+                        <p>Tel: ${DATA.tc.Empresa_telefono || ''}</p>
+                        <p>WhatsApp: ${DATA.tc.Empresa_whatsapp || ''}</p>
+                        <p>${DATA.tc.Empresa_email || ''}</p>
+                        <p>${DATA.tc.Empresa_web || ''}</p>
                     </div>
                 </div>
                 <div class="pdf-title-row">
@@ -1988,7 +2015,12 @@ async function generarPDF(presId) {
 
         html += `
                 <div class="pdf-footer" style="margin-top: 50px; border-top: 1px solid #eee; padding-top: 20px; display: flex; justify-content: space-between; align-items: flex-end;">
-                    <div style="font-size: 0.8em; color: #6b7280;"><p>Presupuesto válido por 15 días.</p><p>Los precios pueden sufrir modificaciones sin previo aviso.</p></div>
+                    <div style="font-size: 0.8em; color: #6b7280;">
+                        <p>Presupuesto válido por ${DATA.tc.Validez_dias || 15} días.</p>
+                        <p>${DATA.tc.PDF_condiciones || ''}</p>
+                        ${DATA.tc.PDF_garantia ? `<p>${DATA.tc.PDF_garantia}</p>` : ''}
+                        ${DATA.tc.PDF_nota_pie ? `<p>${DATA.tc.PDF_nota_pie}</p>` : ''}
+                    </div>
                     <div class="pdf-signature" style="border-top: 1px solid #374151; width: 200px; text-align: center; font-size: 0.8em; color: #374151; padding-top: 8px; margin-bottom: 10px;">Firma y Aclaración</div>
                 </div>
             </div>`;

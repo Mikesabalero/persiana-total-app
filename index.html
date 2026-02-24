@@ -320,20 +320,31 @@
                 <p>Parámetros del sistema</p>
             </div>
             <div class="config-tabs">
-                <button class="config-tab active" onclick="showConfigTab('tc',this)">Tipo de Cambio</button>
+                <button class="config-tab active" onclick="showConfigTab('empresa',this)">Empresa y PDF</button>
                 <button class="config-tab" onclick="showConfigTab('zonas',this)">Zonas</button>
                 <button class="config-tab" onclick="showConfigTab('pagos',this)">Formas de Pago</button>
                 <button class="config-tab" onclick="showConfigTab('anchos',this)">Anchos PVC</button>
             </div>
-            <div id="config-tc" class="config-section">
+            <div id="config-empresa" class="config-section">
                 <div class="card">
-                    <h2 style="margin-bottom:16px">Tipo de Cambio USD/ARS</h2>
+                    <h2 style="margin-bottom:16px">Datos de Empresa y PDF</h2>
                     <div class="form-row">
-                        <div class="form-group"><label>Valor 1 USD</label><input type="number" id="cfg-tc-valor"
-                                step="0.01"></div>
-                        <div class="form-group"><label>Fecha</label><input type="date" id="cfg-tc-fecha"></div>
+                        <div class="form-group"><label>Nombre de empresa</label><input type="text" id="cfg-emp-nombre"></div>
+                        <div class="form-group"><label>CUIT</label><input type="text" id="cfg-emp-cuit"></div>
                     </div>
-                    <button class="btn btn-primary" onclick="saveTc()">Guardar Tipo de Cambio</button>
+                    <div class="form-row">
+                        <div class="form-group"><label>Teléfono</label><input type="text" id="cfg-emp-telefono"></div>
+                        <div class="form-group"><label>WhatsApp</label><input type="text" id="cfg-emp-whatsapp"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Email</label><input type="text" id="cfg-emp-email"></div>
+                        <div class="form-group"><label>Web</label><input type="text" id="cfg-emp-web"></div>
+                    </div>
+                    <div class="form-group"><label>Validez del presupuesto en días</label><input type="number" id="cfg-emp-validez"></div>
+                    <div class="form-group"><label>Condiciones generales</label><textarea id="cfg-emp-condiciones" rows="3" style="width:100%; border:1px solid var(--border); border-radius:4px; padding:8px;"></textarea></div>
+                    <div class="form-group"><label>Texto de garantía</label><textarea id="cfg-emp-garantia" rows="3" style="width:100%; border:1px solid var(--border); border-radius:4px; padding:8px;"></textarea></div>
+                    <div class="form-group"><label>Nota al pie del PDF</label><textarea id="cfg-emp-nota" rows="3" style="width:100%; border:1px solid var(--border); border-radius:4px; padding:8px;"></textarea></div>
+                    <button class="btn btn-primary" onclick="saveConfigEmpresa()" style="margin-top:12px">Guardar configuración</button>
                 </div>
             </div>
             <div id="config-zonas" class="config-section" style="display:none">
