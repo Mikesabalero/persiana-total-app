@@ -12,6 +12,7 @@ function closeDetail() { document.getElementById('panel-cliente').classList.remo
 function closeVerPres() { document.getElementById('modal-ver-pres').classList.remove('show'); }
 function closeVerCliente() { document.getElementById('modal-ver-cliente').classList.remove('show'); }
 function closeModalCliente() { document.getElementById('modal-cliente').classList.remove('show'); }
+function closeModalEditComp() { document.getElementById('modal-edit-comp').classList.remove('show'); }
 function closeModalPropiedad() { 
     let modal = document.getElementById('modal-propiedad');
     let reopenId = modal.getAttribute('data-reopen-client-id');
@@ -188,14 +189,76 @@ function loadPresupuestos() {
 function loadPrecios() {
     let tc = DATA.tc.Dolar_oficial || 1150;
     document.getElementById('precios-tc').textContent = 'TC: 1 USD = $' + Number(tc).toLocaleString('es-AR') + ' ARS';
+    let inputTc = document.getElementById('precios-tc-input');
+    if(inputTc) inputTc.value = tc;
+
     let tb = document.getElementById('precios-table');
     tb.innerHTML = '';
     DATA.componentes.forEach(c => {
         let costo = c.Costo_unitario || 0;
         let margen = c.Margen_default || 0;
         let precioArs = c.Moneda_costo === 'USD' ? costo * tc * (1 + margen / 100) : costo * (1 + margen / 100);
-        tb.innerHTML += '<tr><td><strong>' + cleanLabel(c.Nombre) + '</strong></td><td>' + cleanLabel(c.Tipo_componente || '-') + '</td><td class="hide-margin">' + Number(costo).toFixed(2) + '</td><td class="hide-margin">' + (c.Moneda_costo || '-') + '</td><td class="hide-margin">' + margen + '%</td><td><strong>' + fmt(precioArs) + '</strong></td><td class="hide-margin">' + (c.Alicuota_IVA_compra || '-') + '%</td><td class="hide-margin">' + (c.Alicuota_IVA_venta || '-') + '%</td><td>' + cleanLabel(c.Proveedor || '-') + '</td></tr>';
+        
+        let cData = JSON.stringify(c).replace(/"/g, '&quot;');
+        let actionBtn = `<button class="btn-remove" onclick="openModalEditComp(${cData})" title="Editar" style="background:#f3f4f6;color:var(--text)">✏️</button>`;
+
+        tb.innerHTML += '<tr><td><strong>' + cleanLabel(c.Nombre) + '</strong></td><td>' + cleanLabel(c.Tipo_componente || '-') + '</td><td class="hide-margin">' + Number(costo).toFixed(2) + '</td><td class="hide-margin">' + (c.Moneda_costo || '-') + '</td><td class="hide-margin">' + margen + '%</td><td><strong>' + fmt(precioArs) + '</strong></td><td class="hide-margin">' + (c.Alicuota_IVA_compra || '-') + '%</td><td class="hide-margin">' + (c.Alicuota_IVA_venta || '-') + '%</td><td>' + cleanLabel(c.Proveedor || '-') + '</td><td>' + actionBtn + '</td></tr>';
     });
+}
+
+async function updateTcFromPrecios() {
+    let val = document.getElementById('precios-tc-input').value;
+    if (!val) { alert('Ingresá el valor del dólar'); return; }
+    let fecha = new Date().toISOString().split('T')[0];
+    try {
+        await apiPatch(TBL.tc, { Id: DATA.tc.Id, Dolar_oficial: parseFloat(val), Fecha: fecha });
+        DATA.tc.Dolar_oficial = parseFloat(val);
+        alert('Tipo de cambio actualizado');
+        loadPrecios();
+        loadDashboard();
+    } catch (e) {
+        console.error(e);
+        alert('Error al actualizar TC');
+    }
+}
+
+function openModalEditComp(compData) {
+    document.getElementById('ec-id').value = compData.Id || compData.id;
+    document.getElementById('ec-nombre').value = compData.Nombre || '';
+    document.getElementById('ec-costo').value = compData.Costo_unitario || 0;
+    document.getElementById('ec-moneda').value = compData.Moneda_costo || 'ARS';
+    document.getElementById('ec-margen').value = compData.Margen_default || 0;
+    document.getElementById('ec-proveedor').value = compData.Proveedor || '';
+    document.getElementById('ec-iva-compra').value = compData.Alicuota_IVA_compra || '21';
+    document.getElementById('ec-iva-venta').value = compData.Alicuota_IVA_venta || '21';
+    document.getElementById('ec-notas').value = compData.Notas || '';
+    
+    document.getElementById('modal-edit-comp').classList.add('show');
+}
+
+async function saveComponent() {
+    let id = document.getElementById('ec-id').value;
+    let data = {
+        Id: parseInt(id),
+        Costo_unitario: parseFloat(document.getElementById('ec-costo').value),
+        Moneda_costo: document.getElementById('ec-moneda').value,
+        Margen_default: parseFloat(document.getElementById('ec-margen').value),
+        Proveedor: document.getElementById('ec-proveedor').value,
+        Alicuota_IVA_compra: document.getElementById('ec-iva-compra').value,
+        Alicuota_IVA_venta: document.getElementById('ec-iva-venta').value,
+        Notas: document.getElementById('ec-notas').value,
+        Fecha_ult_actualizacion: new Date().toISOString().split('T')[0]
+    };
+
+    try {
+        await apiPatch(TBL.componentes, data);
+        DATA.componentes = await apiGet(TBL.componentes);
+        loadPrecios();
+        closeModalEditComp();
+    } catch (e) {
+        console.error(e);
+        alert('Error al guardar componente');
+    }
 }
 function filterComp() {
     let search = document.getElementById('comp-search').value.toLowerCase();
@@ -1903,6 +1966,7 @@ window.addEventListener('mouseup', function (event) {
             else if (event.target.id === 'modal-ver-cliente') closeVerCliente();
             else if (event.target.id === 'modal-cliente') closeModalCliente();
             else if (event.target.id === 'modal-propiedad') closeModalPropiedad();
+            else if (event.target.id === 'modal-edit-comp') closeModalEditComp();
         }
         if (event.target.classList.contains('detail-panel')) closeDetail();
     }

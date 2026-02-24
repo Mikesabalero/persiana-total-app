@@ -156,8 +156,11 @@
                     <h1>Lista de Precios</h1>
                     <p>Componentes y costos actualizados</p>
                 </div>
-                <div style="display:flex;gap:12px;align-items:center"><span id="precios-tc"
-                        style="font-weight:600;color:var(--grad1)"></span></div>
+                <div style="display:flex;gap:12px;align-items:center">
+                    <span id="precios-tc" style="font-weight:600;color:var(--grad1)"></span>
+                    <input type="number" id="precios-tc-input" step="0.01" style="width:80px; padding:4px 8px; font-size:12px; border:1px solid var(--border); border-radius:4px;">
+                    <button class="btn btn-sm btn-primary" onclick="updateTcFromPrecios()">Actualizar TC</button>
+                </div>
             </div>
             <div class="filters">
                 <input type="text" id="comp-search" placeholder="Buscar componente..." oninput="filterComp()">
@@ -185,6 +188,7 @@
                             <th class="hide-margin">IVA C.</th>
                             <th class="hide-margin">IVA V.</th>
                             <th>Proveedor</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="precios-table"></tbody>
@@ -652,6 +656,73 @@
             <div style="display:flex;justify-content:flex-end;margin-top:20px">
                 <button class="btn btn-secondary" onclick="closeVerCliente()">Cerrar</button>
             </div>
+        </div>
+    </div>
+
+    <!-- MODAL EDITAR COMPONENTE -->
+    <div class="modal-overlay" id="modal-edit-comp">
+        <div class="modal" style="max-width: 500px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 24px;">
+                <h2 style="margin:0">Editar Componente</h2>
+                <button class="btn-remove" onclick="closeModalEditComp()"
+                    style="font-size: 1.5em; background:none; border:none; cursor:pointer; color:var(--text-light)">✕</button>
+            </div>
+            <form id="form-edit-comp" onsubmit="event.preventDefault(); saveComponent();">
+                <input type="hidden" id="ec-id">
+                <div class="form-group">
+                    <label>Nombre (Referencia)</label>
+                    <input type="text" id="ec-nombre" readonly style="background-color: var(--bg); color: var(--text-light); border-color: transparent;">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Costo Unitario</label>
+                        <input type="number" id="ec-costo" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Moneda Costo</label>
+                        <select id="ec-moneda" required>
+                            <option value="ARS">ARS</option>
+                            <option value="USD">USD</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Margen Default (%)</label>
+                        <input type="number" id="ec-margen" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Proveedor</label>
+                        <input type="text" id="ec-proveedor">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Alícuota IVA Compra</label>
+                        <select id="ec-iva-compra">
+                            <option value="21">21</option>
+                            <option value="10.5">10.5</option>
+                            <option value="0">0</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Alícuota IVA Venta</label>
+                        <select id="ec-iva-venta">
+                            <option value="21">21</option>
+                            <option value="10.5">10.5</option>
+                            <option value="0">0</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Notas</label>
+                    <textarea id="ec-notas" rows="3" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text); font-family:inherit;"></textarea>
+                </div>
+                <div style="display:flex; gap:12px; justify-content:flex-end; margin-top: 24px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModalEditComp()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                </div>
+            </form>
         </div>
     </div>
 
