@@ -2054,9 +2054,9 @@ async function generarPDF(presId) {
         let diasValidez = DATA.tc.Validez_dias || 15;
         let venc = new Date(new Date(pres.Fecha).getTime() + diasValidez * 24 * 60 * 60 * 1000).toLocaleDateString();
         let html = `
-            <div id="pdf-content">
-                <div class="pdf-header">
-                    <div class="pdf-logo"><img src="logo-pdf.png" alt="Persiana Total"></div>
+            <div id="pdf-content" style="min-height: 100%; display: flex; flex-direction: column;">
+                <div class="pdf-header" style="margin: 0; padding-top: 0;">
+                    <div class="pdf-logo"><img src="logo-pdf.png" alt="Persiana Total" style="max-width: 300px;"></div>
                     <div class="pdf-company-info">
                         <h3>PRESUPUESTO #${pres.Numero || '-'}</h3>
                         <p>Tel: ${DATA.tc.Empresa_telefono || ''}</p>
@@ -2149,7 +2149,7 @@ async function generarPDF(presId) {
         }
         let total = pres.Total_con_IVA || 0;
 
-        html += `<div class="pdf-totals" style="margin-top: 30px;">
+        html += `<div class="pdf-totals" style="margin-top: auto;">
                     <div class="pdf-totals-box" style="background: #f9fafb; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb; margin-left: auto; width: fit-content; min-width: 250px;">`;
 
         if (billingMode === 'con_iva') {
@@ -2171,7 +2171,7 @@ async function generarPDF(presId) {
             </div>`;
 
         html += `
-                <div class="pdf-footer" style="margin-top: 50px; border-top: 1px solid #eee; padding-top: 20px; display: flex; justify-content: space-between; align-items: flex-end;">
+                <div class="pdf-footer" style="margin-top: 30px; display: flex; justify-content: space-between; align-items: flex-end;">
                     <div style="font-size: 0.8em; color: #6b7280;">
                         <p>Presupuesto válido por ${DATA.tc.Validez_dias || 15} días.</p>
                         <p>${DATA.tc.PDF_condiciones || ''}</p>
