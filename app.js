@@ -4,10 +4,30 @@ const BASE = 'pru2fsphj43juyr';
 const H = { 'xc-token': TOKEN, 'Content-Type': 'application/json' };
 const TBL = { clientes: 'mwby85581fhjy27', propiedades: 'm0dwlr7ccoim1kf', historial: 'mimh9lp8bkew4t0', categorias: 'mulo5ve82d9ex7q', productos: 'mdr6mo695g0qz6d', componentes: 'mgh9e1zivvhpg26', prod_comp: 'mmjzqw7v4que9q3', tc: 'mhj9fovlmv9036x', zonas: 'mottig5nmj5e3kx', presupuestos: 'mn1yyjyovvoyxme', lineas: 'mv1e9trh23j0q3o', servicios: 'mz8qrki3hz4y7iv', formas_pago: 'm2t4fnjie88gfo0', unidades: 'mix059xkpsz15um', anchos: 'mayai71j546g3as' };
 let DATA = { clientes: [], propiedades: [], zonas: [], componentes: [], productos: [], prod_comp: [], presupuestos: [], lineas: [], unidades: [], formas_pago: [], tc: null, anchos: [] };
+let appReady = false;
+
+function showPage(id, btn) { if (!appReady) { alert("Cargando datos, por favor espere..."); return; } document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById('page-' + id).classList.add('active'); document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active')); if (btn) btn.classList.add('active'); if (id === 'dashboard') loadDashboard(); if (id === 'presupuestos') loadPresupuestos(); if (id === 'precios') loadPrecios(); if (id === 'clientes') renderClientes(); if (id === 'propiedades') renderPropiedades(); if (id === 'config') loadConfig(); }
+function closeModal() { document.getElementById('modal-pres').classList.remove('show'); }
+function closeDetail() { document.getElementById('panel-cliente').classList.remove('open'); }
+function closeVerPres() { document.getElementById('modal-ver-pres').classList.remove('show'); }
+function closeVerCliente() { document.getElementById('modal-ver-cliente').classList.remove('show'); }
+function closeModalCliente() { document.getElementById('modal-cliente').classList.remove('show'); }
+function closeModalPropiedad() { 
+    let modal = document.getElementById('modal-propiedad');
+    let reopenId = modal.getAttribute('data-reopen-client-id');
+    modal.classList.remove('show');
+    document.getElementById('np-prop-cliente').disabled = false;
+    let si = document.getElementById('np-prop-cliente-search');
+    if (si) si.disabled = false;
+    if (reopenId) {
+        modal.removeAttribute('data-reopen-client-id');
+        viewCliente(reopenId);
+    }
+}
+
 let _loadingEdit = false;
 let unidadCount = 0;
 let editPresId = null;
-let appReady = false;
 
 async function apiGet(tid, params = '') { let r = await fetch(API + '/api/v2/tables/' + tid + '/records?limit=200' + params, { headers: H }); if (!r.ok) return []; let d = await r.json(); return d.list || []; }
 async function apiGetLinks(tid, colId, rowId) { let r = await fetch(API + '/api/v2/tables/' + tid + '/links/' + colId + '/records/' + rowId + '?limit=10', { headers: H }); if (!r.ok) return []; let d = await r.json(); return d.list || []; }
@@ -15,16 +35,25 @@ async function apiPost(tid, body) { let r = await fetch(API + '/api/v2/tables/' 
 async function apiPatch(tid, body) { let r = await fetch(API + '/api/v2/tables/' + tid + '/records', { method: 'PATCH', headers: H, body: JSON.stringify(body) }); return r.json(); }
 async function apiDelete(tid, id) { let r = await fetch(API + '/api/v2/tables/' + tid + '/records', { method: 'DELETE', headers: H, body: JSON.stringify({ Id: id }) }); return r.json(); }
 async function apiLink(tid, colId, rowId, linked) { let r = await fetch(API + '/api/v2/tables/' + tid + '/links/' + colId + '/records/' + rowId, { method: 'POST', headers: H, body: JSON.stringify(linked) }); return r.json(); }
+// Helpers
+function cleanLabel(text) {
+    if (!text || typeof text !== 'string') return text || '';
+    let s = text.replace(/_/g, ' ');
+    const acentos = {
+        'Instalacion nueva': 'Instalación nueva',
+        'Cambio pano': 'Cambio paño',
+        'Motorizacion': 'Motorización',
+        'Cambio guias': 'Cambio guías',
+        'Reparacion': 'Reparación',
+    };
+    return acentos[s] || s;
+}
+
 function fmt(n) { if (n == null) return '$0'; return '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
 function badgeHtml(estado) { let c = { 'Borrador': 'borrador', 'Enviado': 'enviado', 'Aprobado': 'aprobado', 'Rechazado': 'rechazado', 'Vencido': 'vencido', 'Facturado': 'facturado' }; return '<span class="badge badge-' + (c[estado] || 'borrador') + '">' + cleanLabel(estado) + '</span>'; }
-function showPage(id, btn) { if (!appReady) { alert("Cargando datos, por favor espere..."); return; } document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById('page-' + id).classList.add('active'); document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active')); if (btn) btn.classList.add('active'); if (id === 'dashboard') loadDashboard(); if (id === 'presupuestos') loadPresupuestos(); if (id === 'precios') loadPrecios(); if (id === 'clientes') renderClientes(); if (id === 'propiedades') renderPropiedades(); if (id === 'config') loadConfig(); }
-function showConfigTab(id, btn) { document.querySelectorAll('.config-section').forEach(s => s.style.display = 'none'); document.getElementById('config-' + id).style.display = 'block'; document.querySelectorAll('.config-tab').forEach(t => t.classList.remove('active')); btn.classList.add('active'); }
-function closeModal() { document.getElementById('modal-pres').classList.remove('show'); }
-function closeDetail() { document.getElementById('panel-cliente').classList.remove('open'); }
-function closeVerPres() { document.getElementById('modal-ver-pres').classList.remove('show'); }
-function closeVerCliente() { document.getElementById('modal-ver-cliente').classList.remove('show'); }
 function resolveLink(row, field) { let v = row[field]; if (!v) return null; if (typeof v === 'object' && Array.isArray(v) && v.length > 0) return v[0]; if (typeof v === 'object' && v.Id) return v; return null; }
 function resolveName(row, field, list, idField) { let link = resolveLink(row, field); if (!link) return '-'; let id = link.Id || link.id || link; let found = list.find(i => i.Id == id); return found ? found.Nombre || found.Title || '-' : '-'; }
+function showConfigTab(id, btn) { document.querySelectorAll('.config-section').forEach(s => s.style.display = 'none'); document.getElementById('config-' + id).style.display = 'block'; document.querySelectorAll('.config-tab').forEach(t => t.classList.remove('active')); btn.classList.add('active'); }
 const REPAIR_LABELS = {
     'cambio_eje': 'Cambio de eje completo',
     'cambio_cinta': 'Cambio de cinta',
@@ -47,54 +76,36 @@ function cleanLabel(text) {
     return acentos[s] || s;
 }
 async function loadAll() {
-    DATA.tc = (await apiGet(TBL.tc, '&where=(Vigente,eq,true)'))[0] || { Dolar_oficial: 1150 };
-    DATA.clientes = await apiGet(TBL.clientes);
-    DATA.zonas = await apiGet(TBL.zonas);
-    DATA.componentes = await apiGet(TBL.componentes);
-    DATA.productos = await apiGet(TBL.productos);
-    DATA.prod_comp = await apiGet(TBL.prod_comp);
-    DATA.presupuestos = await apiGet(TBL.presupuestos);
-    DATA.lineas = await apiGet(TBL.lineas);
-    DATA.unidades = await apiGet(TBL.unidades);
-    DATA.formas_pago = await apiGet(TBL.formas_pago);
-    DATA.propiedades = await apiGet(TBL.propiedades);
+    const fetchBase = [
+        apiGet(TBL.tc, '&where=(Vigente,eq,true)').then(r => r[0] || { Dolar_oficial: 1150 }),
+        apiGet(TBL.clientes), apiGet(TBL.zonas), apiGet(TBL.componentes),
+        apiGet(TBL.productos), apiGet(TBL.prod_comp), apiGet(TBL.presupuestos),
+        apiGet(TBL.lineas), apiGet(TBL.unidades), apiGet(TBL.formas_pago),
+        apiGet(TBL.propiedades), apiGet(TBL.anchos)
+    ];
+    [DATA.tc, DATA.clientes, DATA.zonas, DATA.componentes, DATA.productos, DATA.prod_comp, DATA.presupuestos, DATA.lineas, DATA.unidades, DATA.formas_pago, DATA.propiedades, DATA.anchos] = await Promise.all(fetchBase);
+
     console.log('Propiedades:', DATA.propiedades.length);
-    DATA.anchos = await apiGet(TBL.anchos);
-    for (let p of DATA.presupuestos) {
-        try {
-            let cl = await apiGetLinks(TBL.presupuestos, 'canpten8owymbde', p.Id);
-            if (cl.length > 0) {
-                p._clienteNombre = cl[0].Nombre || cl[0].Title || '-';
-                p._clienteId = cl[0].Id;
-            } else {
-                p._clienteNombre = '-';
-                p._clienteId = null;
-            }
-        } catch (e) { p._clienteNombre = '-'; p._clienteId = null; }
 
+    await Promise.all(DATA.presupuestos.map(async p => {
         try {
-            let zl = await apiGetLinks(TBL.presupuestos, 'cr3s0ox51qopwl4', p.Id);
-            if (zl.length > 0) {
-                p._zonaNombre = zl[0].Nombre || zl[0].Title || '-';
-                p._zonaId = zl[0].Id;
-            } else {
-                p._zonaNombre = '-';
-                p._zonaId = null;
-            }
-        } catch (e) { p._zonaNombre = '-'; p._zonaId = null; }
-
-        try {
-            let pl = await apiGetLinks(TBL.presupuestos, 'cpf764utp1w7yj0', p.Id);
+            const [cl, zl, pl] = await Promise.all([
+                apiGetLinks(TBL.presupuestos, 'canpten8owymbde', p.Id),
+                apiGetLinks(TBL.presupuestos, 'cr3s0ox51qopwl4', p.Id),
+                apiGetLinks(TBL.presupuestos, 'cpf764utp1w7yj0', p.Id)
+            ]);
+            if (cl.length > 0) { p._clienteNombre = cl[0].Nombre || cl[0].Title || '-'; p._clienteId = cl[0].Id; }
+            else { p._clienteNombre = '-'; p._clienteId = null; }
+            if (zl.length > 0) { p._zonaNombre = zl[0].Nombre || zl[0].Title || '-'; p._zonaId = zl[0].Id; }
+            else { p._zonaNombre = '-'; p._zonaId = null; }
             if (pl.length > 0) {
                 p._propiedadId = pl[0].Id;
                 let propFull = DATA.propiedades.find(pr => pr.Id == pl[0].Id);
                 p._propiedadDir = propFull ? (propFull.Direccion || '-') + ' - ' + (propFull.Localidad || '-') : (pl[0].Nombre || '-');
-            } else {
-                p._propiedadDir = '-';
-                p._propiedadId = null;
-            }
-        } catch (e) { p._propiedadDir = '-'; p._propiedadId = null; }
-    }
+            } else { p._propiedadDir = '-'; p._propiedadId = null; }
+        } catch (e) { p._clienteNombre = '-'; p._clienteId = null; p._zonaNombre = '-'; p._zonaId = null; p._propiedadDir = '-'; p._propiedadId = null; }
+    }));
+
     loadDashboard();
     renderPropiedades();
     renderClientDatalist();
