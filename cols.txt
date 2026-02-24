@@ -1,0 +1,2 @@
+Tipo_componente 'Material','Motor','Accesorio','Mano_obra','Viatico','Reparacion'
+Unidad 'm2','ml','unidad','hora','viaje','juego'

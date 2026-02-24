@@ -153,7 +153,10 @@
         <div id="page-precios" class="page">
             <div class="page-header" style="display:flex;justify-content:space-between;align-items:center">
                 <div>
-                    <h1>Lista de Precios</h1>
+                    <h1 style="display:flex;gap:16px;align-items:center;">Lista de Precios 
+                        <button class="btn btn-sm btn-primary" onclick="nuevoComponente()">+ Nuevo Componente</button>
+                        <button class="btn btn-sm btn-secondary" onclick="exportCsv()">📥 Exportar CSV</button>
+                    </h1>
                     <p>Componentes y costos actualizados</p>
                 </div>
                 <div style="display:flex;gap:12px;align-items:center">
@@ -162,9 +165,9 @@
                     <button class="btn btn-sm btn-primary" onclick="updateTcFromPrecios()">Actualizar TC</button>
                 </div>
             </div>
-            <div class="filters">
-                <input type="text" id="comp-search" placeholder="Buscar componente..." oninput="filterComp()">
-                <select id="comp-filter-tipo" onchange="filterComp()">
+            <div class="filters" style="display:flex;gap:12px;align-items:center">
+                <input type="text" id="comp-search" placeholder="Buscar componente..." oninput="filterComp()" style="flex:1;">
+                <select id="comp-filter-tipo" onchange="filterComp()" style="width:200px;">
                     <option value="">Todos los tipos</option>
                     <option>Material</option>
                     <option>Herraje</option>
@@ -173,21 +176,30 @@
                     <option value="Mano_obra">Mano obra</option>
                     <option>Logistica</option>
                     <option>Repuesto</option>
+                    <option>Viatico</option>
+                    <option>Reparacion</option>
+                </select>
+                <select id="comp-filter-activo" onchange="filterComp()" style="width:150px;">
+                    <option value="all">Todos</option>
+                    <option value="true" selected>Activo</option>
+                    <option value="false">Inactivo</option>
                 </select>
             </div>
             <div class="card" style="overflow-x:auto">
                 <table>
                     <thead>
                         <tr>
-                            <th>Nombre</th>
-                            <th>Tipo</th>
-                            <th class="hide-margin">Costo</th>
-                            <th class="hide-margin">Moneda</th>
-                            <th class="hide-margin">Margen%</th>
-                            <th>Precio ARS</th>
-                            <th class="hide-margin">IVA C.</th>
-                            <th class="hide-margin">IVA V.</th>
-                            <th>Proveedor</th>
+                            <th onclick="sortCompTable(0)" style="cursor:pointer;">Nombre ↕</th>
+                            <th onclick="sortCompTable(1)" style="cursor:pointer;">Código ↕</th>
+                            <th onclick="sortCompTable(2)" style="cursor:pointer;">Tipo ↕</th>
+                            <th onclick="sortCompTable(3)" class="hide-margin" style="cursor:pointer;">Costo ↕</th>
+                            <th onclick="sortCompTable(4)" class="hide-margin" style="cursor:pointer;">Moneda ↕</th>
+                            <th onclick="sortCompTable(5)" style="cursor:pointer;">Unidad ↕</th>
+                            <th onclick="sortCompTable(6)" class="hide-margin" style="cursor:pointer;">Margen% ↕</th>
+                            <th onclick="sortCompTable(7)" style="cursor:pointer;">Precio ARS ↕</th>
+                            <th onclick="sortCompTable(8)" style="cursor:pointer;">Proveedor ↕</th>
+                            <th onclick="sortCompTable(9)" style="cursor:pointer;">Activo ↕</th>
+                            <th onclick="sortCompTable(10)" style="cursor:pointer;">Últ. Actualización ↕</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -663,15 +675,45 @@
     <div class="modal-overlay" id="modal-edit-comp">
         <div class="modal" style="max-width: 500px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 24px;">
-                <h2 style="margin:0">Editar Componente</h2>
+                <h2 style="margin:0" id="ec-title">Editar Componente</h2>
                 <button class="btn-remove" onclick="closeModalEditComp()"
                     style="font-size: 1.5em; background:none; border:none; cursor:pointer; color:var(--text-light)">✕</button>
             </div>
             <form id="form-edit-comp" onsubmit="event.preventDefault(); saveComponent();">
                 <input type="hidden" id="ec-id">
-                <div class="form-group">
-                    <label>Nombre (Referencia)</label>
-                    <input type="text" id="ec-nombre" readonly style="background-color: var(--bg); color: var(--text-light); border-color: transparent;">
+                <div class="form-row">
+                    <div class="form-group" style="flex:2;">
+                        <label>Nombre</label>
+                        <input type="text" id="ec-nombre" required>
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Código Interno</label>
+                        <input type="text" id="ec-codigo">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Tipo de Componente</label>
+                        <select id="ec-tipo" required>
+                            <option value="Material">Material</option>
+                            <option value="Motor">Motor</option>
+                            <option value="Accesorio">Accesorio</option>
+                            <option value="Mano_obra">Mano_obra</option>
+                            <option value="Viatico">Viatico</option>
+                            <option value="Reparacion">Reparacion</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Unidad</label>
+                        <select id="ec-unidad" required>
+                            <option value="m2">m2</option>
+                            <option value="ml">ml</option>
+                            <option value="unidad">unidad</option>
+                            <option value="hora">hora</option>
+                            <option value="viaje">viaje</option>
+                            <option value="juego">juego</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -686,11 +728,16 @@
                         </select>
                     </div>
                 </div>
-                <div class="form-row">
+                <div class="form-row" style="align-items:center;">
                     <div class="form-group">
                         <label>Margen Default (%)</label>
                         <input type="number" id="ec-margen" step="0.01" required>
                     </div>
+                    <div class="form-group" style="display:flex; gap:8px; align-items:center; margin-top:20px;">
+                        <input type="checkbox" id="ec-activo" style="width:20px;height:20px;">
+                        <label for="ec-activo" style="margin:0;cursor:pointer;">Activo</label>
+                    </div>
+                </div>
                     <div class="form-group">
                         <label>Proveedor</label>
                         <input type="text" id="ec-proveedor">
