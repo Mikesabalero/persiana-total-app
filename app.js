@@ -916,24 +916,25 @@ function duplicateUnidad(origN) {
     let showRep = (oldTipo == 'Reparacion' || oldTipo == 'Service') ? 'block' : 'none';
     if(document.getElementById('div-u-' + newN + '-tiporep')) document.getElementById('div-u-' + newN + '-tiporep').style.display = showRep;
 
+    _loadingEdit = true;
     let origTbody = document.getElementById('comps-u-' + origN);
     document.getElementById('comps-u-' + newN).innerHTML = '';
 
     let rows = origTbody.querySelectorAll('tr');
     rows.forEach(r => {
-        let selectComp = r.querySelector('.comp-select');
-        let compId = selectComp ? selectComp.value : null;
+        let filterInput = r.querySelector('input.filter-input');
+        let compName = filterInput ? filterInput.value : '';
         let qtyInput = r.querySelector('input[type="number"]');
         let qty = qtyInput ? qtyInput.value : 1;
         let forcedPriceInput = r.cells[5]?.querySelector('input');
         let forcedPrice = forcedPriceInput ? forcedPriceInput.value : null;
         
-        if (compId) {
-            let foundComp = DATA.componentes.find(c => String(c.Id) === String(compId));
+        if (compName) {
+            let foundComp = DATA.componentes.find(c => c.Nombre === compName);
             if (!foundComp) {
                 foundComp = { 
-                    Id: compId, 
-                    Nombre: selectComp.options[selectComp.selectedIndex]?.text || '',
+                    Id: null, 
+                    Nombre: compName,
                     Costo_unitario: 0,
                     Moneda_costo: 'ARS',
                     Margen_default: 0,
