@@ -7,6 +7,8 @@ let DATA = { clientes: [], propiedades: [], zonas: [], componentes: [], producto
 let _loadingEdit = false;
 let unidadCount = 0;
 let editPresId = null;
+let appReady = false;
+
 async function apiGet(tid, params = '') { let r = await fetch(API + '/api/v2/tables/' + tid + '/records?limit=200' + params, { headers: H }); if (!r.ok) return []; let d = await r.json(); return d.list || []; }
 async function apiGetLinks(tid, colId, rowId) { let r = await fetch(API + '/api/v2/tables/' + tid + '/links/' + colId + '/records/' + rowId + '?limit=10', { headers: H }); if (!r.ok) return []; let d = await r.json(); return d.list || []; }
 async function apiPost(tid, body) { let r = await fetch(API + '/api/v2/tables/' + tid + '/records', { method: 'POST', headers: H, body: JSON.stringify(body) }); return r.json(); }
@@ -15,7 +17,7 @@ async function apiDelete(tid, id) { let r = await fetch(API + '/api/v2/tables/' 
 async function apiLink(tid, colId, rowId, linked) { let r = await fetch(API + '/api/v2/tables/' + tid + '/links/' + colId + '/records/' + rowId, { method: 'POST', headers: H, body: JSON.stringify(linked) }); return r.json(); }
 function fmt(n) { if (n == null) return '$0'; return '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
 function badgeHtml(estado) { let c = { 'Borrador': 'borrador', 'Enviado': 'enviado', 'Aprobado': 'aprobado', 'Rechazado': 'rechazado', 'Vencido': 'vencido', 'Facturado': 'facturado' }; return '<span class="badge badge-' + (c[estado] || 'borrador') + '">' + cleanLabel(estado) + '</span>'; }
-function showPage(id, btn) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById('page-' + id).classList.add('active'); document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active')); if (btn) btn.classList.add('active'); if (id === 'dashboard') loadDashboard(); if (id === 'presupuestos') loadPresupuestos(); if (id === 'precios') loadPrecios(); if (id === 'clientes') renderClientes(); if (id === 'propiedades') renderPropiedades(); if (id === 'config') loadConfig(); }
+function showPage(id, btn) { if (!appReady) { alert("Cargando datos, por favor espere..."); return; } document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById('page-' + id).classList.add('active'); document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active')); if (btn) btn.classList.add('active'); if (id === 'dashboard') loadDashboard(); if (id === 'presupuestos') loadPresupuestos(); if (id === 'precios') loadPrecios(); if (id === 'clientes') renderClientes(); if (id === 'propiedades') renderPropiedades(); if (id === 'config') loadConfig(); }
 function showConfigTab(id, btn) { document.querySelectorAll('.config-section').forEach(s => s.style.display = 'none'); document.getElementById('config-' + id).style.display = 'block'; document.querySelectorAll('.config-tab').forEach(t => t.classList.remove('active')); btn.classList.add('active'); }
 function closeModal() { document.getElementById('modal-pres').classList.remove('show'); }
 function closeDetail() { document.getElementById('panel-cliente').classList.remove('open'); }
@@ -96,6 +98,7 @@ async function loadAll() {
     loadDashboard();
     renderPropiedades();
     renderClientDatalist();
+    appReady = true;
 }
 function renderClientDatalist() {
     let dl = document.getElementById('client-datalist');
@@ -1812,13 +1815,20 @@ async function deletePresupuesto(presId) {
 
 loadAll();
 
-window.onclick = function (event) {
-    if (event.target.classList.contains('modal-overlay')) {
-        if (event.target.id === 'modal-pres') closeModal();
-        else if (event.target.id === 'modal-ver-pres') closeVerPres();
-        else if (event.target.id === 'modal-ver-cliente') closeVerCliente();
-        else if (event.target.id === 'modal-cliente') closeModalCliente();
-        else if (event.target.id === 'modal-propiedad') closeModalPropiedad();
+let modalMouseDownTarget = null;
+window.addEventListener('mousedown', function (event) {
+    modalMouseDownTarget = event.target;
+});
+
+window.addEventListener('mouseup', function (event) {
+    if (modalMouseDownTarget === event.target) {
+        if (event.target.classList.contains('modal-overlay')) {
+            if (event.target.id === 'modal-pres') closeModal();
+            else if (event.target.id === 'modal-ver-pres') closeVerPres();
+            else if (event.target.id === 'modal-ver-cliente') closeVerCliente();
+            else if (event.target.id === 'modal-cliente') closeModalCliente();
+            else if (event.target.id === 'modal-propiedad') closeModalPropiedad();
+        }
+        if (event.target.classList.contains('detail-panel')) closeDetail();
     }
-    if (event.target.classList.contains('detail-panel')) closeDetail();
-};
+});
