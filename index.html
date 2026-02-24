@@ -166,6 +166,45 @@
                 </div>
             </div>
             
+            <div class="filters" style="display:flex;gap:12px;align-items:center">
+                <input type="text" id="comp-search" placeholder="Buscar componente..." oninput="filterComp()" style="flex:1;">
+                <select id="comp-filter-tipo" onchange="filterComp()" style="width:200px;">
+                    <option value="Material" selected>Material</option>
+                    <option value="Motor">Motor</option>
+                    <option value="Accesorio">Accesorio</option>
+                    <option value="Mano_obra">Mano_obra</option>
+                    <option value="Viatico">Viatico</option>
+                    <option value="Reparacion">Reparacion</option>
+                    <option value="">Todas</option>
+                </select>
+                <select id="comp-filter-activo" onchange="filterComp()" style="width:150px;">
+                    <option value="all">Todos</option>
+                    <option value="true" selected>Activo</option>
+                    <option value="false">Inactivo</option>
+                </select>
+            </div>
+            <div class="card" style="overflow-x:auto">
+                <table>
+                    <thead>
+                        <tr>
+                            <th onclick="sortCompTable(0)" style="cursor:pointer;">Nombre ↕</th>
+                            <th onclick="sortCompTable(1)" style="cursor:pointer;">Código ↕</th>
+                            <th onclick="sortCompTable(2)" style="cursor:pointer;">Tipo ↕</th>
+                            <th onclick="sortCompTable(3)" class="hide-margin" style="cursor:pointer;">Costo ↕</th>
+                            <th onclick="sortCompTable(4)" class="hide-margin" style="cursor:pointer;">Moneda ↕</th>
+                            <th onclick="sortCompTable(5)" style="cursor:pointer;">Unidad ↕</th>
+                            <th onclick="sortCompTable(6)" class="hide-margin" style="cursor:pointer;">Margen% ↕</th>
+                            <th onclick="sortCompTable(7)" style="cursor:pointer;">Precio ARS ↕</th>
+                            <th onclick="sortCompTable(8)" style="cursor:pointer;">Proveedor ↕</th>
+                            <th onclick="sortCompTable(9)" style="cursor:pointer;">Activo ↕</th>
+                            <th onclick="sortCompTable(10)" style="cursor:pointer;">Últ. Actualización ↕</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="precios-table"></tbody>
+                </table>
+            </div>
+
             <details style="margin-bottom: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px;">
                 <summary style="font-weight: bold; cursor: pointer; color: var(--text);">🚀 Actualización Masiva de Precios</summary>
                 <div style="margin-top: 16px;">
@@ -206,47 +245,6 @@
                     </table>
                 </div>
             </details>
-            <div class="filters" style="display:flex;gap:12px;align-items:center">
-                <input type="text" id="comp-search" placeholder="Buscar componente..." oninput="filterComp()" style="flex:1;">
-                <select id="comp-filter-tipo" onchange="filterComp()" style="width:200px;">
-                    <option value="">Todos los tipos</option>
-                    <option>Material</option>
-                    <option>Herraje</option>
-                    <option>Motor</option>
-                    <option>Accesorio</option>
-                    <option value="Mano_obra">Mano obra</option>
-                    <option>Logistica</option>
-                    <option>Repuesto</option>
-                    <option>Viatico</option>
-                    <option>Reparacion</option>
-                </select>
-                <select id="comp-filter-activo" onchange="filterComp()" style="width:150px;">
-                    <option value="all">Todos</option>
-                    <option value="true" selected>Activo</option>
-                    <option value="false">Inactivo</option>
-                </select>
-            </div>
-            <div class="card" style="overflow-x:auto">
-                <table>
-                    <thead>
-                        <tr>
-                            <th onclick="sortCompTable(0)" style="cursor:pointer;">Nombre ↕</th>
-                            <th onclick="sortCompTable(1)" style="cursor:pointer;">Código ↕</th>
-                            <th onclick="sortCompTable(2)" style="cursor:pointer;">Tipo ↕</th>
-                            <th onclick="sortCompTable(3)" class="hide-margin" style="cursor:pointer;">Costo ↕</th>
-                            <th onclick="sortCompTable(4)" class="hide-margin" style="cursor:pointer;">Moneda ↕</th>
-                            <th onclick="sortCompTable(5)" style="cursor:pointer;">Unidad ↕</th>
-                            <th onclick="sortCompTable(6)" class="hide-margin" style="cursor:pointer;">Margen% ↕</th>
-                            <th onclick="sortCompTable(7)" style="cursor:pointer;">Precio ARS ↕</th>
-                            <th onclick="sortCompTable(8)" style="cursor:pointer;">Proveedor ↕</th>
-                            <th onclick="sortCompTable(9)" style="cursor:pointer;">Activo ↕</th>
-                            <th onclick="sortCompTable(10)" style="cursor:pointer;">Últ. Actualización ↕</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="precios-table"></tbody>
-                </table>
-            </div>
         </div>
         <!-- CLIENTES -->
         <div id="page-clientes" class="page">
