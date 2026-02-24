@@ -1724,14 +1724,21 @@ async function savePres() {
 async function aplicarAumento() {
     let pctVal = document.getElementById('aumento-pct').value;
     let cat = document.getElementById('aumento-cat').value;
+    let monedaEl = document.getElementById('aumento-moneda');
+    let moneda = monedaEl ? monedaEl.value : '';
     if (!pctVal) { alert('Ingresá un porcentaje'); return; }
     let pct = parseFloat(pctVal);
     if (pct === 0) return;
-    if (!confirm('¿Estás seguro de aumentar ' + pct + '% a ' + cleanLabel(cat) + '?')) return;
+    
+    let msgConfirm = '¿Estás seguro de aumentar ' + pct + '% a ' + cleanLabel(cat);
+    if (moneda) msgConfirm += ' (' + moneda + ')';
+    msgConfirm += '?';
+    if (!confirm(msgConfirm)) return;
 
     let toUpdate = DATA.componentes.filter(c => {
-        if (cat === 'Todos') return true;
-        return c.Tipo_componente === cat;
+        let matchCat = (cat === 'Todos' || c.Tipo_componente === cat);
+        let matchMoneda = (!moneda || c.Moneda_costo === moneda);
+        return matchCat && matchMoneda;
     });
     if (toUpdate.length === 0) { alert('No hay componentes para actualizar'); return; }
 
