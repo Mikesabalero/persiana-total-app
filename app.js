@@ -654,17 +654,34 @@ function loadConfig() {
     let zt = document.getElementById('cfg-zonas-table');
     zt.innerHTML = '';
     DATA.zonas.forEach(z => {
-        zt.innerHTML += '<tr><td><strong>' + cleanLabel(z.Nombre) + '</strong></td><td>' + fmt(z.Costo_viatico) + '</td><td>' + fmt(z.Costo_transporte) + '</td><td>' + fmt(z.Costo_traslado_service) + '</td></tr>';
+        let zData = JSON.stringify(z).replace(/"/g, '&quot;');
+        let actionBtn = `<div style="display:flex;gap:4px">
+            <button class="btn-remove" onclick="openModalZona(${zData})" title="Editar" style="background:#f3f4f6;color:var(--text)">✏️</button>
+            <button class="btn-remove" onclick="deleteZona(${z.Id || z.id}, '${cleanLabel(z.Nombre).replace(/'/g, "\\'")}')" title="Eliminar" style="color:var(--danger)">🗑</button>
+        </div>`;
+        let activoIcon = (z.Activo === false || z.Activo === 'false' || z.Activo === 0) ? '❌' : '✅';
+        zt.innerHTML += '<tr><td><strong>' + cleanLabel(z.Nombre) + '</strong></td><td>' + fmt(z.Costo_viatico) + '</td><td>' + fmt(z.Costo_transporte) + '</td><td>' + fmt(z.Costo_traslado_service) + '</td><td>' + (z.Tiempo_viaje_hs || 0) + '</td><td>' + activoIcon + '</td><td>' + actionBtn + '</td></tr>';
     });
     let pt = document.getElementById('cfg-pagos-table');
     pt.innerHTML = '';
     DATA.formas_pago.forEach(f => {
-        pt.innerHTML += '<tr><td><strong>' + cleanLabel(f.Nombre) + '</strong></td><td>' + (f.Recargo_pct || 0) + '%</td><td>' + (f.Descuento_pct || 0) + '%</td><td>' + (f.Plazo_dias || 0) + '</td><td>' + (f.Activo ? 'Si' : 'No') + '</td></tr>';
+        let fData = JSON.stringify(f).replace(/"/g, '&quot;');
+        let actionBtn = `<div style="display:flex;gap:4px">
+            <button class="btn-remove" onclick="openModalPago(${fData})" title="Editar" style="background:#f3f4f6;color:var(--text)">✏️</button>
+            <button class="btn-remove" onclick="deletePago(${f.Id || f.id}, '${cleanLabel(f.Nombre).replace(/'/g, "\\'")}')" title="Eliminar" style="color:var(--danger)">🗑</button>
+        </div>`;
+        let activoIcon = (f.Activo === false || f.Activo === 'false' || f.Activo === 0) ? '❌' : '✅';
+        pt.innerHTML += '<tr><td><strong>' + cleanLabel(f.Nombre) + '</strong></td><td>' + (f.Recargo_pct || 0) + '%</td><td>' + (f.Descuento_pct || 0) + '%</td><td>' + (f.Plazo_dias || 0) + '</td><td>' + activoIcon + '</td><td>' + actionBtn + '</td></tr>';
     });
     let at = document.getElementById('cfg-anchos-table');
     at.innerHTML = '';
     DATA.anchos.forEach(a => {
-        at.innerHTML += '<tr><td>' + a.Ancho_solicitado_hasta + '</td><td>' + a.Ancho_real_pano + '</td><td>' + (a.Notas || '-') + '</td></tr>';
+        let aData = JSON.stringify(a).replace(/"/g, '&quot;');
+        let actionBtn = `<div style="display:flex;gap:4px">
+            <button class="btn-remove" onclick="openModalAncho(${aData})" title="Editar" style="background:#f3f4f6;color:var(--text)">✏️</button>
+            <button class="btn-remove" onclick="deleteAncho(${a.Id || a.id}, '${(a.Ancho_solicitado_hasta || '')}')" title="Eliminar" style="color:var(--danger)">🗑</button>
+        </div>`;
+        at.innerHTML += '<tr><td>' + a.Ancho_solicitado_hasta + '</td><td>' + a.Ancho_real_pano + '</td><td>' + (a.Notas || '-') + '</td><td>' + actionBtn + '</td></tr>';
     });
 }
 function loadConfigEmpresa() {
@@ -702,6 +719,149 @@ async function saveConfigEmpresa() {
         console.error(e);
         alert('Error guardando configuración: ' + e.message);
     }
+}
+
+// ================= ZONAS CRUD =================
+function openModalZona(zona = null) {
+    document.getElementById('mz-id').value = zona ? zona.Id || zona.id : '';
+    document.getElementById('mz-nombre').value = zona ? zona.Nombre || '' : '';
+    document.getElementById('mz-viatico').value = zona ? zona.Costo_viatico || 0 : '';
+    document.getElementById('mz-transporte').value = zona ? zona.Costo_transporte || 0 : '';
+    document.getElementById('mz-traslado').value = zona ? zona.Costo_traslado_service || 0 : '';
+    document.getElementById('mz-tiempo').value = zona ? zona.Tiempo_viaje_hs || 0 : '';
+    document.getElementById('mz-notas').value = zona ? zona.Notas || '' : '';
+    document.getElementById('mz-activo').checked = zona ? (zona.Activo !== false && zona.Activo !== 'false' && zona.Activo !== 0) : true;
+    document.getElementById('mz-title').textContent = zona ? 'Editar Zona' : 'Nueva Zona';
+    document.getElementById('modal-zona').classList.add('show');
+}
+function closeModalZona() { document.getElementById('modal-zona').classList.remove('show'); }
+async function saveZona() {
+    let id = document.getElementById('mz-id').value;
+    let data = {
+        Nombre: document.getElementById('mz-nombre').value,
+        Costo_viatico: parseFloat(document.getElementById('mz-viatico').value) || 0,
+        Costo_transporte: parseFloat(document.getElementById('mz-transporte').value) || 0,
+        Costo_traslado_service: parseFloat(document.getElementById('mz-traslado').value) || 0,
+        Tiempo_viaje_hs: parseFloat(document.getElementById('mz-tiempo').value) || 0,
+        Notas: document.getElementById('mz-notas').value,
+        Activo: document.getElementById('mz-activo').checked
+    };
+    try {
+        if (id) {
+            data.Id = parseInt(id);
+            await apiPatch(TBL.zonas, data);
+            let idx = DATA.zonas.findIndex(z => (z.Id || z.id) == id);
+            if (idx >= 0) Object.assign(DATA.zonas[idx], data);
+        } else {
+            let res = await apiPost(TBL.zonas, [data]);
+            data.Id = res[0].Id;
+            DATA.zonas.push(data);
+        }
+        closeModalZona();
+        loadConfig();
+        if (typeof renderPresupuestosOptions === 'function') renderPresupuestosOptions();
+    } catch (e) { console.error(e); alert('Error al guardar: ' + e.message); }
+}
+async function deleteZona(id, nombre) {
+    if (!confirm('¿Seguro que querés eliminar la zona: ' + nombre + '?')) return;
+    try {
+        await apiDelete(TBL.zonas, id);
+        DATA.zonas = DATA.zonas.filter(z => (z.Id || z.id) != id);
+        loadConfig();
+        if (typeof renderPresupuestosOptions === 'function') renderPresupuestosOptions();
+    } catch (e) { console.error(e); alert('Error al eliminar: ' + e.message); }
+}
+
+// ================= FORMAS DE PAGO CRUD =================
+function openModalPago(pago = null) {
+    document.getElementById('mpg-id').value = pago ? pago.Id || pago.id : '';
+    document.getElementById('mpg-nombre').value = pago ? pago.Nombre || '' : '';
+    document.getElementById('mpg-recargo').value = pago ? pago.Recargo_pct || 0 : '';
+    document.getElementById('mpg-descuento').value = pago ? pago.Descuento_pct || 0 : '';
+    document.getElementById('mpg-plazo').value = pago ? pago.Plazo_dias || 0 : '';
+    document.getElementById('mpg-descripcion').value = pago ? pago.Descripcion || '' : '';
+    document.getElementById('mpg-notas').value = pago ? pago.Notas || '' : '';
+    document.getElementById('mpg-activo').checked = pago ? (pago.Activo !== false && pago.Activo !== 'false' && pago.Activo !== 0) : true;
+    document.getElementById('mpg-title').textContent = pago ? 'Editar Forma de Pago' : 'Nueva Forma de Pago';
+    document.getElementById('modal-pago').classList.add('show');
+}
+function closeModalPago() { document.getElementById('modal-pago').classList.remove('show'); }
+async function savePago() {
+    let id = document.getElementById('mpg-id').value;
+    let data = {
+        Nombre: document.getElementById('mpg-nombre').value,
+        Recargo_pct: parseFloat(document.getElementById('mpg-recargo').value) || 0,
+        Descuento_pct: parseFloat(document.getElementById('mpg-descuento').value) || 0,
+        Plazo_dias: parseInt(document.getElementById('mpg-plazo').value) || 0,
+        Descripcion: document.getElementById('mpg-descripcion').value,
+        Notas: document.getElementById('mpg-notas').value,
+        Activo: document.getElementById('mpg-activo').checked
+    };
+    try {
+        if (id) {
+            data.Id = parseInt(id);
+            await apiPatch(TBL.formas_pago, data);
+            let idx = DATA.formas_pago.findIndex(p => (p.Id || p.id) == id);
+            if (idx >= 0) Object.assign(DATA.formas_pago[idx], data);
+        } else {
+            let res = await apiPost(TBL.formas_pago, [data]);
+            data.Id = res[0].Id;
+            DATA.formas_pago.push(data);
+        }
+        closeModalPago();
+        loadConfig();
+        if (typeof renderPresupuestosOptions === 'function') renderPresupuestosOptions();
+    } catch (e) { console.error(e); alert('Error al guardar: ' + e.message); }
+}
+async function deletePago(id, nombre) {
+    if (!confirm('¿Seguro que querés eliminar la forma de pago: ' + nombre + '?')) return;
+    try {
+        await apiDelete(TBL.formas_pago, id);
+        DATA.formas_pago = DATA.formas_pago.filter(p => (p.Id || p.id) != id);
+        loadConfig();
+        if (typeof renderPresupuestosOptions === 'function') renderPresupuestosOptions();
+    } catch (e) { console.error(e); alert('Error al eliminar: ' + e.message); }
+}
+
+// ================= ANCHOS PVC CRUD =================
+function openModalAncho(ancho = null) {
+    document.getElementById('ma-id').value = ancho ? ancho.Id || ancho.id : '';
+    document.getElementById('ma-solicitado').value = ancho ? ancho.Ancho_solicitado_hasta || '' : '';
+    document.getElementById('ma-real').value = ancho ? ancho.Ancho_real_pano || '' : '';
+    document.getElementById('ma-notas').value = ancho ? ancho.Notas || '' : '';
+    document.getElementById('ma-title').textContent = ancho ? 'Editar Ancho PVC' : 'Nuevo Ancho PVC';
+    document.getElementById('modal-ancho').classList.add('show');
+}
+function closeModalAncho() { document.getElementById('modal-ancho').classList.remove('show'); }
+async function saveAncho() {
+    let id = document.getElementById('ma-id').value;
+    let data = {
+        Ancho_solicitado_hasta: parseFloat(document.getElementById('ma-solicitado').value) || 0,
+        Ancho_real_pano: parseFloat(document.getElementById('ma-real').value) || 0,
+        Notas: document.getElementById('ma-notas').value
+    };
+    try {
+        if (id) {
+            data.Id = parseInt(id);
+            await apiPatch(TBL.anchos, data);
+            let idx = DATA.anchos.findIndex(a => (a.Id || a.id) == id);
+            if (idx >= 0) Object.assign(DATA.anchos[idx], data);
+        } else {
+            let res = await apiPost(TBL.anchos, [data]);
+            data.Id = res[0].Id;
+            DATA.anchos.push(data);
+        }
+        closeModalAncho();
+        loadConfig();
+    } catch (e) { console.error(e); alert('Error al guardar: ' + e.message); }
+}
+async function deleteAncho(id, anchoSol) {
+    if (!confirm('¿Seguro que querés eliminar el ancho hasta: ' + anchoSol + ' ?')) return;
+    try {
+        await apiDelete(TBL.anchos, id);
+        DATA.anchos = DATA.anchos.filter(a => (a.Id || a.id) != id);
+        loadConfig();
+    } catch (e) { console.error(e); alert('Error al eliminar: ' + e.message); }
 }
 
 function updatePropiedadesSelect() {

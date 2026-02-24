@@ -349,7 +349,10 @@
             </div>
             <div id="config-zonas" class="config-section" style="display:none">
                 <div class="card">
-                    <h2 style="margin-bottom:16px">Zonas de Logística</h2>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                        <h2 style="margin:0">Zonas de Logística</h2>
+                        <button class="btn btn-sm btn-primary" onclick="openModalZona()">+ Nueva Zona</button>
+                    </div>
                     <table>
                         <thead>
                             <tr>
@@ -357,6 +360,9 @@
                                 <th>Viáticos $</th>
                                 <th>Transporte $</th>
                                 <th>Traslado Serv. $</th>
+                                <th>Tiempo viaje hs</th>
+                                <th>Activo</th>
+                                <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="cfg-zonas-table"></tbody>
@@ -365,7 +371,10 @@
             </div>
             <div id="config-pagos" class="config-section" style="display:none">
                 <div class="card">
-                    <h2 style="margin-bottom:16px">Formas de Pago</h2>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                        <h2 style="margin:0">Formas de Pago</h2>
+                        <button class="btn btn-sm btn-primary" onclick="openModalPago()">+ Nueva Forma de Pago</button>
+                    </div>
                     <table>
                         <thead>
                             <tr>
@@ -374,6 +383,7 @@
                                 <th>Descuento %</th>
                                 <th>Plazo días</th>
                                 <th>Activo</th>
+                                <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="cfg-pagos-table"></tbody>
@@ -382,13 +392,17 @@
             </div>
             <div id="config-anchos" class="config-section" style="display:none">
                 <div class="card">
-                    <h2 style="margin-bottom:16px">Anchos Estándar PVC</h2>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                        <h2 style="margin:0">Anchos Estándar PVC</h2>
+                        <button class="btn btn-sm btn-primary" onclick="openModalAncho()">+ Nuevo Ancho</button>
+                    </div>
                     <table>
                         <thead>
                             <tr>
                                 <th>Ancho solicitado hasta (m)</th>
                                 <th>Ancho real paño (m)</th>
                                 <th>Notas</th>
+                                <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="cfg-anchos-table"></tbody>
@@ -397,6 +411,106 @@
             </div>
         </div>
     </main>
+    <!-- MODAL ZONA -->
+    <div class="modal-overlay" id="modal-zona">
+        <div class="modal" style="max-width: 600px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 24px;">
+                <h2 id="mz-title" style="margin:0">Nueva Zona</h2>
+                <button class="btn-remove" onclick="closeModalZona()" style="font-size: 1.5em; background:none; border:none; cursor:pointer; color:var(--text-light)">✕</button>
+            </div>
+            <form id="form-zona" onsubmit="event.preventDefault(); saveZona();">
+                <input type="hidden" id="mz-id">
+                <div class="form-group">
+                    <label>Nombre *</label>
+                    <input type="text" id="mz-nombre" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Viáticos $</label><input type="number" id="mz-viatico" step="0.01"></div>
+                    <div class="form-group"><label>Transporte $</label><input type="number" id="mz-transporte" step="0.01"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Traslado Serv. $</label><input type="number" id="mz-traslado" step="0.01"></div>
+                    <div class="form-group"><label>Tiempo viaje (hs)</label><input type="number" id="mz-tiempo" step="0.1"></div>
+                </div>
+                <div class="form-group">
+                    <label>Notas</label>
+                    <textarea id="mz-notas" rows="2" style="width:100%; border:1px solid var(--border); border-radius:4px; padding:8px;"></textarea>
+                </div>
+                <div class="form-group" style="flex-direction:row; align-items:center; gap:8px">
+                    <input type="checkbox" id="mz-activo" checked style="width:auto">
+                    <label for="mz-activo" style="margin:0">Activo</label>
+                </div>
+                <div style="display:flex; gap:12px; justify-content:flex-end; margin-top: 24px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModalZona()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Zona</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL FORMA DE PAGO -->
+    <div class="modal-overlay" id="modal-pago">
+        <div class="modal" style="max-width: 600px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 24px;">
+                <h2 id="mpg-title" style="margin:0">Nueva Forma de Pago</h2>
+                <button class="btn-remove" onclick="closeModalPago()" style="font-size: 1.5em; background:none; border:none; cursor:pointer; color:var(--text-light)">✕</button>
+            </div>
+            <form id="form-pago" onsubmit="event.preventDefault(); savePago();">
+                <input type="hidden" id="mpg-id">
+                <div class="form-group">
+                    <label>Nombre *</label>
+                    <input type="text" id="mpg-nombre" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Recargo %</label><input type="number" id="mpg-recargo" step="0.01"></div>
+                    <div class="form-group"><label>Descuento %</label><input type="number" id="mpg-descuento" step="0.01"></div>
+                    <div class="form-group"><label>Plazo días</label><input type="number" id="mpg-plazo"></div>
+                </div>
+                <div class="form-group">
+                    <label>Descripción</label>
+                    <textarea id="mpg-descripcion" rows="2" style="width:100%; border:1px solid var(--border); border-radius:4px; padding:8px;"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Notas</label>
+                    <textarea id="mpg-notas" rows="2" style="width:100%; border:1px solid var(--border); border-radius:4px; padding:8px;"></textarea>
+                </div>
+                <div class="form-group" style="flex-direction:row; align-items:center; gap:8px">
+                    <input type="checkbox" id="mpg-activo" checked style="width:auto">
+                    <label for="mpg-activo" style="margin:0">Activo</label>
+                </div>
+                <div style="display:flex; gap:12px; justify-content:flex-end; margin-top: 24px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModalPago()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Forma de Pago</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL ANCHO PVC -->
+    <div class="modal-overlay" id="modal-ancho">
+        <div class="modal" style="max-width: 600px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 24px;">
+                <h2 id="ma-title" style="margin:0">Nuevo Ancho PVC</h2>
+                <button class="btn-remove" onclick="closeModalAncho()" style="font-size: 1.5em; background:none; border:none; cursor:pointer; color:var(--text-light)">✕</button>
+            </div>
+            <form id="form-ancho" onsubmit="event.preventDefault(); saveAncho();">
+                <input type="hidden" id="ma-id">
+                <div class="form-row">
+                    <div class="form-group"><label>Ancho solicitado hasta (m) *</label><input type="number" id="ma-solicitado" step="0.01" required></div>
+                    <div class="form-group"><label>Ancho real paño (m) *</label><input type="number" id="ma-real" step="0.01" required></div>
+                </div>
+                <div class="form-group">
+                    <label>Notas</label>
+                    <input type="text" id="ma-notas">
+                </div>
+                <div style="display:flex; gap:12px; justify-content:flex-end; margin-top: 24px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModalAncho()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Ancho PVC</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- MODAL CLIENTE -->
     <div class="modal-overlay" id="modal-cliente">
         <div class="modal" style="max-width: 600px;">
