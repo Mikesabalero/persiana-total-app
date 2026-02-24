@@ -2054,30 +2054,29 @@ async function generarPDF(presId) {
         let diasValidez = DATA.tc.Validez_dias || 15;
         let venc = new Date(new Date(pres.Fecha).getTime() + diasValidez * 24 * 60 * 60 * 1000).toLocaleDateString();
         let html = `
-            <div id="pdf-content" style="width: 800px; margin: 0 auto; font-family: 'Segoe UI', Arial, sans-serif; min-height: 100%; display: flex; flex-direction: column;">
-                <div class="pdf-header" style="margin: 0; padding-top: 0;">
-                    <div class="pdf-logo"><img src="logo-pdf.png" alt="Persiana Total" style="max-width: 300px;"></div>
-                    <div class="pdf-company-info">
-                        <h3>PRESUPUESTO #${pres.Numero || '-'}</h3>
-                        <p>Tel: ${DATA.tc.Empresa_telefono || ''}</p>
-                        <p>WhatsApp: ${DATA.tc.Empresa_whatsapp || ''}</p>
-                        <p>${DATA.tc.Empresa_email || ''}</p>
-                        <p>${DATA.tc.Empresa_web || ''}</p>
+            <div id="pdf-content" style="width: 800px; margin: 0 auto; font-family: 'Segoe UI', Arial, sans-serif; color: #1f2937;">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 15px; border-bottom: 2px solid #e5e7eb; margin-bottom: 15px;">
+                    <div><img src="logo-pdf.png" alt="Persiana Total" style="max-width: 300px;"></div>
+                    <div style="text-align: right; font-size: 0.85em; color: #4b5563;">
+                        <h3 style="margin: 0 0 5px 0;">PRESUPUESTO #${pres.Numero || '-'}</h3>
+                        <p style="margin: 2px 0;">Tel: ${DATA.tc.Empresa_telefono || ''}</p>
+                        <p style="margin: 2px 0;">WhatsApp: ${DATA.tc.Empresa_whatsapp || ''}</p>
+                        <p style="margin: 2px 0;">${DATA.tc.Empresa_email || ''}</p>
+                        <p style="margin: 2px 0;">${DATA.tc.Empresa_web || ''}</p>
                     </div>
                 </div>
-                <div class="pdf-body">
-                <div class="pdf-title-row">
-                    <div class="pdf-meta">
-                        <p>Fecha: ${fecha}</p>
-                        <p>Válido hasta: ${venc}</p>
-                        <p>Estado: ${badgeHtml(pres.Estado)}</p>
+                <div style="display: flex; justify-content: space-between; background: #f3f4f6; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
+                    <div style="font-size: 0.9em;">
+                        <p style="margin: 3px 0;">Fecha: ${fecha}</p>
+                        <p style="margin: 3px 0;">Válido hasta: ${venc}</p>
+                        <p style="margin: 3px 0;">Estado: ${badgeHtml(pres.Estado)}</p>
                     </div>
-                    <div class="pdf-meta" style="text-align:right">
-                        <h3>CLIENTE</h3>
-                        <p><strong>${cleanLabel(client.Nombre) || '-'}</strong></p>
-                        <p>${client.Telefono || ''}</p>
-                        <p>${res.propDir || ''}</p>
-                        <p>${zona.Nombre ? 'Zona: ' + cleanLabel(zona.Nombre) : ''}</p>
+                    <div style="text-align: right;">
+                        <h3 style="margin: 0 0 5px 0; font-size: 1em; color: #374151;">CLIENTE</h3>
+                        <p style="margin: 3px 0;"><strong>${cleanLabel(client.Nombre) || '-'}</strong></p>
+                        <p style="margin: 3px 0;">${client.Telefono || ''}</p>
+                        <p style="margin: 3px 0;">${res.propDir || ''}</p>
+                        <p style="margin: 3px 0;">${zona.Nombre ? 'Zona: ' + cleanLabel(zona.Nombre) : ''}</p>
                     </div>
                 </div>
         `;
@@ -2097,8 +2096,8 @@ async function generarPDF(presId) {
             let measures = (u.Ancho_m && u.Alto_m) ? ` (${u.Ancho_m}m x ${u.Alto_m}m)` : '';
 
             html += `
-                <div class="pdf-unit" style="margin-bottom: 25px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
-                    <div class="pdf-unit-header" style="background: #f3f4f6; padding: 10px; border-radius: 4px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="margin-bottom: 25px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
+                    <div style="background: #f3f4f6; padding: 10px; border-radius: 4px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-weight: bold; font-size: 1.1em; color: #1f2937;">${cleanLabel(u.Nombre)} - ${cleanLabel(u.Ubicacion) || ''}${measures}</span>
                         <span style="color: #4b5563; font-weight: normal;">${cleanLabel(u.Tipo_trabajo) || ''}</span>
                     </div>
@@ -2150,31 +2149,28 @@ async function generarPDF(presId) {
         }
         let total = pres.Total_con_IVA || 0;
 
-        html += `</div>
-                <div class="pdf-footer-section" style="margin-top: auto;">
-                <div class="pdf-totals" style="margin-top: 30px;">
-                    <div class="pdf-totals-box" style="background: #f9fafb; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb; margin-left: auto; width: fit-content; min-width: 250px;">`;
+        html += `<div style="margin-top: 30px; margin-left: auto; width: fit-content; min-width: 280px; background: #f9fafb; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb;">`;
 
         if (billingMode === 'con_iva') {
             html += `
-                <div class="pdf-total-row final" style="display: flex; justify-content: space-between; font-size: 1.4em; font-weight: bold; color: #111; margin-bottom: 5px;"><span>TOTAL:</span> <span>${fmt(total)}</span></div>
-                <div class="pdf-total-row info" style="font-size: 0.8em; color: #6b7280; text-align: right; margin-bottom: 15px;">Precios con IVA incluido</div>
+                <div style="display: flex; justify-content: space-between; font-size: 1.4em; font-weight: bold; color: #111; margin-bottom: 5px;"><span>TOTAL:</span> <span>${fmt(total)}</span></div>
+                <div style="font-size: 0.8em; color: #6b7280; text-align: right; margin-bottom: 15px;">Precios con IVA incluido</div>
             `;
         } else {
             html += `
-                <div class="pdf-total-row final" style="display: flex; justify-content: space-between; font-size: 1.4em; font-weight: bold; color: #111;"><span>TOTAL:</span> <span>${fmt(total)}</span></div>
+                <div style="display: flex; justify-content: space-between; font-size: 1.4em; font-weight: bold; color: #111;"><span>TOTAL:</span> <span>${fmt(total)}</span></div>
             `;
         }
 
         html += `
-                    <div class="pdf-total-row" style="margin-top:20px; font-size:0.8em; color:#6b7280; border-top: 1px solid #e5e7eb; padding-top: 10px;">
+                    <div style="margin-top: 10px; font-size: 0.85em; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 10px;">
                         Condición de pago: ${cleanLabel(pago)}
                     </div>
                 </div>
-            </div>
-            <img src="footer-pdf.png" style="width: 100%; margin-top: 20px; display: block;">
-            </div>
-        </div>`;
+                <div style="margin-top: 30px;">
+                    <img src="footer-pdf.png" style="width: 100%; display: block;">
+                </div>
+            </div>`;
         let container = document.getElementById('pdf-content');
         if (!container) { alert('Error: Contenedor PDF no encontrado'); return; }
         container.innerHTML = html;
