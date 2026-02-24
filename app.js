@@ -1758,7 +1758,6 @@ async function aplicarAumento() {
 
     let toUpdate = DATA.componentes.filter(c => {
         if (mode === 'proveedor') return (c.Proveedor || '').trim() === selVal;
-        if (mode === 'moneda') return c.Moneda_costo === selVal;
         if (mode === 'categoria') return c.Tipo_componente === selVal;
         return false;
     });
@@ -1817,9 +1816,6 @@ function toggleAumentoModo() {
         } else {
             provs.forEach(p => { select.innerHTML += `<option value="${p}">${p}</option>`; });
         }
-    } else if (mode === 'moneda') {
-        label.textContent = 'Moneda';
-        select.innerHTML = '<option value="ARS">Solo ARS</option><option value="USD">Solo USD</option>';
     } else if (mode === 'categoria') {
         label.textContent = 'Tipo de Componente';
         let cats = ['Material', 'Motor', 'Accesorio', 'Mano_obra', 'Viatico', 'Reparacion'];
