@@ -2168,13 +2168,13 @@ async function generarPDF(presId) {
                     </div>
                 </div>
                 <div style="margin-top: 8px;">
-                    <img src="footer-pdf.png" style="width: 90%; margin: 10px auto 0 auto; display: block;">
+                    <img src="footer-pdf.png" style="width: 100%; margin: 0; padding: 0; display: block;">
                 </div>
             </div>`;
         let container = document.getElementById('pdf-content');
         if (!container) { alert('Error: Contenedor PDF no encontrado'); return; }
         container.innerHTML = html;
-        let opt = { margin: [5, 10, 10, 10], filename: `Presupuesto_${pres.Numero}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+        let opt = { margin: [5, 10, 0, 10], filename: `Presupuesto_${pres.Numero}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
         html2pdf().from(container.firstElementChild).set(opt).save();
     } catch (e) { console.error(e); alert('Error generando PDF: ' + e.message); }
 }
