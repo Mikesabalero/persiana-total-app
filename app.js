@@ -660,7 +660,9 @@ function loadConfig() {
             <button class="btn-remove" onclick="deleteZona(${z.Id || z.id}, '${cleanLabel(z.Nombre).replace(/'/g, "\\'")}')" title="Eliminar" style="color:var(--danger)">🗑</button>
         </div>`;
         let activoIcon = (z.Activo === false || z.Activo === 'false' || z.Activo === 0) ? '❌' : '✅';
-        zt.innerHTML += '<tr><td><strong>' + cleanLabel(z.Nombre) + '</strong></td><td>' + fmt(z.Costo_viatico) + '</td><td>' + fmt(z.Costo_transporte) + '</td><td>' + fmt(z.Costo_traslado_service) + '</td><td>' + (z.Tiempo_viaje_hs || 0) + '</td><td>' + activoIcon + '</td><td>' + actionBtn + '</td></tr>';
+        let latlon = (z.Lat_centro && z.Lon_centro) ? z.Lat_centro.toFixed(3) + ', ' + z.Lon_centro.toFixed(3) : '-';
+        let radio = z.Radio_km ? z.Radio_km + ' km' : '-';
+        zt.innerHTML += '<tr><td><strong>' + cleanLabel(z.Nombre) + '</strong></td><td>' + fmt(z.Costo_viatico) + '</td><td>' + fmt(z.Costo_transporte) + '</td><td>' + fmt(z.Costo_traslado_service) + '</td><td style="font-size:0.8em">' + latlon + '</td><td>' + radio + '</td><td>' + activoIcon + '</td><td>' + actionBtn + '</td></tr>';
     });
     let pt = document.getElementById('cfg-pagos-table');
     pt.innerHTML = '';
@@ -729,6 +731,9 @@ function openModalZona(zona = null) {
     document.getElementById('mz-transporte').value = zona ? zona.Costo_transporte || 0 : '';
     document.getElementById('mz-traslado').value = zona ? zona.Costo_traslado_service || 0 : '';
     document.getElementById('mz-tiempo').value = zona ? zona.Tiempo_viaje_hs || 0 : '';
+    document.getElementById('mz-lat').value = zona ? zona.Lat_centro || '' : '';
+    document.getElementById('mz-lon').value = zona ? zona.Lon_centro || '' : '';
+    document.getElementById('mz-radio').value = zona ? zona.Radio_km || '' : '';
     document.getElementById('mz-notas').value = zona ? zona.Notas || '' : '';
     document.getElementById('mz-activo').checked = zona ? (zona.Activo !== false && zona.Activo !== 'false' && zona.Activo !== 0) : true;
     document.getElementById('mz-title').textContent = zona ? 'Editar Zona' : 'Nueva Zona';
@@ -743,6 +748,9 @@ async function saveZona() {
         Costo_transporte: parseFloat(document.getElementById('mz-transporte').value) || 0,
         Costo_traslado_service: parseFloat(document.getElementById('mz-traslado').value) || 0,
         Tiempo_viaje_hs: parseFloat(document.getElementById('mz-tiempo').value) || 0,
+        Lat_centro: parseFloat(document.getElementById('mz-lat').value) || null,
+        Lon_centro: parseFloat(document.getElementById('mz-lon').value) || null,
+        Radio_km: parseFloat(document.getElementById('mz-radio').value) || null,
         Notas: document.getElementById('mz-notas').value,
         Activo: document.getElementById('mz-activo').checked
     };
@@ -770,6 +778,57 @@ async function deleteZona(id, nombre) {
         loadConfig();
         if (typeof renderPresupuestosOptions === 'function') renderPresupuestosOptions();
     } catch (e) { console.error(e); alert('Error al eliminar: ' + e.message); }
+}
+
+// ================= GEOCODIFICACIÓN =================
+let _lastGeoTime = 0;
+async function geocodificarDireccion(direccion, localidad) {
+    try {
+        let now = Date.now();
+        let wait = 1000 - (now - _lastGeoTime);
+        if (wait > 0) await new Promise(r => setTimeout(r, wait));
+        _lastGeoTime = Date.now();
+        let q = encodeURIComponent(`${direccion}, ${localidad}, Santa Fe, Argentina`);
+        let resp = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`, {
+            headers: { 'User-Agent': 'PersianaTotal-ERP/1.0' }
+        });
+        let data = await resp.json();
+        if (data && data.length > 0) return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+        return null;
+    } catch (e) { console.error('Geocodificación error:', e); return null; }
+}
+
+function _haversineKm(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function asignarZonaAutomatica(lat, lon) {
+    let bestZona = null, bestDist = Infinity;
+    for (let z of DATA.zonas) {
+        if (z.Activo === false || z.Activo === 'false' || z.Activo === 0) continue;
+        if (!z.Lat_centro || !z.Lon_centro) continue;
+        let dist = _haversineKm(lat, lon, z.Lat_centro, z.Lon_centro);
+        if (z.Radio_km && z.Radio_km > 0) {
+            if (dist <= z.Radio_km && dist < bestDist) { bestDist = dist; bestZona = z; }
+        } else {
+            if (dist < bestDist) { bestDist = dist; bestZona = z; }
+        }
+    }
+    if (!bestZona) {
+        let fallback = null, fallbackDist = Infinity;
+        for (let z of DATA.zonas) {
+            if (z.Activo === false || z.Activo === 'false' || z.Activo === 0) continue;
+            if (!z.Lat_centro || !z.Lon_centro) continue;
+            let dist = _haversineKm(lat, lon, z.Lat_centro, z.Lon_centro);
+            if (dist < fallbackDist) { fallbackDist = dist; fallback = z; }
+        }
+        bestZona = fallback;
+    }
+    return bestZona;
 }
 
 // ================= FORMAS DE PAGO CRUD =================
@@ -896,8 +955,9 @@ function loadPropiedadesSelect(presData) {
     }
 }
 
-function updateZonaFromProp(propId) {
+async function updateZonaFromProp(propId) {
     let zonaSelect = document.getElementById('np-zona');
+    let autoBtn = document.getElementById('btn-autozona');
     if (!propId) {
         if (zonaSelect) zonaSelect.disabled = false;
         return;
@@ -907,13 +967,53 @@ function updateZonaFromProp(propId) {
         if (zonaSelect) zonaSelect.disabled = false;
         return;
     }
+    // First try exact name match
     let zone = DATA.zonas.find(z => z.Nombre === prop.Localidad);
     if (zone && zonaSelect) {
         zonaSelect.value = zone.Id;
         zonaSelect.disabled = true;
-    } else if (zonaSelect) {
-        zonaSelect.disabled = false;
+        return;
     }
+    // Try geocoding
+    if (prop.Direccion && prop.Localidad) {
+        if (autoBtn) { autoBtn.textContent = '⏳ Detectando...'; autoBtn.disabled = true; }
+        let coords = await geocodificarDireccion(prop.Direccion, prop.Localidad);
+        if (coords) {
+            let autoZona = asignarZonaAutomatica(coords.lat, coords.lon);
+            if (autoZona && zonaSelect) {
+                zonaSelect.value = autoZona.Id || autoZona.id;
+                zonaSelect.disabled = false;
+            }
+        }
+        if (autoBtn) { autoBtn.textContent = '📍 Auto-detectar zona'; autoBtn.disabled = false; }
+    }
+    if (zonaSelect) zonaSelect.disabled = false;
+}
+
+async function autoDetectarZona() {
+    let propId = document.getElementById('np-propiedad')?.value;
+    let prop = propId ? DATA.propiedades.find(p => p.Id == propId) : null;
+    let autoBtn = document.getElementById('btn-autozona');
+    if (!prop || !prop.Direccion || !prop.Localidad) {
+        alert('Seleccioná una propiedad con dirección y localidad primero.');
+        return;
+    }
+    if (autoBtn) { autoBtn.textContent = '⏳ Detectando...'; autoBtn.disabled = true; }
+    let coords = await geocodificarDireccion(prop.Direccion, prop.Localidad);
+    if (!coords) {
+        alert('No se pudo geocodificar la dirección. Seleccioná la zona manualmente.');
+        if (autoBtn) { autoBtn.textContent = '📍 Auto-detectar zona'; autoBtn.disabled = false; }
+        return;
+    }
+    let autoZona = asignarZonaAutomatica(coords.lat, coords.lon);
+    let zonaSelect = document.getElementById('np-zona');
+    if (autoZona && zonaSelect) {
+        zonaSelect.value = autoZona.Id || autoZona.id;
+        alert(`Zona detectada: ${autoZona.Nombre}`);
+    } else {
+        alert('No se encontró una zona cercana.');
+    }
+    if (autoBtn) { autoBtn.textContent = '📍 Auto-detectar zona'; autoBtn.disabled = false; }
 }
 
 async function openNewCliente(clientData = null) {
