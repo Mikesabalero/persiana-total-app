@@ -813,28 +813,27 @@ function _haversineKm(lat1, lon1, lat2, lon2) {
 }
 
 function asignarZonaAutomatica(lat, lon) {
-    let bestZona = null, bestDist = Infinity;
+    // Calcular distancia a TODAS las zonas activas con coordenadas
+    let zonasConDist = [];
     for (let z of DATA.zonas) {
         if (z.Activo === false || z.Activo === 'false' || z.Activo === 0) continue;
         if (!z.Lat_centro || !z.Lon_centro) continue;
         let dist = _haversineKm(lat, lon, z.Lat_centro, z.Lon_centro);
-        if (z.Radio_km && z.Radio_km > 0) {
-            if (dist <= z.Radio_km && dist < bestDist) { bestDist = dist; bestZona = z; }
-        } else {
-            if (dist < bestDist) { bestDist = dist; bestZona = z; }
-        }
+        zonasConDist.push({ zona: z, dist: dist });
     }
-    if (!bestZona) {
-        let fallback = null, fallbackDist = Infinity;
-        for (let z of DATA.zonas) {
-            if (z.Activo === false || z.Activo === 'false' || z.Activo === 0) continue;
-            if (!z.Lat_centro || !z.Lon_centro) continue;
-            let dist = _haversineKm(lat, lon, z.Lat_centro, z.Lon_centro);
-            if (dist < fallbackDist) { fallbackDist = dist; fallback = z; }
-        }
-        bestZona = fallback;
+    // Filtrar zonas internas: tienen Radio_km y la distancia cae dentro
+    let internas = zonasConDist.filter(zd => zd.zona.Radio_km && zd.zona.Radio_km > 0 && zd.dist <= zd.zona.Radio_km);
+    if (internas.length > 0) {
+        // De las que matchean, elegir la MÁS CERCANA
+        internas.sort((a, b) => a.dist - b.dist);
+        return internas[0].zona;
     }
-    return bestZona;
+    // Fallback: zona más cercana sin importar radio
+    if (zonasConDist.length > 0) {
+        zonasConDist.sort((a, b) => a.dist - b.dist);
+        return zonasConDist[0].zona;
+    }
+    return null;
 }
 
 // ================= FORMAS DE PAGO CRUD =================
@@ -1011,7 +1010,14 @@ async function autoDetectarZonaProp() {
     if (autoBtn) { autoBtn.textContent = '⏳ Detectando...'; autoBtn.disabled = true; }
     let coords = await geocodificarDireccion(direccion, "Santa Fe");
     if (!coords) {
-        alert('No se pudo geocodificar la dirección. Seleccioná la zona manualmente.');
+        // Fallback para Santa Fe: asignar SF - Centro/Sur por defecto
+        let fallbackZone = DATA.zonas.find(z => z.Nombre === 'SF - Centro/Sur');
+        if (fallbackZone && zonaSelect) {
+            zonaSelect.value = fallbackZone.Id || fallbackZone.id;
+            alert('No se encontró la dirección exacta. Se asignó SF - Centro/Sur por defecto. Podés cambiarla manualmente.');
+        } else {
+            alert('No se pudo geocodificar la dirección. Seleccioná la zona manualmente.');
+        }
         if (autoBtn) { autoBtn.textContent = '📍 Auto-detectar zona'; autoBtn.disabled = false; }
         return;
     }
