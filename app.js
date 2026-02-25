@@ -2573,7 +2573,7 @@ async function generarPDF(presId) {
         let container = document.getElementById('pdf-content');
         if (!container) { alert('Error: Contenedor PDF no encontrado'); return; }
         container.innerHTML = html;
-        let opt = { margin: [5, 10, 0, 10], filename: `Presupuesto_${pres.Numero}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+        let opt = { margin: [5, 10, 25, 10], filename: `Presupuesto_${pres.Numero}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
         // Generar PDF con footer imagen fija al pie
         html2pdf().from(container.firstElementChild).set(opt).toPdf().get('pdf').then(function(pdf) {
             let pageCount = pdf.internal.getNumberOfPages();
