@@ -989,10 +989,12 @@ function updateZonaFromProp(propId) {
 
 async function autoDetectarZonaProp() {
     let direccion = document.getElementById('np-prop-direccion')?.value;
-    let localidad = document.getElementById('np-prop-localidad')?.value;
+    let locSelect = document.getElementById('np-prop-localidad');
+    let localidad = locSelect?.value;
     let autoBtn = document.getElementById('btn-autozona-prop');
+    console.log('autoDetectarZonaProp → DIR:', direccion, 'LOC:', localidad, 'LOC_IDX:', locSelect?.selectedIndex, 'LOC_OPTS:', locSelect?.options?.length);
     if (!direccion || !localidad) {
-        alert('Completá dirección y localidad primero.');
+        alert(!direccion ? 'Completá la dirección primero.' : 'Seleccioná la localidad primero.');
         return;
     }
     let zonaSelect = document.getElementById('prop-zona');
