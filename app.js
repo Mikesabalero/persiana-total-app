@@ -3,10 +3,83 @@ const TOKEN = 'dZMS2te8v6cf47Jlmlnk3S3ft9LT_QO8bjNdOcZZ';
 const BASE = 'pru2fsphj43juyr';
 const H = { 'xc-token': TOKEN, 'Content-Type': 'application/json' };
 const TBL = { clientes: 'mwby85581fhjy27', propiedades: 'm0dwlr7ccoim1kf', historial: 'mimh9lp8bkew4t0', categorias: 'mulo5ve82d9ex7q', productos: 'mdr6mo695g0qz6d', componentes: 'mgh9e1zivvhpg26', prod_comp: 'mmjzqw7v4que9q3', tc: 'mhj9fovlmv9036x', zonas: 'mottig5nmj5e3kx', presupuestos: 'mn1yyjyovvoyxme', lineas: 'mv1e9trh23j0q3o', servicios: 'mz8qrki3hz4y7iv', formas_pago: 'm2t4fnjie88gfo0', unidades: 'mix059xkpsz15um', anchos: 'mayai71j546g3as', historial_aumentos: 'myumlbp9hemi3cu' };
-let DATA = { clientes: [], propiedades: [], zonas: [], componentes: [], productos: [], prod_comp: [], presupuestos: [], lineas: [], unidades: [], formas_pago: [], tc: null, anchos: [] };
+let DATA = { clientes: [], propiedades: [], zonas: [], componentes: [], productos: [], prod_comp: [], presupuestos: [], lineas: [], unidades: [], formas_pago: [], tc: null, anchos: [], _loaded: { clientes: false, precios: false, presupuestos: false, propiedades: false, config: false } };
 let appReady = false;
 
-function showPage(id, btn) { if (!appReady) { alert("Cargando datos, por favor espere..."); return; } document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById('page-' + id).classList.add('active'); document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active')); if (btn) btn.classList.add('active'); if (id === 'dashboard') loadDashboard(); if (id === 'presupuestos') loadPresupuestos(); if (id === 'precios') loadPrecios(); if (id === 'clientes') renderClientes(); if (id === 'propiedades') renderPropiedades(); if (id === 'config') loadConfig(); }
+function _showPageSpinner(pageId, show) {
+    let page = document.getElementById('page-' + pageId);
+    if (!page) return;
+    let existing = page.querySelector('.lazy-spinner');
+    if (show && !existing) {
+        let d = document.createElement('div');
+        d.className = 'lazy-spinner';
+        d.style.cssText = 'display:flex;align-items:center;justify-content:center;padding:60px;color:var(--text-light);font-size:1.1em;gap:10px;';
+        d.innerHTML = '<div style="width:22px;height:22px;border:3px solid var(--border);border-top-color:var(--grad1);border-radius:50%;animation:spin .7s linear infinite"></div> Cargando datos...';
+        page.prepend(d);
+    } else if (!show && existing) {
+        existing.remove();
+    }
+}
+
+async function ensureData(page) {
+    if (page === 'clientes' || page === 'propiedades') {
+        if (!DATA._loaded.propiedades) {
+            DATA.propiedades = await apiGet(TBL.propiedades);
+            DATA._loaded.propiedades = true;
+            DATA._loaded.clientes = true;
+            console.log('Lazy loaded: Propiedades (' + DATA.propiedades.length + ')');
+        }
+    }
+    if (page === 'precios') {
+        if (!DATA._loaded.precios) {
+            DATA.componentes = await apiGet(TBL.componentes);
+            DATA._loaded.precios = true;
+            console.log('Lazy loaded: Componentes (' + DATA.componentes.length + ')');
+        }
+    }
+    if (page === 'presupuestos') {
+        if (!DATA._loaded.presupuestos) {
+            let [productos, prod_comp, unidades, lineas, propiedades] = await Promise.all([
+                apiGet(TBL.productos), apiGet(TBL.prod_comp),
+                apiGet(TBL.unidades), apiGet(TBL.lineas), apiGet(TBL.propiedades)
+            ]);
+            DATA.productos = productos;
+            DATA.prod_comp = prod_comp;
+            DATA.unidades = unidades;
+            DATA.lineas = lineas;
+            DATA.propiedades = propiedades;
+            DATA._loaded.propiedades = true;
+            DATA._loaded.presupuestos = true;
+            console.log('Lazy loaded: Productos, Prod_Comp, Unidades, Lineas, Propiedades');
+        }
+    }
+    if (page === 'config') {
+        if (!DATA._loaded.config) {
+            DATA.anchos = await apiGet(TBL.anchos);
+            DATA._loaded.config = true;
+            console.log('Lazy loaded: Anchos (' + DATA.anchos.length + ')');
+        }
+    }
+}
+
+async function showPage(id, btn) {
+    if (!appReady) { alert("Cargando datos, por favor espere..."); return; }
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + id).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    // Show spinner and lazy-load data for the page
+    _showPageSpinner(id, true);
+    try { await ensureData(id); } catch(e) { console.error('ensureData error:', e); }
+    _showPageSpinner(id, false);
+    // Render
+    if (id === 'dashboard') loadDashboard();
+    if (id === 'presupuestos') loadPresupuestos();
+    if (id === 'precios') loadPrecios();
+    if (id === 'clientes') renderClientes();
+    if (id === 'propiedades') renderPropiedades();
+    if (id === 'config') loadConfig();
+}
 function closeModal() { document.getElementById('modal-pres').classList.remove('show'); }
 function closeDetail() { document.getElementById('panel-cliente').classList.remove('open'); }
 function closeVerPres() { document.getElementById('modal-ver-pres').classList.remove('show'); }
@@ -76,18 +149,7 @@ function cleanLabel(text) {
     };
     return acentos[s] || s;
 }
-async function loadAll() {
-    const fetchBase = [
-        apiGet(TBL.tc, '&where=(Vigente,eq,true)').then(r => r[0] || { Dolar_oficial: 1150 }),
-        apiGet(TBL.clientes), apiGet(TBL.zonas), apiGet(TBL.componentes),
-        apiGet(TBL.productos), apiGet(TBL.prod_comp), apiGet(TBL.presupuestos),
-        apiGet(TBL.lineas), apiGet(TBL.unidades), apiGet(TBL.formas_pago),
-        apiGet(TBL.propiedades), apiGet(TBL.anchos)
-    ];
-    [DATA.tc, DATA.clientes, DATA.zonas, DATA.componentes, DATA.productos, DATA.prod_comp, DATA.presupuestos, DATA.lineas, DATA.unidades, DATA.formas_pago, DATA.propiedades, DATA.anchos] = await Promise.all(fetchBase);
-
-    console.log('Propiedades:', DATA.propiedades.length);
-
+async function _resolvePresupuestoLinks() {
     await Promise.all(DATA.presupuestos.map(async p => {
         try {
             const [cl, zl, pl] = await Promise.all([
@@ -106,12 +168,49 @@ async function loadAll() {
             } else { p._propiedadDir = '-'; p._propiedadId = null; }
         } catch (e) { p._clienteNombre = '-'; p._clienteId = null; p._zonaNombre = '-'; p._zonaId = null; p._propiedadDir = '-'; p._propiedadId = null; }
     }));
-
-    loadDashboard();
-    renderPropiedades();
-    renderClientDatalist();
-    appReady = true;
 }
+
+async function initApp() {
+    console.time('initApp');
+    // Fase 1: Solo datos esenciales para dashboard
+    [DATA.tc, DATA.clientes, DATA.zonas, DATA.presupuestos, DATA.formas_pago] = await Promise.all([
+        apiGet(TBL.tc, '&where=(Vigente,eq,true)').then(r => r[0] || { Dolar_oficial: 1150 }),
+        apiGet(TBL.clientes),
+        apiGet(TBL.zonas),
+        apiGet(TBL.presupuestos),
+        apiGet(TBL.formas_pago)
+    ]);
+    // Resolver links de presupuestos para dashboard (cliente nombre, zona, etc.)
+    await _resolvePresupuestoLinks();
+    renderClientDatalist();
+    loadDashboard();
+    appReady = true;
+    console.timeEnd('initApp');
+    console.log('initApp: cargados', DATA.clientes.length, 'clientes,', DATA.presupuestos.length, 'presupuestos,', DATA.zonas.length, 'zonas');
+}
+
+async function reloadAllData() {
+    // Recarga datos core + invalida flags lazy para que se recarguen al navegar
+    [DATA.tc, DATA.clientes, DATA.zonas, DATA.presupuestos, DATA.formas_pago, DATA.propiedades] = await Promise.all([
+        apiGet(TBL.tc, '&where=(Vigente,eq,true)').then(r => r[0] || { Dolar_oficial: 1150 }),
+        apiGet(TBL.clientes),
+        apiGet(TBL.zonas),
+        apiGet(TBL.presupuestos),
+        apiGet(TBL.formas_pago),
+        apiGet(TBL.propiedades)
+    ]);
+    DATA._loaded.propiedades = true;
+    // Invalidar lazy flags para que se recarguen al navegar
+    DATA._loaded.precios = false;
+    DATA._loaded.presupuestos = false;
+    DATA._loaded.config = false;
+    DATA._loaded.clientes = false;
+    await _resolvePresupuestoLinks();
+    renderClientDatalist();
+}
+
+// Mantener compatibilidad: loadAll llama a reloadAllData
+async function loadAll() { await reloadAllData(); }
 function renderClientDatalist() {
     let dl = document.getElementById('client-datalist');
     if (!dl) return;
@@ -1279,7 +1378,9 @@ async function deletePropiedad(id, name) {
 }
 
 async function openNewPres(presData = null) {
-    if (DATA.clientes.length === 0) await loadAll();
+    if (DATA.clientes.length === 0) await reloadAllData();
+    // Asegurar datos de presupuestos cargados para editar
+    await ensureData('presupuestos');
     editPresId = presData ? (presData.Id || presData.id) : null;
 
     // Reset Modal
@@ -2056,7 +2157,8 @@ async function savePres() {
     let sinFact = totalConIva * 0.9;
     await apiPatch(TBL.presupuestos, { Id: presId, Subtotal_neto: subtotalNeto, Subtotal_items: subtotalNeto, IVA_21: totalIva21, IVA_105: totalIva105, Total_con_IVA: totalConIva, Total: totalConIva, Descuento_sin_factura_pct: 10, Total_sin_factura: sinFact });
 
-    await loadAll();
+    await reloadAllData();
+    await ensureData('presupuestos');
     showPage('presupuestos', document.querySelectorAll('.nav-item')[1]);
     closeModal();
     if (confirm('Presupuesto ' + num + ' guardado. ¿Ver ahora?')) viewPresupuesto(presId);
@@ -2495,7 +2597,8 @@ async function duplicatePresupuesto(presId) {
     }
     await apiPatch(TBL.presupuestos, { Id: newId, Subtotal_neto: oldP.Subtotal_neto, Subtotal_items: oldP.Subtotal_items, IVA_21: oldP.IVA_21, IVA_105: oldP.IVA_105, Total_con_IVA: oldP.Total_con_IVA, Total: oldP.Total });
     alert('Presupuesto duplicado exitosamente.');
-    await loadAll();
+    await reloadAllData();
+    await ensureData('presupuestos');
     showPage('presupuestos', document.querySelectorAll('.nav-item')[1]);
 }
 
@@ -2522,14 +2625,14 @@ async function deletePresupuesto(presId) {
 
         await apiDelete(TBL.presupuestos, presId);
         alert('Presupuesto eliminado correctamente');
-        loadAll();
+        reloadAllData().then(() => ensureData('presupuestos')).then(() => showPage('presupuestos', document.querySelectorAll('.nav-item')[1]));
     } catch (e) {
         console.error(e);
         alert('Error al eliminar presupuesto: ' + e.message);
     }
 }
 
-loadAll();
+initApp();
 
 let modalMouseDownTarget = null;
 window.addEventListener('mousedown', function (event) {
