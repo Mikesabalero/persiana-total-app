@@ -2561,15 +2561,28 @@ async function generarPDF(presId) {
 
         html += `
                     <div style="margin-top: 10px; font-size: 0.85em; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 10px;">
-                        Condición de pago: ${cleanLabel(pago)}
-                    </div>
-                </div>
-                
+                        <p style="margin: 0 0 4px 0;"><strong>Condición de pago:</strong> ${cleanLabel(pago)}</p>`;
+        
+        if (DATA.tc.PDF_condiciones) {
+            html += `<p style="margin: 0 0 4px 0;"><strong>Condiciones:</strong> ${DATA.tc.PDF_condiciones}</p>`;
+        }
+        if (DATA.tc.PDF_garantia) {
+            html += `<p style="margin: 0 0 4px 0;"><strong>Garantía:</strong> ${DATA.tc.PDF_garantia}</p>`;
+        }
+
+        html += `   </div>
+                </div>`;
+
+        if (DATA.tc.PDF_nota_pie) {
+            html += `<div style="text-align: center; margin-top: 20px; font-size: 0.75em; color: #9ca3af;">${DATA.tc.PDF_nota_pie}</div>`;
+        }
+
+        html += `
             </div>`;
         let container = document.getElementById('pdf-content');
         if (!container) { alert('Error: Contenedor PDF no encontrado'); return; }
         container.innerHTML = html;
-        let opt = { margin: [5, 10, 30, 10], filename: `Presupuesto_${pres.Numero}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+        let opt = { margin: [5, 10, 35, 10], filename: `Presupuesto_${pres.Numero}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
         // Generar PDF con footer imagen fija al pie
         html2pdf().from(container.firstElementChild).set(opt).toPdf().get('pdf').then(function(pdf) {
             let pageCount = pdf.internal.getNumberOfPages();
