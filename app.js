@@ -2582,6 +2582,10 @@ async function generarPDF(presId) {
         let container = document.getElementById('pdf-content');
         if (!container) { alert('Error: Contenedor PDF no encontrado'); return; }
         container.innerHTML = html;
+        container.style.display = 'block';
+        container.style.position = 'fixed';
+        container.style.left = '-9999px';
+        container.style.top = '0';
         let opt = { margin: [5, 10, 35, 10], filename: `Presupuesto_${pres.Numero}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['avoid-all', 'css', 'legacy'] } };
         // Generar PDF con footer imagen fija al pie
         html2pdf().from(container.firstElementChild).set(opt).toPdf().get('pdf').then(function(pdf) {
@@ -2596,8 +2600,15 @@ async function generarPDF(presId) {
                 pdf.addImage(footerImg, 'PNG', 0, pageHeight - imgH, imgW, imgH);
             }
             pdf.save('Presupuesto_' + (pres.Numero || 'sin-numero') + '.pdf');
+            container.style.display = 'none';
+            container.style.position = 'absolute';
         });
-    } catch (e) { console.error(e); alert('Error generando PDF: ' + e.message); }
+    } catch (e) { 
+        console.error(e); 
+        alert('Error generando PDF: ' + e.message); 
+        let c = document.getElementById('pdf-content');
+        if (c) c.style.display = 'none';
+    }
 }
 
 async function fetchBudgetDeepData(presId) {
