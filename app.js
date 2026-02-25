@@ -996,15 +996,26 @@ async function autoDetectarZonaProp() {
         alert('Completá dirección y localidad primero.');
         return;
     }
+    let zonaSelect = document.getElementById('prop-zona');
+    if (localidad !== 'Santa Fe') {
+        let zone = DATA.zonas.find(z => z.Nombre === localidad);
+        if (zone && zonaSelect) {
+            zonaSelect.value = zone.Id || zone.id;
+            alert(`Zona detectada: ${zone.Nombre}`);
+        } else {
+            alert('No se encontró una zona exacta automáticamente para esta localidad.');
+        }
+        return;
+    }
+
     if (autoBtn) { autoBtn.textContent = '⏳ Detectando...'; autoBtn.disabled = true; }
-    let coords = await geocodificarDireccion(direccion, localidad);
+    let coords = await geocodificarDireccion(direccion, "Santa Fe");
     if (!coords) {
         alert('No se pudo geocodificar la dirección. Seleccioná la zona manualmente.');
         if (autoBtn) { autoBtn.textContent = '📍 Auto-detectar zona'; autoBtn.disabled = false; }
         return;
     }
     let autoZona = asignarZonaAutomatica(coords.lat, coords.lon);
-    let zonaSelect = document.getElementById('prop-zona');
     if (autoZona && zonaSelect) {
         zonaSelect.value = autoZona.Id || autoZona.id;
         alert(`Zona detectada: ${autoZona.Nombre}`);
@@ -1114,13 +1125,27 @@ async function openNewPropiedad(propData = null, preselectedClientId = null, for
 
     document.getElementById('np-prop-nombre').value = propData ? propData.Nombre : '';
     document.getElementById('np-prop-direccion').value = propData ? propData.Direccion || '' : '';
-    document.getElementById('np-prop-localidad').value = propData ? propData.Localidad || '' : '';
     document.getElementById('np-prop-telefono').value = propData ? propData.Telefono || '' : '';
     document.getElementById('np-prop-tipo').value = propData ? (propData.Tipo_Propiedad || propData.Tipo_Propiedad_ || 'Casa') : 'Casa';
     document.getElementById('np-prop-inquilino').value = propData ? propData.Contacto_Inquilino || '' : '';
     document.getElementById('np-prop-maps').value = propData ? propData.Ubicacion_Maps || propData.Ubicacion_Maps_ || '' : '';
     document.getElementById('np-prop-horario').value = propData ? propData.Horario_Disponible || propData.Horario_Disponible_ || '' : '';
     document.getElementById('np-prop-principal').checked = propData ? !!propData.Principal : false;
+
+    // Poblar select de Localidad
+    let sloc = document.getElementById('np-prop-localidad');
+    sloc.innerHTML = '<option value="">Seleccionar localidad...</option>';
+    let localies = new Set();
+    DATA.zonas.forEach(z => {
+        if (z.Activo === false || z.Activo === 'false' || z.Activo === 0) return;
+        if (z.Nombre.startsWith('SF - ')) localies.add('Santa Fe');
+        else localies.add(z.Nombre);
+    });
+    [...localies].sort().forEach(loc => {
+        let sel = (propData && propData.Localidad === loc) ? 'selected' : '';
+        sloc.innerHTML += `<option value="${loc}" ${sel}>${cleanLabel(loc)}</option>`;
+    });
+    sloc.innerHTML += `<option value="Otra" ${(propData && propData.Localidad === 'Otra') ? 'selected' : ''}>Otra</option>`;
 
     // Poblar select de Zona asignada
     let pz = document.getElementById('prop-zona');
