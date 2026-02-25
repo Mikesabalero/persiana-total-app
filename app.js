@@ -1523,11 +1523,21 @@ async function openNewPres(presData = null) {
     }
 
     document.getElementById('np-unidades').innerHTML = '';
+    recalcTraslado();
+    
+    // Si era edicion, restauramos manuales que recalcTraslado piso (si los hubiese):
+    if (presData && presData.Costo_traslado) {
+        document.getElementById('traslado-visitas').value = presData.Visitas_traslado || 1;
+        document.getElementById('traslado-visitas').dataset.val = presData.Costo_traslado;
+        document.getElementById('traslado-total').textContent = fmt(presData.Costo_traslado || 0);
+    }
+    
     document.getElementById('np-resumen').style.display = 'none';
     unidadCount = 0;
 
+    _loadingEdit = true;
+
     if (presData && presData._unidades && presData._unidades.length > 0) {
-        _loadingEdit = true;
         // Load existing units
         for (let u of presData._unidades) {
             unidadCount++;
@@ -2049,7 +2059,38 @@ function recalcTotal() {
     document.querySelectorAll('.unidad-subtotal').forEach(s => {
         total += parseFloat(s.textContent.replace('$', '').replace(/\./g, '').replace(',', '.')) || 0;
     });
-    document.getElementById('np-total').textContent = fmt(total);
+    
+    // Auto-calcular visitas basado en Tipo de Trabajo
+    if (!_loadingEdit) {
+        let maxVisitas = 1;
+        let hasHardWork = false;
+        document.querySelectorAll('[id^="u-"][id$="-tipo"]').forEach(sel => {
+            let tp = sel.value;
+            if (['Instalacion_nueva', 'Cambio_pano', 'Cambio_guias', 'Motorizacion'].includes(tp)) {
+                hasHardWork = true;
+            }
+        });
+        if (hasHardWork) maxVisitas = 2;
+        
+        let tVis = document.getElementById('traslado-visitas');
+        if (tVis && !tVis.disabled && tVis.value != maxVisitas) {
+            tVis.value = maxVisitas;
+            // Solo logica de update UI interno a traslado para no hacer bucle:
+            let zId = document.getElementById('np-zona')?.value;
+            let zona = DATA.zonas.find(z => String(z.Id) === String(zId));
+            if (zona) {
+                let costo = (zona.Costo_viatico || 0) + (zona.Costo_transporte || 0);
+                let traslTotal = costo * maxVisitas;
+                document.getElementById('traslado-total').textContent = fmt(traslTotal);
+                tVis.dataset.val = traslTotal;
+            }
+        }
+    }
+
+    let valTraslado = parseFloat(document.getElementById('traslado-visitas')?.dataset.val) || 0;
+    // El subtotal de los modales incluye ya el traslado para mostarse "concreto" en UI.
+    // Aunque en backend totalizamos aparte. Para NP modal, el np-total es todo mas IVA, el traslado lo sumaremos aca:
+    document.getElementById('np-total').textContent = fmt(total + valTraslado);
 }
 async function savePres() {
     let clienteId = document.getElementById('np-cliente').value;
@@ -2095,7 +2136,9 @@ async function savePres() {
             Facturacion: facturacion,
             Estado: 'Borrador',
             Fecha: new Date().toISOString().split('T')[0],
-            Incluye_instalacion: true
+            Incluye_instalacion: true,
+            Costo_traslado: parseFloat(document.getElementById('traslado-visitas')?.dataset.val) || 0,
+            Visitas_traslado: parseInt(document.getElementById('traslado-visitas')?.value) || 0
         };
         let pres = await apiPost(TBL.presupuestos, presData);
         presId = pres.Id || pres.id;
@@ -2235,9 +2278,24 @@ async function savePres() {
         }
     }
 
-    let totalConIva = subtotalNeto + totalIva21 + totalIva105;
+    let costoTraslado = parseFloat(document.getElementById('traslado-visitas')?.dataset.val) || 0;
+    let visitasTraslado = parseInt(document.getElementById('traslado-visitas')?.value) || 0;
+
+    let totalConIva = subtotalNeto + totalIva21 + totalIva105 + costoTraslado;
     let sinFact = totalConIva * 0.9;
-    await apiPatch(TBL.presupuestos, { Id: presId, Subtotal_neto: subtotalNeto, Subtotal_items: subtotalNeto, IVA_21: totalIva21, IVA_105: totalIva105, Total_con_IVA: totalConIva, Total: totalConIva, Descuento_sin_factura_pct: 10, Total_sin_factura: sinFact });
+    await apiPatch(TBL.presupuestos, { 
+        Id: presId, 
+        Subtotal_neto: subtotalNeto, 
+        Subtotal_items: subtotalNeto, 
+        Costo_traslado: costoTraslado,
+        Visitas_traslado: visitasTraslado,
+        IVA_21: totalIva21, 
+        IVA_105: totalIva105, 
+        Total_con_IVA: totalConIva, 
+        Total: totalConIva, 
+        Descuento_sin_factura_pct: 10, 
+        Total_sin_factura: sinFact 
+    });
 
     await reloadAllData();
     await ensureData('presupuestos');
@@ -2619,6 +2677,15 @@ async function viewPresupuesto(presId) {
     }
 
     document.getElementById('vp-subtotal').textContent = fmt(pres.Subtotal_neto);
+    
+    let boxTraslado = document.getElementById('vp-line-traslado');
+    if (pres.Costo_traslado > 0) {
+        boxTraslado.style.display = 'flex';
+        document.getElementById('vp-traslado').textContent = fmt(pres.Costo_traslado);
+    } else {
+        boxTraslado.style.display = 'none';
+    }
+
     document.getElementById('vp-iva').textContent = fmt((pres.IVA_21 || 0) + (pres.IVA_105 || 0));
     document.getElementById('vp-total').textContent = fmt(pres.Total_con_IVA);
 

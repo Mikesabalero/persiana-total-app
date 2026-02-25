@@ -673,7 +673,7 @@
                 </div>
                 <div class="form-group"><label>Propiedad / Dirección</label><select id="np-propiedad"
                         onchange="updateZonaFromProp(this.value)"></select></div>
-                <div class="form-group"><label>Zona</label><select id="np-zona"></select></div>
+                <div class="form-group"><label>Zona</label><select id="np-zona" onchange="recalcTraslado()"></select></div>
                 <div class="form-group"><label>Forma de Pago</label><select id="np-pago"></select></div>
             </div>
             <div class="form-row">
@@ -695,6 +695,16 @@
                 <button class="btn btn-sm btn-primary" onclick="addUnidad()">+ Agregar Unidad</button>
             </div>
             <div id="np-unidades"></div>
+            <div id="bloque-traslado" style="background:#f3f4f6;padding:15px;border-radius:8px;margin:15px 0;">
+                <h4>Traslado</h4>
+                <div style="display:flex;gap:15px;align-items:center;flex-wrap:wrap;">
+                    <div><label>Zona:</label> <span id="traslado-zona">-</span></div>
+                    <div><label>Viáticos:</label> <span id="traslado-viatico">$0</span></div>
+                    <div><label>Transporte:</label> <span id="traslado-transporte">$0</span></div>
+                    <div><label>Visitas:</label> <input type="number" id="traslado-visitas" min="0" max="10" value="2" style="width:60px" onchange="recalcTraslado()"></div>
+                    <div><strong>Total traslado: <span id="traslado-total">$0</span></strong></div>
+                </div>
+            </div>
             <div id="np-resumen" class="resumen-box" style="display:none">
                 <h3 style="font-size:1em;margin-bottom:12px;color:var(--grad1)">Resumen del Presupuesto</h3>
                 <div class="resumen-line"><span>Subtotal neto</span><span id="np-subtotal">$0</span></div>
@@ -736,6 +746,7 @@
             <div id="vp-contenido" style="max-height:400px;overflow-y:auto;margin-bottom:20px"></div>
             <div class="resumen-box">
                 <div class="resumen-line"><span>Subtotal neto</span><span id="vp-subtotal">$0</span></div>
+                <div class="resumen-line" id="vp-line-traslado" style="display:none"><span>Traslado</span><span id="vp-traslado">$0</span></div>
                 <div class="resumen-line"><span>IVA</span><span id="vp-iva">$0</span></div>
                 <div class="resumen-line total"><span>TOTAL</span><span id="vp-total">$0</span></div>
             </div>
