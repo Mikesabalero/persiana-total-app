@@ -1122,18 +1122,20 @@ function loadPropiedadesSelect(presData) {
 function updateZonaFromProp(propId) {
     let zonaSelect = document.getElementById('np-zona');
     if (!propId) {
-        if (zonaSelect) zonaSelect.disabled = false;
+        if (zonaSelect) { zonaSelect.value = ''; zonaSelect.disabled = false; }
+        recalcTraslado();
         return;
     }
-    let prop = DATA.propiedades.find(p => p.Id == propId);
+    let prop = DATA.propiedades.find(p => String(p.Id) === String(propId));
     if (!prop) {
-        if (zonaSelect) zonaSelect.disabled = false;
+        if (zonaSelect) { zonaSelect.value = ''; zonaSelect.disabled = false; }
+        recalcTraslado();
         return;
     }
     // Read Zona_id from property
     if (prop.Zona_id && zonaSelect) {
         zonaSelect.value = prop.Zona_id;
-        zonaSelect.disabled = false;
+        zonaSelect.disabled = true;
         recalcTraslado();
         return;
     }
@@ -1141,7 +1143,7 @@ function updateZonaFromProp(propId) {
     let zone = DATA.zonas.find(z => z.Nombre === prop.Localidad);
     if (zone && zonaSelect) {
         zonaSelect.value = zone.Id;
-        zonaSelect.disabled = false;
+        zonaSelect.disabled = true;
         recalcTraslado();
     } else if (zonaSelect) {
         zonaSelect.disabled = false;
