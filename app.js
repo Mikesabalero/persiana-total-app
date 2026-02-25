@@ -795,7 +795,7 @@ async function geocodificarDireccion(direccion, localidad) {
         if (wait > 0) await new Promise(r => setTimeout(r, wait));
         _lastGeoTime = Date.now();
         let q = encodeURIComponent(`${direccion}, ${localidad}, Santa Fe, Argentina`);
-        let resp = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`, {
+        let resp = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&viewbox=-61.05,-31.35,-60.45,-32.05&bounded=1`, {
             headers: { 'User-Agent': 'PersianaTotal-ERP/1.0' }
         });
         let data = await resp.json();
