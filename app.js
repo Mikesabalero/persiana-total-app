@@ -22,8 +22,33 @@ function loginEmail() {
     let pass = document.getElementById('login-pass').value;
     let errDiv = document.getElementById('login-error');
     errDiv.style.display = 'none';
+    if (!email || !pass) {
+        errDiv.textContent = 'Ingresá tu email y contraseña';
+        errDiv.style.display = 'block';
+        return;
+    }
     auth.signInWithEmailAndPassword(email, pass).catch(function(error) {
-        errDiv.textContent = 'Error: ' + error.message;
+        let msg = 'Error desconocido. Intentá de nuevo.';
+        switch(error.code) {
+            case 'auth/invalid-credential':
+            case 'auth/wrong-password':
+            case 'auth/user-not-found':
+                msg = 'Email o contraseña incorrectos';
+                break;
+            case 'auth/invalid-email':
+                msg = 'El email ingresado no es válido';
+                break;
+            case 'auth/user-disabled':
+                msg = 'Esta cuenta fue deshabilitada. Contactá al administrador.';
+                break;
+            case 'auth/too-many-requests':
+                msg = 'Demasiados intentos fallidos. Esperá unos minutos e intentá de nuevo.';
+                break;
+            case 'auth/network-request-failed':
+                msg = 'Error de conexión. Verificá tu internet.';
+                break;
+        }
+        errDiv.textContent = msg;
         errDiv.style.display = 'block';
     });
 }
@@ -32,7 +57,14 @@ function loginGoogle() {
     let provider = new firebase.auth.GoogleAuthProvider();
     auth.signInWithPopup(provider).catch(function(error) {
         let errDiv = document.getElementById('login-error');
-        errDiv.textContent = 'Error: ' + error.message;
+        let msg = 'Error al iniciar sesión con Google. Intentá de nuevo.';
+        if (error.code === 'auth/popup-closed-by-user') {
+            return; // No mostrar error si el usuario cerró el popup
+        }
+        if (error.code === 'auth/network-request-failed') {
+            msg = 'Error de conexión. Verificá tu internet.';
+        }
+        errDiv.textContent = msg;
         errDiv.style.display = 'block';
     });
 }
@@ -46,7 +78,7 @@ auth.onAuthStateChanged(function(user) {
         currentUser = user;
         currentRole = USER_ROLES[user.uid] || null;
         if (!currentRole) {
-            alert('Tu cuenta no tiene permisos asignados. Contactá al administrador.');
+            alert('Tu cuenta (' + user.email + ') no tiene permisos asignados. Contactá al administrador para que te habilite el acceso.');
             auth.signOut();
             return;
         }
