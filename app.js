@@ -3,8 +3,54 @@ const TOKEN = 'dZMS2te8v6cf47Jlmlnk3S3ft9LT_QO8bjNdOcZZ';
 const BASE = 'pru2fsphj43juyr';
 const H = { 'xc-token': TOKEN, 'Content-Type': 'application/json' };
 const TBL = { clientes: 'mwby85581fhjy27', propiedades: 'm0dwlr7ccoim1kf', historial: 'mimh9lp8bkew4t0', categorias: 'mulo5ve82d9ex7q', productos: 'mdr6mo695g0qz6d', componentes: 'mgh9e1zivvhpg26', prod_comp: 'mmjzqw7v4que9q3', tc: 'mhj9fovlmv9036x', zonas: 'mottig5nmj5e3kx', presupuestos: 'mn1yyjyovvoyxme', lineas: 'mv1e9trh23j0q3o', servicios: 'mz8qrki3hz4y7iv', formas_pago: 'm2t4fnjie88gfo0', unidades: 'mix059xkpsz15um', anchos: 'mayai71j546g3as', historial_aumentos: 'myumlbp9hemi3cu' };
-let DATA = { clientes: [], propiedades: [], zonas: [], componentes: [], productos: [], prod_comp: [], presupuestos: [], lineas: [], unidades: [], formas_pago: [], tc: null, anchos: [], _loaded: { clientes: false, precios: false, presupuestos: false, propiedades: false, config: false } };
+let DATA = { clientes: [], propiedades: [], zonas: [], componentes: [], productos: [], prod_comp: [], presupuestos: [], lineas: [], unidades: [], formas_pago: [], tc: null, anchos: [], _loaded: { clientes: false, precios: false, presupuestos: false, presupuestos_deps: false, propiedades: false, config: false } };
 let appReady = false;
+
+const PAGE_SIZE = 20;
+let PAGING = {
+    clientes: { page: 1, total: 0 },
+    presupuestos: { page: 1, total: 0 },
+    propiedades: { page: 1, total: 0 }
+};
+
+async function apiGetPaged(tid, page, extraParams = '') {
+    let offset = (page - 1) * PAGE_SIZE;
+    let r = await fetch(API + '/api/v2/tables/' + tid + '/records?limit=' + PAGE_SIZE + '&offset=' + offset + extraParams, { headers: H });
+    if (!r.ok) return { list: [], total: 0 };
+    let d = await r.json();
+    return { list: d.list || [], total: d.pageInfo?.totalRows || 0 };
+}
+
+function renderPagination(containerId, pagingState, pageKey) {
+    let container = document.getElementById(containerId);
+    if (!container) return;
+    let totalPages = Math.ceil(pagingState.total / PAGE_SIZE) || 1;
+    container.innerHTML = `
+        <div style="display:flex; justify-content:center; align-items:center; gap:16px; margin-top:16px; color:var(--text)">
+            <button class="btn btn-secondary btn-sm" onclick="prevPage('${pageKey}')" ${pagingState.page <= 1 ? 'disabled' : ''}>« Anterior</button>
+            <span>Página ${pagingState.page} de ${totalPages}</span>
+            <button class="btn btn-secondary btn-sm" onclick="nextPage('${pageKey}')" ${pagingState.page >= totalPages ? 'disabled' : ''}>Siguiente »</button>
+        </div>
+    `;
+}
+
+async function prevPage(key) {
+    if (PAGING[key].page > 1) {
+        PAGING[key].page--;
+        if (key === 'clientes') await renderClientes();
+        if (key === 'presupuestos') await loadPresupuestos();
+        if (key === 'propiedades') await renderPropiedades();
+    }
+}
+async function nextPage(key) {
+    let totalPages = Math.ceil(PAGING[key].total / PAGE_SIZE) || 1;
+    if (PAGING[key].page < totalPages) {
+        PAGING[key].page++;
+        if (key === 'clientes') await renderClientes();
+        if (key === 'presupuestos') await loadPresupuestos();
+        if (key === 'propiedades') await renderPropiedades();
+    }
+}
 
 function _showPageSpinner(pageId, show) {
     let page = document.getElementById('page-' + pageId);
@@ -126,7 +172,7 @@ function cleanLabel(text) {
 function fmt(n) { if (n == null) return '$0'; return '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
 function badgeHtml(estado) { let c = { 'Borrador': 'borrador', 'Enviado': 'enviado', 'Aprobado': 'aprobado', 'Rechazado': 'rechazado', 'Vencido': 'vencido', 'Facturado': 'facturado' }; return '<span class="badge badge-' + (c[estado] || 'borrador') + '">' + cleanLabel(estado) + '</span>'; }
 function resolveLink(row, field) { let v = row[field]; if (!v) return null; if (typeof v === 'object' && Array.isArray(v) && v.length > 0) return v[0]; if (typeof v === 'object' && v.Id) return v; return null; }
-function resolveName(row, field, list, idField) { let link = resolveLink(row, field); if (!link) return '-'; let id = link.Id || link.id || link; let found = list.find(i => i.Id == id); return found ? found.Nombre || found.Title || '-' : '-'; }
+function resolveName(row, field, list, idField) { let link = resolveLink(row, field); if (!link) return '-'; let id = link.Id || link.id || link; let found = list.find(i => i.Id == id); return found ? found.Nombre || found.Title || '-' : (link.Nombre || link.Title || '-'); }
 function showConfigTab(id, btn) { document.querySelectorAll('.config-section').forEach(s => s.style.display = 'none'); document.getElementById('config-' + id).style.display = 'block'; document.querySelectorAll('.config-tab').forEach(t => t.classList.remove('active')); btn.classList.add('active'); }
 const REPAIR_LABELS = {
     'cambio_eje': 'Cambio de eje completo',
@@ -173,40 +219,47 @@ async function _resolvePresupuestoLinks() {
 async function initApp() {
     console.time('initApp');
     // Fase 1: Solo datos esenciales para dashboard
-    [DATA.tc, DATA.clientes, DATA.zonas, DATA.presupuestos, DATA.formas_pago] = await Promise.all([
+    let cliPaged = await apiGetPaged(TBL.clientes, 1, '&limit=1');
+    let presPaged = await apiGetPaged(TBL.presupuestos, 1, '&sort=-Fecha&limit=5');
+    
+    PAGING.clientes.total = cliPaged.total;
+    PAGING.presupuestos.total = presPaged.total;
+    DATA.presupuestos = presPaged.list;
+
+    [DATA.tc, DATA.zonas, DATA.formas_pago] = await Promise.all([
         apiGet(TBL.tc, '&where=(Vigente,eq,true)').then(r => r[0] || { Dolar_oficial: 1150 }),
-        apiGet(TBL.clientes),
         apiGet(TBL.zonas),
-        apiGet(TBL.presupuestos),
         apiGet(TBL.formas_pago)
     ]);
-    // Resolver links de presupuestos para dashboard (cliente nombre, zona, etc.)
+    // Resolver links de presupuestos para dashboard
     await _resolvePresupuestoLinks();
-    renderClientDatalist();
     loadDashboard();
     appReady = true;
     console.timeEnd('initApp');
-    console.log('initApp: cargados', DATA.clientes.length, 'clientes,', DATA.presupuestos.length, 'presupuestos,', DATA.zonas.length, 'zonas');
+    console.log('initApp: totales', PAGING.clientes.total, 'clientes,', PAGING.presupuestos.total, 'presupuestos');
 }
 
 async function reloadAllData() {
-    // Recarga datos core + invalida flags lazy para que se recarguen al navegar
-    [DATA.tc, DATA.clientes, DATA.zonas, DATA.presupuestos, DATA.formas_pago, DATA.propiedades] = await Promise.all([
+    // Recarga todo para dashboard y limpia lazy variables
+    let cliPaged = await apiGetPaged(TBL.clientes, 1, '&limit=1');
+    let presPaged = await apiGetPaged(TBL.presupuestos, 1, '&sort=-Fecha&limit=5');
+    PAGING.clientes.total = cliPaged.total;
+    PAGING.presupuestos.total = presPaged.total;
+    DATA.presupuestos = presPaged.list;
+
+    [DATA.tc, DATA.zonas, DATA.formas_pago] = await Promise.all([
         apiGet(TBL.tc, '&where=(Vigente,eq,true)').then(r => r[0] || { Dolar_oficial: 1150 }),
-        apiGet(TBL.clientes),
         apiGet(TBL.zonas),
-        apiGet(TBL.presupuestos),
-        apiGet(TBL.formas_pago),
-        apiGet(TBL.propiedades)
+        apiGet(TBL.formas_pago)
     ]);
-    DATA._loaded.propiedades = true;
-    // Invalidar lazy flags para que se recarguen al navegar
+    // Invalidar lazy flags
     DATA._loaded.precios = false;
     DATA._loaded.presupuestos = false;
-    DATA._loaded.config = false;
     DATA._loaded.clientes = false;
+    DATA._loaded.propiedades = false;
+    
     await _resolvePresupuestoLinks();
-    renderClientDatalist();
+    if(document.getElementById('page-dashboard').classList.contains('active')) loadDashboard();
 }
 
 // Mantener compatibilidad: loadAll llama a reloadAllData
@@ -229,22 +282,44 @@ function syncClientSelect(input, selectId) {
     }
 }
 function loadDashboard() {
+    document.getElementById('dash-total-pres').textContent = PAGING.presupuestos.total;
+    // Cálculos parciales con los cargados (Dashboard summary)
     let ps = DATA.presupuestos;
-    document.getElementById('dash-total-pres').textContent = ps.length;
     let totalMonto = ps.reduce((s, p) => s + (p.Total_con_IVA || p.Total || 0), 0);
-    document.getElementById('dash-facturado').textContent = fmt(totalMonto);
+    document.getElementById('dash-facturado').textContent = fmt(totalMonto); // Será el de los últimos 5
     let pend = ps.filter(p => p.Estado === 'Borrador' || p.Estado === 'Enviado').length;
     document.getElementById('dash-pendientes').textContent = pend;
     document.getElementById('dash-tc').textContent = '$' + Number(DATA.tc.Dolar_oficial || 0).toLocaleString('es-AR');
     let tb = document.getElementById('dash-table');
     tb.innerHTML = '';
-    ps.slice(-5).reverse().forEach(p => {
+    ps.slice(0, 5).forEach(p => {
         let cliName = cleanLabel(p._clienteNombre) || '-';
         tb.innerHTML += '<tr><td><strong>' + (p.Numero || '-') + '</strong></td><td>' + (p.Fecha || '-') + '</td><td>' + cliName + '</td><td>' + fmt(p.Total_con_IVA || p.Total) + '</td><td>' + badgeHtml(p.Estado || 'Borrador') + '</td></tr>';
     });
 }
-function loadPresupuestos() {
+async function loadPresupuestos() {
+    _showPageSpinner('presupuestos', true);
+    
+    let search = document.getElementById('pres-search')?.value || '';
+    let estado = document.getElementById('pres-filter-estado')?.value || '';
+    
+    let parts = [];
+    if(search) parts.push(`(Numero,like,%${search}%)~or(Numero,eq,${search})`); // Assuming searching by numero mainly
+    if(estado) parts.push(`(Estado,eq,${estado})`);
+    
+    let extra = '&sort=-Fecha';
+    if (parts.length > 0) {
+        extra += `&where=(${parts.join('~and')})`;
+    }
+    
+    let res = await apiGetPaged(TBL.presupuestos, PAGING.presupuestos.page, extra);
+    DATA.presupuestos = res.list;
+    PAGING.presupuestos.total = res.total;
+    
+    await _resolvePresupuestoLinks();
+
     let tb = document.getElementById('pres-table');
+    if (!tb) return;
     tb.innerHTML = '';
     DATA.presupuestos.forEach(p => {
         let cliName = p._clienteNombre;
@@ -284,6 +359,9 @@ function loadPresupuestos() {
 
         tb.innerHTML += '<tr><td><strong>' + (p.Numero || '-') + '</strong></td><td>' + (p.Fecha || '-') + '</td><td>' + cliName + '</td><td>' + propDir + '</td><td>' + zonaName + '</td><td>' + fmt(p.Subtotal_neto || p.Subtotal_items) + '</td><td>' + fmt(iva) + '</td><td><strong>' + fmt(p.Total_con_IVA || p.Total) + '</strong></td><td>' + badgeHtml(p.Estado || 'Borrador') + '</td><td>' + actions + '</td></tr>';
     });
+    
+    renderPagination('pag-presupuestos', PAGING.presupuestos, 'presupuestos');
+    _showPageSpinner('presupuestos', false);
 }
 function loadPrecios() {
     let tc = DATA.tc.Dolar_oficial || 1150;
@@ -549,11 +627,30 @@ function exportCsv() {
     a.click();
     URL.revokeObjectURL(url);
 }
-function renderClientes() {
+async function renderClientes() {
+    _showPageSpinner('clientes', true);
+    let search = document.getElementById('cli-search')?.value || '';
+    let tipo = document.getElementById('cli-filter-tipo')?.value || '';
+    
+    let parts = [];
+    if(search) parts.push(`(Nombre,like,%${search}%)`);
+    if(tipo) parts.push(`(Tipo,eq,${tipo})`);
+    let extra = '&sort=-CreatedAt';
+    if(parts.length > 0) extra += `&where=(${parts.join('~and')})`;
+
+    let res = await apiGetPaged(TBL.clientes, PAGING.clientes.page, extra);
+    DATA.clientes = res.list;
+    PAGING.clientes.total = res.total;
+
     let tb = document.getElementById('cli-table');
+    if(!tb) return;
     tb.innerHTML = '';
-    DATA.clientes.forEach(c => {
-        let presCount = DATA.presupuestos.filter(p => p._clienteId == (c.Id || c.id)).length;
+    
+    for (let c of DATA.clientes) {
+        // Obtenemos pres count asincronamente pero rápido usando limit=1
+        let r = await fetch(API + '/api/v2/tables/' + TBL.presupuestos + '/links/canpten8owymbde/records/' + (c.Id || c.id) + '?limit=1', { headers: H }).catch(()=>null);
+        let presCount = 0;
+        if (r && r.ok) { let d = await r.json(); presCount = d.pageInfo?.totalRows || 0; }
 
         tb.innerHTML += `<tr>
             <td><strong>${cleanLabel(c.Nombre)}</strong></td>
@@ -571,9 +668,22 @@ function renderClientes() {
                 </div>
             </td>
         </tr>`;
-    });
+    }
+    renderPagination('pag-clientes', PAGING.clientes, 'clientes');
+    // Para el Modal "Nuevo Presupuesto" cargamos un datalist
+    renderClientDatalist();
+    _showPageSpinner('clientes', false);
 }
-function renderPropiedades() {
+async function renderPropiedades() {
+    _showPageSpinner('propiedades', true);
+    let search = document.getElementById('prop-search')?.value || '';
+    let extra = '&sort=-CreatedAt';
+    if(search) extra += `&where=(Nombre,like,%${search}%)`;
+    
+    let res = await apiGetPaged(TBL.propiedades, PAGING.propiedades.page, extra);
+    DATA.propiedades = res.list;
+    PAGING.propiedades.total = res.total;
+
     let tb = document.getElementById('prop-table');
     if (!tb) return;
     tb.innerHTML = '';
@@ -599,6 +709,8 @@ function renderPropiedades() {
             </td>
         </tr>`;
     });
+    renderPagination('pag-propiedades', PAGING.propiedades, 'propiedades');
+    _showPageSpinner('propiedades', false);
 }
 function filterSelectOptions(inputId, selectId) {
     let search = document.getElementById(inputId).value.toLowerCase();
@@ -611,44 +723,16 @@ function filterSelectOptions(inputId, selectId) {
     }
 }
 function filterPropiedades() {
-    let search = document.getElementById('prop-search').value.toLowerCase();
-    let rows = document.querySelectorAll('#prop-table tr');
-    rows.forEach(r => {
-        let text = r.textContent.toLowerCase();
-        let show = text.includes(search);
-        r.style.display = show ? '' : 'none';
-    });
+    PAGING.propiedades.page = 1;
+    renderPropiedades();
 }
 function filterCli() {
-    let search = document.getElementById('cli-search').value.toLowerCase();
-    let tipo = document.getElementById('cli-filter-tipo').value;
-    let rows = document.querySelectorAll('#cli-table tr');
-    rows.forEach(r => {
-        let name = r.cells[0]?.textContent.toLowerCase() || '';
-        let t = r.cells[3]?.textContent || '';
-        let show = name.includes(search) && (!tipo || t === tipo);
-        r.style.display = show ? '' : 'none';
-    });
+    PAGING.clientes.page = 1;
+    renderClientes();
 }
 function filterPresupuestos() {
-    let search = document.getElementById('pres-search').value.toLowerCase();
-    let estado = document.getElementById('pres-filter-estado').value;
-    let rows = document.querySelectorAll('#pres-table tr');
-    rows.forEach(r => {
-        let nro = r.cells[0]?.textContent.toLowerCase() || '';
-        let cli = r.cells[2]?.textContent.toLowerCase() || '';
-        let dir = r.cells[3]?.textContent.toLowerCase() || '';
-        let zona = r.cells[4]?.textContent.toLowerCase() || '';
-        let est = r.cells[8]?.textContent || ''; // Columna Estado (9na col. index 8)
-
-        // El texto busca en todas estas columnas
-        let matchesSearch = nro.includes(search) || cli.includes(search) || dir.includes(search) || zona.includes(search);
-
-        // El estado debe coincidir exactamente si no es vacío
-        let matchesEstado = !estado || est === estado;
-
-        r.style.display = (matchesSearch && matchesEstado) ? '' : 'none';
-    });
+    PAGING.presupuestos.page = 1;
+    loadPresupuestos();
 }
 function showClientDetail(id) {
     let c = DATA.clientes.find(x => x.Id === id);
