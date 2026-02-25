@@ -1,3 +1,90 @@
+// === FIREBASE AUTH ===
+const firebaseConfig = {
+  apiKey: "AIzaSyDbhin3nW4qySZbWsX3EZs-GAsTK5qfhYE",
+  authDomain: "persiana-total.firebaseapp.com",
+  projectId: "persiana-total",
+  storageBucket: "persiana-total.firebasestorage.app",
+  messagingSenderId: "572769200027",
+  appId: "1:572769200027:web:60b41b57ce4632d674633e"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+
+const USER_ROLES = {
+    'E6922Is70Db54pv2mioWpszvKru2': 'admin'
+};
+
+let currentUser = null;
+let currentRole = null;
+
+function loginEmail() {
+    let email = document.getElementById('login-email').value;
+    let pass = document.getElementById('login-pass').value;
+    let errDiv = document.getElementById('login-error');
+    errDiv.style.display = 'none';
+    auth.signInWithEmailAndPassword(email, pass).catch(function(error) {
+        errDiv.textContent = 'Error: ' + error.message;
+        errDiv.style.display = 'block';
+    });
+}
+
+function loginGoogle() {
+    let provider = new firebase.auth.GoogleAuthProvider();
+    auth.signInWithPopup(provider).catch(function(error) {
+        let errDiv = document.getElementById('login-error');
+        errDiv.textContent = 'Error: ' + error.message;
+        errDiv.style.display = 'block';
+    });
+}
+
+function logout() {
+    auth.signOut();
+}
+
+auth.onAuthStateChanged(function(user) {
+    if (user) {
+        currentUser = user;
+        currentRole = USER_ROLES[user.uid] || null;
+        if (!currentRole) {
+            alert('Tu cuenta no tiene permisos asignados. Contactá al administrador.');
+            auth.signOut();
+            return;
+        }
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('user-info').textContent = user.email + ' (' + currentRole + ')';
+        applyRolePermissions(currentRole);
+        
+        if (!window._appInitialized) {
+            window._appInitialized = true;
+            initApp();
+        }
+    } else {
+        currentUser = null;
+        currentRole = null;
+        document.getElementById('login-screen').style.display = 'flex';
+    }
+});
+
+function applyRolePermissions(role) {
+    let tabConfig = document.querySelector('[onclick*="config"]');
+    if (tabConfig) tabConfig.style.display = (role === 'admin') ? '' : 'none';
+    
+    let tabComp = document.querySelector('[onclick*="precios"]');
+    if (tabComp) tabComp.style.display = (role === 'admin') ? '' : 'none';
+    
+    let tabZonas = document.querySelector('[onclick*="zonas"]');
+    if (tabZonas) tabZonas.style.display = (role === 'admin') ? '' : 'none';
+    
+    if (role !== 'admin') {
+        document.querySelectorAll('.hide-margin').forEach(el => el.style.display = 'none');
+    }
+    
+    if (role === 'instalador') {
+        let btnNuevoPres = document.querySelector('[onclick*="openNewPres"]');
+        if (btnNuevoPres) btnNuevoPres.style.display = 'none';
+    }
+}
+
 const API = 'http://93.127.212.235:32770';
 const TOKEN = 'dZMS2te8v6cf47Jlmlnk3S3ft9LT_QO8bjNdOcZZ';
 const BASE = 'pru2fsphj43juyr';
@@ -2827,7 +2914,7 @@ async function deletePresupuesto(presId) {
     }
 }
 
-initApp();
+// initApp(); // Ahora se ejecuta tras auth onAuthStateChanged
 
 let modalMouseDownTarget = null;
 window.addEventListener('mousedown', function (event) {
