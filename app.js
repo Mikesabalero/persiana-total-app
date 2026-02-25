@@ -2167,28 +2167,35 @@ async function generarPDF(presId) {
                         Condición de pago: ${cleanLabel(pago)}
                     </div>
                 </div>
-                <div style="margin-top: 20px; background: linear-gradient(to bottom, #12BAA8, #3E5D68); padding: 25px 30px; text-align: center; border-radius: 4px;">
-                    <div style="display: flex; justify-content: center; align-items: center; gap: 40px; flex-wrap: wrap;">
-                        <span style="color: white; font-size: 0.85em; font-family: 'Segoe UI', Arial, sans-serif;">
-                            <span style="font-weight: bold; font-size: 1.1em;">f</span> PersianaTotal
-                        </span>
-                        <span style="color: white; font-size: 0.85em; font-family: 'Segoe UI', Arial, sans-serif;">
-                            <span style="font-weight: bold; font-size: 1.1em;">@</span> persiana.total
-                        </span>
-                        <span style="color: white; font-size: 0.85em; font-family: 'Segoe UI', Arial, sans-serif;">
-                            &#9993; ${DATA.tc.Empresa_email || 'persianatotal@hotmail.com'}
-                        </span>
-                        <span style="color: white; font-size: 0.85em; font-family: 'Segoe UI', Arial, sans-serif;">
-                            &#127760; ${DATA.tc.Empresa_web || 'persianatotal.com.ar'}
-                        </span>
-                    </div>
-                </div>
+                
             </div>`;
         let container = document.getElementById('pdf-content');
         if (!container) { alert('Error: Contenedor PDF no encontrado'); return; }
         container.innerHTML = html;
         let opt = { margin: [5, 10, 0, 10], filename: `Presupuesto_${pres.Numero}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
-        html2pdf().from(container.firstElementChild).set(opt).save();
+        // Generar PDF con footer fijo al pie
+        html2pdf().from(container.firstElementChild).set(opt).toPdf().get('pdf').then(function(pdf) {
+            let pageHeight = pdf.internal.pageSize.getHeight();
+            let pageWidth = pdf.internal.pageSize.getWidth();
+            let footerHeight = 12;
+            let gradColors = { r1: 18, g1: 186, b1: 168, r2: 62, g2: 93, b2: 104 };
+            // Dibujar rectangulo degradado como footer
+            for (let i = 0; i < footerHeight; i++) {
+                let ratio = i / footerHeight;
+                let r = Math.round(gradColors.r1 + (gradColors.r2 - gradColors.r1) * ratio);
+                let g = Math.round(gradColors.g1 + (gradColors.g2 - gradColors.g1) * ratio);
+                let b = Math.round(gradColors.b1 + (gradColors.b2 - gradColors.b1) * ratio);
+                pdf.setFillColor(r, g, b);
+                pdf.rect(0, pageHeight - footerHeight + i, pageWidth, 1, 'F');
+            }
+            // Texto del footer
+            pdf.setFontSize(8);
+            pdf.setTextColor(255, 255, 255);
+            let footerY = pageHeight - footerHeight / 2 + 1;
+            let footerText = 'PersianaTotal    @persiana.total    ' + (DATA.tc.Empresa_email || 'persianatotal@hotmail.com') + '    ' + (DATA.tc.Empresa_web || 'persianatotal.com.ar');
+            pdf.text(footerText, pageWidth / 2, footerY, { align: 'center' });
+            pdf.save(`Presupuesto_${pres.Numero}.pdf`);
+        });
     } catch (e) { console.error(e); alert('Error generando PDF: ' + e.message); }
 }
 
