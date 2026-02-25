@@ -1013,10 +1013,10 @@ async function autoDetectarZonaProp() {
     let coords = await geocodificarDireccion(direccion, "Santa Fe");
     if (!coords) {
         // Fallback para Santa Fe: asignar SF - Centro/Sur por defecto
-        let fallbackZone = DATA.zonas.find(z => z.Nombre === 'SF - Centro/Sur');
+        let fallbackZone = DATA.zonas.find(z => z.Nombre === 'D. Centro');
         if (fallbackZone && zonaSelect) {
             zonaSelect.value = fallbackZone.Id || fallbackZone.id;
-            alert('No se encontró la dirección exacta. Se asignó SF - Centro/Sur por defecto. Podés cambiarla manualmente.');
+            alert('No se encontró la dirección exacta. Se asignó D. Centro por defecto. Podés cambiarla manualmente.');
         } else {
             alert('No se pudo geocodificar la dirección. Seleccioná la zona manualmente.');
         }
@@ -1146,7 +1146,7 @@ async function openNewPropiedad(propData = null, preselectedClientId = null, for
     let localies = new Set();
     DATA.zonas.forEach(z => {
         if (z.Activo === false || z.Activo === 'false' || z.Activo === 0) return;
-        if (z.Nombre.startsWith('SF - ')) localies.add('Santa Fe');
+        if (z.Nombre.startsWith('D. ')) localies.add('Santa Fe');
         else localies.add(z.Nombre);
     });
     [...localies].sort().forEach(loc => {
