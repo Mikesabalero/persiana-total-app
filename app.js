@@ -2149,7 +2149,7 @@ async function generarPDF(presId) {
         }
         let total = pres.Total_con_IVA || 0;
 
-        html += `<div style="margin-top: 20px; margin-left: auto; width: fit-content; min-width: 280px; background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">`;
+        html += `<div style="margin-top: 15px; margin-left: auto; width: fit-content; min-width: 280px; background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">`;
 
         if (billingMode === 'con_iva') {
             html += `
@@ -2167,14 +2167,14 @@ async function generarPDF(presId) {
                         Condición de pago: ${cleanLabel(pago)}
                     </div>
                 </div>
-                <div style="margin-top: 15px;">
-                    <img src="footer-pdf.png" style="width: 100%; display: block;">
+                <div style="margin-top: 8px;">
+                    <img src="footer-pdf.png" style="width: 90%; margin: 10px auto 0 auto; display: block;">
                 </div>
             </div>`;
         let container = document.getElementById('pdf-content');
         if (!container) { alert('Error: Contenedor PDF no encontrado'); return; }
         container.innerHTML = html;
-        let opt = { margin: [5, 10, 5, 10], filename: `Presupuesto_${pres.Numero}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+        let opt = { margin: [5, 10, 10, 10], filename: `Presupuesto_${pres.Numero}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
         html2pdf().from(container.firstElementChild).set(opt).save();
     } catch (e) { console.error(e); alert('Error generando PDF: ' + e.message); }
 }
