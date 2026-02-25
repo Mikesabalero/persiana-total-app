@@ -1862,20 +1862,7 @@ function autoLoadComponents(n) {
             addCompWithPrice(115, 1);
         }
         addCustomLabor("Mano de obra reparación", Math.max(materialPriceTotal * 0.5, 40000));
-        let hasViatico = Array.from(tbody.querySelectorAll('input.filter-input')).some(i => i.value.toLowerCase().includes('viatico'));
-        if (!hasViatico) {
-            let zonaId = document.getElementById('np-zona')?.value;
-            let zonaObj = DATA.zonas.find(z => z.Id == zonaId);
-            let zonaNombre = (zonaObj?.Nombre || '').toLowerCase();
-            let vId = 143;
-            if (zonaNombre.includes('santa fe')) vId = 138;
-            else if (zonaNombre.includes('santo tom')) vId = 139;
-            else if (zonaNombre.includes('recreo')) vId = 140;
-            else if (zonaNombre.includes('esperanza')) vId = 141;
-            else if (zonaNombre.includes('paran')) vId = 142;
-            let vComp = DATA.componentes.find(c => c.Id == vId);
-            if (vComp) addCompRowWithData(n, vComp, 1);
-        }
+        // Viáticos ya no se agregan como componentes. Se manejan globalmente en el bloque de Traslado.
     } else if (isMotor) {
         let motorId = selectMotor(cat, peso, ancho, m2);
         if (motorId) {
@@ -2528,10 +2515,7 @@ async function generarPDF(presId) {
                 let tipoComp = compObj ? compObj.Tipo_componente : '';
 
                 if (isRepair) {
-                    if (compObj?.Nombre?.toLowerCase().includes('viático')) {
-                        html += `<li style="margin-bottom: 4px;">${cleanLabel(l.Descripcion_pdf || 'Viático')}</li>`;
-                    }
-                    continue;
+                    continue; // Reparaciones ya dicen "Incluye mano de obra", no listamos componentes individuales internos como fletes o repuestos
                 }
 
                 if (tipoComp === 'Mano_obra') {
@@ -2562,7 +2546,11 @@ async function generarPDF(presId) {
         }
         let total = pres.Total_con_IVA || 0;
 
-        html += `<div style="margin-top: 15px; margin-left: auto; width: fit-content; min-width: 280px; background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">`;
+        html += `<div style="margin-top: 15px; margin-left: auto; width: fit-content; min-width: 320px; background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">`;
+
+        if (pres.Costo_traslado > 0) {
+            html += `<div style="display: flex; justify-content: space-between; font-size: 1.1em; color: #374151; margin-bottom: 8px; border-bottom: 1px dashed #d1d5db; padding-bottom: 8px;"><span>Traslado:</span> <span>${fmt(pres.Costo_traslado)}</span></div>`;
+        }
 
         if (billingMode === 'con_iva') {
             html += `
