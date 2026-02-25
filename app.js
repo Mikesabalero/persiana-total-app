@@ -2177,7 +2177,7 @@ async function generarPDF(presId) {
         html2pdf().from(container.firstElementChild).set(opt).toPdf().get('pdf').then(function(pdf) {
             let pageHeight = pdf.internal.pageSize.getHeight();
             let pageWidth = pdf.internal.pageSize.getWidth();
-            let footerHeight = 12;
+            let footerHeight = 15;
             let gradColors = { r1: 18, g1: 186, b1: 168, r2: 62, g2: 93, b2: 104 };
             // Dibujar rectangulo degradado como footer
             for (let i = 0; i < footerHeight; i++) {
@@ -2189,10 +2189,10 @@ async function generarPDF(presId) {
                 pdf.rect(0, pageHeight - footerHeight + i, pageWidth, 1, 'F');
             }
             // Texto del footer
-            pdf.setFontSize(8);
+            pdf.setFontSize(9);
             pdf.setTextColor(255, 255, 255);
             let footerY = pageHeight - footerHeight / 2 + 1;
-            let footerText = 'PersianaTotal    @persiana.total    ' + (DATA.tc.Empresa_email || 'persianatotal@hotmail.com') + '    ' + (DATA.tc.Empresa_web || 'persianatotal.com.ar');
+            let footerText = 'fb  PersianaTotal     ig  persiana.total     mail  ' + (DATA.tc.Empresa_email || 'persianatotal@hotmail.com') + '     web  ' + (DATA.tc.Empresa_web || 'persianatotal.com.ar');
             pdf.text(footerText, pageWidth / 2, footerY, { align: 'center' });
             pdf.save(`Presupuesto_${pres.Numero}.pdf`);
         });
