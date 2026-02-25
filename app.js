@@ -2054,6 +2054,36 @@ function recalcUnidad(n) {
     recalcTotal();
 }
 
+function recalcTraslado() {
+    let zId = document.getElementById('np-zona')?.value;
+    let zona = DATA.zonas.find(z => String(z.Id) === String(zId));
+    let bloq = document.getElementById('bloque-traslado');
+    let tVis = document.getElementById('traslado-visitas');
+    
+    if (!zona || !bloq) return;
+    
+    // Si es Centro (Id=1), traslado = 0
+    if (zona.Id == 1 || zona.id == 1) {
+        document.getElementById('traslado-zona').textContent = zona.Nombre;
+        document.getElementById('traslado-viatico').textContent = '$0';
+        document.getElementById('traslado-transporte').textContent = '$0';
+        if (tVis) { tVis.value = 0; tVis.disabled = true; }
+        document.getElementById('traslado-total').textContent = '$0';
+        return;
+    }
+    
+    let viatico = zona.Costo_viatico || 0;
+    let transporte = zona.Costo_transporte || 0;
+    let visitas = parseInt(tVis?.value) || 0;
+    let totalTraslado = (viatico + transporte) * visitas;
+    
+    document.getElementById('traslado-zona').textContent = zona.Nombre;
+    document.getElementById('traslado-viatico').textContent = fmt(viatico);
+    document.getElementById('traslado-transporte').textContent = fmt(transporte);
+    if (tVis) tVis.disabled = false;
+    document.getElementById('traslado-total').textContent = fmt(totalTraslado);
+}
+
 function recalcTotal() {
     let total = 0;
     document.querySelectorAll('.unidad-subtotal').forEach(s => {
