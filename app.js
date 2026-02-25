@@ -2496,7 +2496,7 @@ async function generarPDF(presId) {
             let measures = (u.Ancho_m && u.Alto_m) ? ` (${u.Ancho_m}m x ${u.Alto_m}m)` : '';
 
             html += `
-                <div style="margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+                <div style="margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; page-break-inside: avoid;">
                     <div style="background: #f3f4f6; padding: 8px; border-radius: 4px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-weight: bold; font-size: 1.1em; color: #1f2937;">${cleanLabel(u.Nombre)} - ${cleanLabel(u.Ubicacion) || ''}${measures}</span>
                         <span style="color: #4b5563; font-weight: normal;">${cleanLabel(u.Tipo_trabajo) || ''}</span>
@@ -2546,7 +2546,7 @@ async function generarPDF(presId) {
         }
         let total = pres.Total_con_IVA || 0;
 
-        html += `<div style="margin-top: 15px; margin-left: auto; width: fit-content; min-width: 320px; background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">`;
+        html += `<div style="margin-top: 15px; margin-left: auto; width: fit-content; min-width: 320px; background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; page-break-inside: avoid;">`;
 
         if (billingMode === 'con_iva') {
             html += `
@@ -2582,7 +2582,7 @@ async function generarPDF(presId) {
         let container = document.getElementById('pdf-content');
         if (!container) { alert('Error: Contenedor PDF no encontrado'); return; }
         container.innerHTML = html;
-        let opt = { margin: [5, 10, 35, 10], filename: `Presupuesto_${pres.Numero}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+        let opt = { margin: [5, 10, 35, 10], filename: `Presupuesto_${pres.Numero}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['avoid-all', 'css', 'legacy'] } };
         // Generar PDF con footer imagen fija al pie
         html2pdf().from(container.firstElementChild).set(opt).toPdf().get('pdf').then(function(pdf) {
             let pageCount = pdf.internal.getNumberOfPages();
