@@ -2065,6 +2065,18 @@ function recalcTraslado() {
         recalcTotal();
         return;
     }
+    // Si es Centro (Id=1), traslado = 0
+    if (zona.Id == 1 || zona.id == 1) {
+        if (zLabel) zLabel.textContent = cleanLabel(zona.Nombre);
+        if (tViatico) tViatico.textContent = '$0';
+        if (tTransporte) tTransporte.textContent = '$0';
+        tVis.value = 0;
+        tVis.disabled = true;
+        if (tTotal) tTotal.textContent = '$0';
+        tVis.dataset.val = 0;
+        recalcTotal();
+        return;
+    }
     let viatico = zona.Costo_viatico || 0;
     let transporte = zona.Costo_transporte || 0;
     let visitas = parseInt(tVis.value) || 0;
@@ -2073,6 +2085,7 @@ function recalcTraslado() {
     if (tViatico) tViatico.textContent = fmt(viatico);
     if (tTransporte) tTransporte.textContent = fmt(transporte);
     if (tTotal) tTotal.textContent = fmt(costo);
+    tVis.disabled = false;
     tVis.dataset.val = costo;
     recalcTotal();
 }
