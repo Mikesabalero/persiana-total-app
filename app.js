@@ -132,18 +132,7 @@ function closeVerPres() { document.getElementById('modal-ver-pres').classList.re
 function closeVerCliente() { document.getElementById('modal-ver-cliente').classList.remove('show'); }
 function closeModalCliente() { document.getElementById('modal-cliente').classList.remove('show'); }
 function closeModalEditComp() { document.getElementById('modal-edit-comp').classList.remove('show'); }
-function closeModalPropiedad() { 
-    let modal = document.getElementById('modal-propiedad');
-    let reopenId = modal.getAttribute('data-reopen-client-id');
-    modal.classList.remove('show');
-    document.getElementById('np-prop-cliente').disabled = false;
-    let si = document.getElementById('np-prop-cliente-search');
-    if (si) si.disabled = false;
-    if (reopenId) {
-        modal.removeAttribute('data-reopen-client-id');
-        viewCliente(reopenId);
-    }
-}
+// closeModalPropiedad definida más abajo (línea ~1363)
 
 let _loadingEdit = false;
 let unidadCount = 0;
@@ -183,18 +172,7 @@ const REPAIR_LABELS = {
     'bobinado_motor': 'Bobinado de motor'
 };
 
-function cleanLabel(text) {
-    if (!text || typeof text !== 'string') return text || '';
-    let s = text.replace(/_/g, ' ');
-    const acentos = {
-        'Instalacion nueva': 'Instalación nueva',
-        'Cambio pano': 'Cambio paño',
-        'Motorizacion': 'Motorización',
-        'Cambio guias': 'Cambio guías',
-        'Reparacion': 'Reparación',
-    };
-    return acentos[s] || s;
-}
+// cleanLabel ya definida arriba (línea 159)
 async function _resolvePresupuestoLinks() {
     await Promise.all(DATA.presupuestos.map(async p => {
         try {
@@ -1156,6 +1134,7 @@ function updateZonaFromProp(propId) {
     if (prop.Zona_id && zonaSelect) {
         zonaSelect.value = prop.Zona_id;
         zonaSelect.disabled = false;
+        recalcTraslado();
         return;
     }
     // Fallback: try exact name match on Localidad
@@ -1163,6 +1142,7 @@ function updateZonaFromProp(propId) {
     if (zone && zonaSelect) {
         zonaSelect.value = zone.Id;
         zonaSelect.disabled = false;
+        recalcTraslado();
     } else if (zonaSelect) {
         zonaSelect.disabled = false;
     }
@@ -1460,9 +1440,20 @@ async function deletePropiedad(id, name) {
 }
 
 async function openNewPres(presData = null) {
-    if (DATA.clientes.length === 0) await reloadAllData();
     // Asegurar datos de presupuestos cargados para editar
     await ensureData('presupuestos');
+    // Cargar clientes si no están (lazy loading puede dejarlos vacíos)
+    if (!DATA.clientes || DATA.clientes.length === 0) {
+        DATA.clientes = await apiGet(TBL.clientes);
+        DATA._loaded.clientes = true;
+    }
+    // Cargar componentes si no están (necesarios para addCompRowWithData)
+    if (!DATA.componentes || DATA.componentes.length === 0) {
+        DATA.componentes = await apiGet(TBL.componentes);
+        DATA._loaded.precios = true;
+    }
+    // Actualizar datalist de clientes
+    renderClientDatalist();
     editPresId = presData ? (presData.Id || presData.id) : null;
 
     // Reset Modal
@@ -2051,6 +2042,38 @@ function recalcUnidad(n) {
         t += sub;
     });
     document.getElementById('sub-u-' + n).textContent = fmt(t);
+    recalcTotal();
+}
+
+function recalcTraslado() {
+    let zonaSelect = document.getElementById('np-zona');
+    let tVis = document.getElementById('traslado-visitas');
+    let zLabel = document.getElementById('traslado-zona');
+    let tViatico = document.getElementById('traslado-viatico');
+    let tTransporte = document.getElementById('traslado-transporte');
+    let tTotal = document.getElementById('traslado-total');
+    // Guard: if DOM elements don't exist yet, bail out
+    if (!zonaSelect || !tVis) return;
+    let zId = zonaSelect.value;
+    let zona = DATA.zonas.find(z => String(z.Id) === String(zId));
+    if (!zona) {
+        if (zLabel) zLabel.textContent = '-';
+        if (tViatico) tViatico.textContent = '$0';
+        if (tTransporte) tTransporte.textContent = '$0';
+        if (tTotal) tTotal.textContent = '$0';
+        tVis.dataset.val = 0;
+        recalcTotal();
+        return;
+    }
+    let viatico = zona.Costo_viatico || 0;
+    let transporte = zona.Costo_transporte || 0;
+    let visitas = parseInt(tVis.value) || 0;
+    let costo = (viatico + transporte) * visitas;
+    if (zLabel) zLabel.textContent = cleanLabel(zona.Nombre);
+    if (tViatico) tViatico.textContent = fmt(viatico);
+    if (tTransporte) tTransporte.textContent = fmt(transporte);
+    if (tTotal) tTotal.textContent = fmt(costo);
+    tVis.dataset.val = costo;
     recalcTotal();
 }
 
