@@ -673,7 +673,7 @@
                 </div>
                 <div class="form-group"><label>Propiedad / Dirección</label><select id="np-propiedad"
                         onchange="updateZonaFromProp(this.value)"></select></div>
-                <div class="form-group"><label>Zona</label><select id="np-zona" onchange="recalcTraslado()"></select></div>
+                <div class="form-group"><label>Zona</label><select id="np-zona" onchange="window._manualVisitas=false; recalcTraslado()"></select></div>
                 <div class="form-group"><label>Forma de Pago</label><select id="np-pago"></select></div>
             </div>
             <div class="form-row">
@@ -701,7 +701,7 @@
                     <div><label>Zona:</label> <span id="traslado-zona">-</span></div>
                     <div><label>Viáticos:</label> <span id="traslado-viatico">$0</span></div>
                     <div><label>Transporte:</label> <span id="traslado-transporte">$0</span></div>
-                    <div><label>Visitas:</label> <input type="number" id="traslado-visitas" min="0" max="10" value="2" style="width:60px" onchange="recalcTraslado()"></div>
+                    <div><label>Visitas:</label> <input type="number" id="traslado-visitas" min="0" max="10" value="2" style="width:60px" onchange="window._manualVisitas=true; recalcTraslado()"></div>
                     <div><strong>Total traslado: <span id="traslado-total">$0</span></strong></div>
                 </div>
             </div>

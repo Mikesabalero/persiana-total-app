@@ -1441,7 +1441,7 @@ async function deletePropiedad(id, name) {
     }
 }
 
-async function openNewPres(presData = null) {
+async function openNewPres(presData = null) { window._manualVisitas = false;
     // Asegurar datos de presupuestos cargados para editar
     await ensureData('presupuestos');
     // Cargar clientes si no están (lazy loading puede dejarlos vacíos)
@@ -1528,7 +1528,7 @@ async function openNewPres(presData = null) {
     document.getElementById('np-resumen').style.display = 'none';
     unidadCount = 0;
 
-    _loadingEdit = true;
+    _loadingEdit = true; window._manualVisitas = false;
 
     if (presData && presData._unidades && presData._unidades.length > 0) {
         // Load existing units
@@ -1642,7 +1642,7 @@ function duplicateUnidad(origN) {
     let oldAncho = document.getElementById('u-' + origN + '-ancho')?.value || '';
     let oldAlto = document.getElementById('u-' + origN + '-alto')?.value || '';
 
-    _loadingEdit = true;
+    _loadingEdit = true; window._manualVisitas = false;
     
     addUnidad();
     let newN = unidadCount;
@@ -1663,7 +1663,7 @@ function duplicateUnidad(origN) {
     let showRep = (oldTipo == 'Reparacion' || oldTipo == 'Service') ? 'block' : 'none';
     if(document.getElementById('div-u-' + newN + '-tiporep')) document.getElementById('div-u-' + newN + '-tiporep').style.display = showRep;
 
-    _loadingEdit = true;
+    _loadingEdit = true; window._manualVisitas = false;
     let origTbody = document.getElementById('comps-u-' + origN);
     document.getElementById('comps-u-' + newN).innerHTML = '';
 
@@ -2086,7 +2086,7 @@ function recalcTotal() {
     });
     
     // Auto-calcular visitas basado en Tipo de Trabajo
-    if (!_loadingEdit) {
+    if (!_loadingEdit && !window._manualVisitas) {
         let maxVisitas = 1;
         let hasHardWork = false;
         document.querySelectorAll('[id^="u-"][id$="-tipo"]').forEach(sel => {
