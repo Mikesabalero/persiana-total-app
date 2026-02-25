@@ -2167,8 +2167,21 @@ async function generarPDF(presId) {
                         Condición de pago: ${cleanLabel(pago)}
                     </div>
                 </div>
-                <div style="margin-top: 8px;">
-                    <img src="footer-pdf.png" style="width: 100%; margin: 0; padding: 0; display: block;">
+                <div style="margin-top: 15px; background: linear-gradient(135deg, #2d8a7e, #1a6b8a); padding: 25px 30px; text-align: center; border-radius: 4px;">
+                    <div style="display: flex; justify-content: center; align-items: center; gap: 40px; flex-wrap: wrap;">
+                        <span style="color: white; font-size: 0.85em; font-family: 'Segoe UI', Arial, sans-serif;">
+                            <span style="margin-right: 5px;">&#xf09a;</span> PersianaTotal
+                        </span>
+                        <span style="color: white; font-size: 0.85em; font-family: 'Segoe UI', Arial, sans-serif;">
+                            &#128247; persiana.total
+                        </span>
+                        <span style="color: white; font-size: 0.85em; font-family: 'Segoe UI', Arial, sans-serif;">
+                            &#9993; ${DATA.tc.Empresa_email || 'persianatotal@hotmail.com'}
+                        </span>
+                        <span style="color: white; font-size: 0.85em; font-family: 'Segoe UI', Arial, sans-serif;">
+                            &#127760; ${DATA.tc.Empresa_web || 'persianatotal.com.ar'}
+                        </span>
+                    </div>
                 </div>
             </div>`;
         let container = document.getElementById('pdf-content');
