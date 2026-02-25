@@ -481,10 +481,13 @@ function renderPropiedades() {
     DATA.propiedades.forEach(p => {
         let cliName = resolveName(p, 'Clientes', DATA.clientes);
         let principal = p.Principal ? '✅ Sí' : 'No';
+        let zonaName = '-';
+        if (p.Zona_id) { let z = DATA.zonas.find(z => z.Id == p.Zona_id); if (z) zonaName = cleanLabel(z.Nombre); }
         tb.innerHTML += `<tr>
             <td><strong>${cleanLabel(p.Nombre)}</strong></td>
             <td>${p.Direccion || '-'}</td>
             <td>${p.Localidad || '-'}</td>
+            <td>${zonaName}</td>
             <td><a href="#" onclick="viewCliente(${resolveLink(p, 'Clientes')?.Id || 0}); return false;" style="color:var(--grad1);text-decoration:none;font-weight:600">${cliName}</a></td>
             <td>${p.Telefono || '-'}</td>
             <td>${cleanLabel(p.Tipo_Propiedad || p.Tipo_Propiedad_ || p.Tipo || '-')}</td>
@@ -492,7 +495,7 @@ function renderPropiedades() {
             <td>
                 <div style="display:flex;gap:4px">
                     <button class="btn-remove" onclick="openNewPropiedad(${JSON.stringify(p).replace(/"/g, '&quot;')})" title="Editar" style="background:#f3f4f6;color:var(--text)">✏️</button>
-                    <button class="btn-remove" onclick="deletePropiedad(${p.id || p.Id}, '${p.Nombre.replace(/'/g, "\\'")}')" title="Eliminar" style="color:var(--danger)">🗑</button>
+                    <button class="btn-remove" onclick="deletePropiedad(${p.id || p.Id}, '${p.Nombre.replace(/'/g, "\\\'")}')" title="Eliminar" style="color:var(--danger)">🗑</button>
                 </div>
             </td>
         </tr>`;
@@ -586,10 +589,13 @@ function viewCliente(clientId) {
         document.getElementById('vc-no-prop').style.display = 'none';
         props.forEach(p => {
             let principal = p.Principal ? '✅ Sí' : 'No';
+            let zonaName = '-';
+            if (p.Zona_id) { let z = DATA.zonas.find(z => z.Id == p.Zona_id); if (z) zonaName = cleanLabel(z.Nombre); }
             tb.innerHTML += `<tr>
                 <td><strong>${cleanLabel(p.Nombre)}</strong></td>
                 <td>${p.Direccion || '-'}</td>
                 <td>${p.Localidad || '-'}</td>
+                <td>${zonaName}</td>
                 <td>${cleanLabel(p.Tipo_Propiedad || p.Tipo_Propiedad_ || p.Tipo || '-')}</td>
                 <td>${principal}</td>
                 <td>${p.Telefono || '-'}</td>
@@ -955,58 +961,50 @@ function loadPropiedadesSelect(presData) {
     }
 }
 
-async function updateZonaFromProp(propId) {
+function updateZonaFromProp(propId) {
     let zonaSelect = document.getElementById('np-zona');
-    let autoBtn = document.getElementById('btn-autozona');
     if (!propId) {
         if (zonaSelect) zonaSelect.disabled = false;
         return;
     }
     let prop = DATA.propiedades.find(p => p.Id == propId);
-    if (!prop || !prop.Localidad) {
+    if (!prop) {
         if (zonaSelect) zonaSelect.disabled = false;
         return;
     }
-    // First try exact name match
+    // Read Zona_id from property
+    if (prop.Zona_id && zonaSelect) {
+        zonaSelect.value = prop.Zona_id;
+        zonaSelect.disabled = false;
+        return;
+    }
+    // Fallback: try exact name match on Localidad
     let zone = DATA.zonas.find(z => z.Nombre === prop.Localidad);
     if (zone && zonaSelect) {
         zonaSelect.value = zone.Id;
-        zonaSelect.disabled = true;
-        return;
+        zonaSelect.disabled = false;
+    } else if (zonaSelect) {
+        zonaSelect.disabled = false;
     }
-    // Try geocoding
-    if (prop.Direccion && prop.Localidad) {
-        if (autoBtn) { autoBtn.textContent = '⏳ Detectando...'; autoBtn.disabled = true; }
-        let coords = await geocodificarDireccion(prop.Direccion, prop.Localidad);
-        if (coords) {
-            let autoZona = asignarZonaAutomatica(coords.lat, coords.lon);
-            if (autoZona && zonaSelect) {
-                zonaSelect.value = autoZona.Id || autoZona.id;
-                zonaSelect.disabled = false;
-            }
-        }
-        if (autoBtn) { autoBtn.textContent = '📍 Auto-detectar zona'; autoBtn.disabled = false; }
-    }
-    if (zonaSelect) zonaSelect.disabled = false;
 }
 
-async function autoDetectarZona() {
-    let propId = document.getElementById('np-propiedad')?.value;
-    let prop = propId ? DATA.propiedades.find(p => p.Id == propId) : null;
-    let autoBtn = document.getElementById('btn-autozona');
-    if (!prop || !prop.Direccion || !prop.Localidad) {
-        alert('Seleccioná una propiedad con dirección y localidad primero.');
+async function autoDetectarZonaProp() {
+    let direccion = document.getElementById('np-prop-direccion')?.value;
+    let localidad = document.getElementById('np-prop-localidad')?.value;
+    let autoBtn = document.getElementById('btn-autozona-prop');
+    if (!direccion || !localidad) {
+        alert('Completá dirección y localidad primero.');
         return;
     }
     if (autoBtn) { autoBtn.textContent = '⏳ Detectando...'; autoBtn.disabled = true; }
-    let coords = await geocodificarDireccion(prop.Direccion, prop.Localidad);
+    let coords = await geocodificarDireccion(direccion, localidad);
     if (!coords) {
         alert('No se pudo geocodificar la dirección. Seleccioná la zona manualmente.');
         if (autoBtn) { autoBtn.textContent = '📍 Auto-detectar zona'; autoBtn.disabled = false; }
         return;
     }
     let autoZona = asignarZonaAutomatica(coords.lat, coords.lon);
-    let zonaSelect = document.getElementById('np-zona');
+    let zonaSelect = document.getElementById('prop-zona');
     if (autoZona && zonaSelect) {
         zonaSelect.value = autoZona.Id || autoZona.id;
         alert(`Zona detectada: ${autoZona.Nombre}`);
@@ -1132,6 +1130,15 @@ async function openNewPropiedad(propData = null, preselectedClientId = null, for
         zs.innerHTML += `<option value="${z.Nombre}" ${sel}>${cleanLabel(z.Nombre)}</option>`;
     });
 
+    // Poblar select de Zona asignada
+    let pz = document.getElementById('prop-zona');
+    pz.innerHTML = '<option value="">Seleccionar zona...</option>';
+    DATA.zonas.forEach(z => {
+        if (z.Activo === false || z.Activo === 'false' || z.Activo === 0) return;
+        let sel = (propData && propData.Zona_id == (z.Id || z.id)) ? 'selected' : '';
+        pz.innerHTML += `<option value="${z.Id || z.id}" ${sel}>${cleanLabel(z.Nombre)}</option>`;
+    });
+
     // Sincronizar buscador de clientes
     if (si) {
         if (propData) {
@@ -1187,7 +1194,8 @@ async function savePropiedad() {
         Ubicacion_Maps: document.getElementById('np-prop-maps').value,
         Horario_Disponible: document.getElementById('np-prop-horario').value,
         Principal: isPrincipal,
-        Clientes_id: parseInt(cliId)
+        Clientes_id: parseInt(cliId),
+        Zona_id: parseInt(document.getElementById('prop-zona').value) || null
     };
 
     if (!data.Nombre) { alert('El nombre es obligatorio'); return; }

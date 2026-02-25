@@ -302,6 +302,7 @@
                             <th>Nombre</th>
                             <th>Dirección</th>
                             <th>Localidad</th>
+                            <th>Zona</th>
                             <th>Cliente</th>
                             <th>Teléfono</th>
                             <th>Tipo</th>
@@ -605,6 +606,13 @@
                         <select id="np-prop-localidad" required></select>
                     </div>
                 </div>
+                <div class="form-group">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="margin:0">Zona asignada</label>
+                        <button type="button" id="btn-autozona-prop" class="btn btn-sm btn-secondary" onclick="autoDetectarZonaProp()" style="font-size:0.75em; padding:2px 8px;">📍 Auto-detectar zona</button>
+                    </div>
+                    <select id="prop-zona"></select>
+                </div>
                 <div class="form-row">
                     <div class="form-group">
                         <label>Teléfono</label>
@@ -663,13 +671,7 @@
                 </div>
                 <div class="form-group"><label>Propiedad / Dirección</label><select id="np-propiedad"
                         onchange="updateZonaFromProp(this.value)"></select></div>
-                <div class="form-group">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <label style="margin:0">Zona</label>
-                        <button type="button" id="btn-autozona" class="btn btn-sm btn-secondary" onclick="autoDetectarZona()" style="font-size:0.75em; padding:2px 8px;">📍 Auto-detectar zona</button>
-                    </div>
-                    <select id="np-zona"></select>
-                </div>
+                <div class="form-group"><label>Zona</label><select id="np-zona"></select></div>
                 <div class="form-group"><label>Forma de Pago</label><select id="np-pago"></select></div>
             </div>
             <div class="form-row">
@@ -776,6 +778,7 @@
                             <th>Nombre</th>
                             <th>Dirección</th>
                             <th>Localidad</th>
+                            <th>Zona</th>
                             <th>Tipo</th>
                             <th>Principal</th>
                             <th>Teléfono</th>
