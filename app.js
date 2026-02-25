@@ -1122,14 +1122,6 @@ async function openNewPropiedad(propData = null, preselectedClientId = null, for
     document.getElementById('np-prop-horario').value = propData ? propData.Horario_Disponible || propData.Horario_Disponible_ || '' : '';
     document.getElementById('np-prop-principal').checked = propData ? !!propData.Principal : false;
 
-    // Poblar select de Zonas (Localidad)
-    let zs = document.getElementById('np-prop-localidad');
-    zs.innerHTML = '<option value="">Seleccionar zona...</option>';
-    DATA.zonas.forEach(z => {
-        let sel = (propData && propData.Localidad === z.Nombre) ? 'selected' : '';
-        zs.innerHTML += `<option value="${z.Nombre}" ${sel}>${cleanLabel(z.Nombre)}</option>`;
-    });
-
     // Poblar select de Zona asignada
     let pz = document.getElementById('prop-zona');
     pz.innerHTML = '<option value="">Seleccionar zona...</option>';
