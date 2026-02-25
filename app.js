@@ -849,9 +849,7 @@ function loadConfig() {
             <button class="btn-remove" onclick="deleteZona(${z.Id || z.id}, '${cleanLabel(z.Nombre).replace(/'/g, "\\'")}')" title="Eliminar" style="color:var(--danger)">🗑</button>
         </div>`;
         let activoIcon = (z.Activo === false || z.Activo === 'false' || z.Activo === 0) ? '❌' : '✅';
-        let latlon = (z.Lat_centro && z.Lon_centro) ? z.Lat_centro.toFixed(3) + ', ' + z.Lon_centro.toFixed(3) : '-';
-        let radio = z.Radio_km ? z.Radio_km + ' km' : '-';
-        zt.innerHTML += '<tr><td><strong>' + cleanLabel(z.Nombre) + '</strong></td><td>' + fmt(z.Costo_viatico) + '</td><td>' + fmt(z.Costo_transporte) + '</td><td>' + fmt(z.Costo_traslado_service) + '</td><td style="font-size:0.8em">' + latlon + '</td><td>' + radio + '</td><td>' + activoIcon + '</td><td>' + actionBtn + '</td></tr>';
+        zt.innerHTML += '<tr><td><strong>' + cleanLabel(z.Nombre) + '</strong></td><td>' + fmt(z.Costo_viatico) + '</td><td>' + fmt(z.Costo_transporte) + '</td><td>' + activoIcon + '</td><td>' + actionBtn + '</td></tr>';
     });
     let pt = document.getElementById('cfg-pagos-table');
     pt.innerHTML = '';
