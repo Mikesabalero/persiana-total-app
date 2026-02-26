@@ -11,7 +11,8 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 
 const USER_ROLES = {
-    'E6922Is70Db54pv2mioWpszvKru2': 'admin'
+    'E6922Is70Db54pv2mioWpszvKru2': 'admin',
+    'A5IKpIzEmbXN1SVQvwFKj4zIgbn1': 'admin'
 };
 
 let currentUser = null;
