@@ -72,6 +72,10 @@ function loginGoogle() {
 }
 
 function logout() {
+    localStorage.removeItem("persiana_uid");
+    localStorage.removeItem("persiana_email");
+    localStorage.removeItem("persiana_role");
+    window._appInitialized = false;
     auth.signOut();
 }
 
@@ -80,15 +84,17 @@ auth.onAuthStateChanged(function(user) {
         currentUser = user;
         currentRole = USER_ROLES[user.uid] || null;
         if (!currentRole) {
-            // Si ya estaba inicializada la app, no hacer signOut (es un refresh de token)
             if (window._appInitialized) {
-                console.warn('Token refresh sin rol - ignorando');
                 return;
             }
-            alert('Tu cuenta (' + user.email + ') no tiene permisos asignados. Contactá al administrador para que te habilite el acceso.');
+            alert('Tu cuenta (' + user.email + ') no tiene permisos asignados.');
             auth.signOut();
             return;
         }
+        localStorage.setItem('persiana_uid', user.uid);
+        localStorage.setItem('persiana_email', user.email);
+        localStorage.setItem('persiana_role', currentRole);
+        
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('user-info').textContent = user.email + ' (' + currentRole + ')';
         applyRolePermissions(currentRole);
@@ -98,16 +104,28 @@ auth.onAuthStateChanged(function(user) {
             initApp();
         }
     } else {
-        // Solo mostrar login si la app NO estaba inicializada
-        // (evita que un refresh de token muestre el login)
-        if (!window._appInitialized) {
-            currentUser = null;
-            currentRole = null;
-            document.getElementById('login-screen').style.display = 'flex';
-        } else {
-            console.warn('Firebase auth state null pero app ya inicializada - reconectando...');
-            // Intentar reconectar silenciosamente
+        let savedUid = localStorage.getItem('persiana_uid');
+        let savedRole = localStorage.getItem('persiana_role');
+        let savedEmail = localStorage.getItem('persiana_email');
+        
+        if (savedUid && savedRole && window._appInitialized) {
+            console.warn('Firebase desconectado temporalmente - sesión local activa');
+            return;
         }
+        
+        if (savedUid && savedRole && !window._appInitialized) {
+            currentRole = savedRole;
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('user-info').textContent = savedEmail + ' (' + savedRole + ')';
+            applyRolePermissions(savedRole);
+            window._appInitialized = true;
+            initApp();
+            return;
+        }
+        
+        currentUser = null;
+        currentRole = null;
+        document.getElementById('login-screen').style.display = 'flex';
     }
 });
 
