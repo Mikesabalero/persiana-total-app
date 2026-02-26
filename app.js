@@ -80,6 +80,11 @@ auth.onAuthStateChanged(function(user) {
         currentUser = user;
         currentRole = USER_ROLES[user.uid] || null;
         if (!currentRole) {
+            // Si ya estaba inicializada la app, no hacer signOut (es un refresh de token)
+            if (window._appInitialized) {
+                console.warn('Token refresh sin rol - ignorando');
+                return;
+            }
             alert('Tu cuenta (' + user.email + ') no tiene permisos asignados. Contactá al administrador para que te habilite el acceso.');
             auth.signOut();
             return;
@@ -93,7 +98,6 @@ auth.onAuthStateChanged(function(user) {
             initApp();
         }
     } else {
-        currentUser = null;
         currentRole = null;
         document.getElementById('login-screen').style.display = 'flex';
     }
