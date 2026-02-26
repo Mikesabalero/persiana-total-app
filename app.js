@@ -98,8 +98,16 @@ auth.onAuthStateChanged(function(user) {
             initApp();
         }
     } else {
-        currentRole = null;
-        document.getElementById('login-screen').style.display = 'flex';
+        // Solo mostrar login si la app NO estaba inicializada
+        // (evita que un refresh de token muestre el login)
+        if (!window._appInitialized) {
+            currentUser = null;
+            currentRole = null;
+            document.getElementById('login-screen').style.display = 'flex';
+        } else {
+            console.warn('Firebase auth state null pero app ya inicializada - reconectando...');
+            // Intentar reconectar silenciosamente
+        }
     }
 });
 
