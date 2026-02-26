@@ -118,7 +118,7 @@ function applyRolePermissions(role) {
     }
 }
 
-const API = 'http://93.127.212.235:32770';
+const API = 'https://nocodb.srv1323649.hstgr.cloud';
 const TOKEN = 'dZMS2te8v6cf47Jlmlnk3S3ft9LT_QO8bjNdOcZZ';
 const BASE = 'pru2fsphj43juyr';
 const H = { 'xc-token': TOKEN, 'Content-Type': 'application/json' };
