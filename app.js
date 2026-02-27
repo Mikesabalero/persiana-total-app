@@ -2658,7 +2658,7 @@ async function generarPDF(presId) {
         let diasValidez = DATA.tc.Validez_dias || 15;
         let venc = new Date(new Date(pres.Fecha).getTime() + diasValidez * 24 * 60 * 60 * 1000).toLocaleDateString();
         let html = `
-            <div id="pdf-content" style="width: 750px; margin: 0 auto; font-family: 'Montserrat', 'Segoe UI', Arial, sans-serif; color: #1f2937;">
+            <div id="pdf-content" style="width: 750px; margin: 0 auto; font-family: 'Montserrat', 'Segoe UI', Arial, sans-serif; color: #1f2937; display: flex; flex-direction: column; min-height: 1020px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 2px solid #e5e7eb; margin-bottom: 15px;">
                     <div><img src="logo-pdf.png" alt="Persiana Total" style="max-width: 300px;"></div>
                     <div style="text-align: right; font-size: 0.85em; color: #4b5563;">
@@ -2745,7 +2745,7 @@ async function generarPDF(presId) {
         }
         let total = pres.Total_con_IVA || 0;
 
-        html += `<div style="margin-top: 15px; margin-left: auto; width: fit-content; min-width: 320px; background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; page-break-inside: avoid;">`;
+        html += `<div style="margin-top: auto; margin-left: auto; width: fit-content; min-width: 320px; background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; page-break-inside: avoid;">`;
 
         if (billingMode === 'con_iva') {
             html += `
