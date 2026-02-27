@@ -286,12 +286,11 @@ function closeModalEditComp() { document.getElementById('modal-edit-comp').class
 
 function calcPrecioVentaComp() {
     let costo = parseFloat(document.getElementById('ec-costo').value) || 0;
-    let costoArmado = parseFloat(document.getElementById('ec-costo-armado').value) || 0;
     let pctArmado = parseFloat(document.getElementById('ec-pct-armado').value) || 0;
     let margen = parseFloat(document.getElementById('ec-margen').value) || 0;
     let ivaVenta = parseFloat(document.getElementById('ec-iva-venta').value) || 21;
     
-    let costoTotal = costo + costoArmado + (costo * pctArmado / 100);
+    let costoTotal = costo + (costo * pctArmado / 100);
     let precioVenta = costoTotal * (1 + margen / 100);
     let precioConIva = precioVenta * (1 + ivaVenta / 100);
     
@@ -528,9 +527,8 @@ function loadPrecios() {
     
     currentData.forEach(c => {
         let costo = c.Costo_unitario || 0;
-        let costoArmado = parseFloat(c.Costo_armado) || 0;
         let pctArmado = parseFloat(c.Pct_armado) || 0;
-        let costoTotal = costo + costoArmado + (costo * pctArmado / 100);
+        let costoTotal = costo + (costo * pctArmado / 100);
         let margen = c.Margen_default || 0;
         let precioArs = c.Moneda_costo === 'USD' ? costoTotal * tc * (1 + margen / 100) : costoTotal * (1 + margen / 100);
         
@@ -595,7 +593,6 @@ function nuevoComponente() {
     document.getElementById('ec-tipo').value = 'Material';
     document.getElementById('ec-unidad').value = 'unidad';
     document.getElementById('ec-costo').value = 0;
-    document.getElementById('ec-costo-armado').value = 0;
     document.getElementById('ec-pct-armado').value = 0;
     document.getElementById('ec-moneda').value = 'ARS';
     document.getElementById('ec-margen').value = 0;
@@ -617,7 +614,6 @@ function openModalEditComp(compData) {
     document.getElementById('ec-tipo').value = compData.Tipo_componente || 'Material';
     document.getElementById('ec-unidad').value = compData.Unidad || 'unidad';
     document.getElementById('ec-costo').value = compData.Costo_unitario || 0;
-    document.getElementById('ec-costo-armado').value = compData.Costo_armado || 0;
     document.getElementById('ec-pct-armado').value = compData.Pct_armado || 0;
     document.getElementById('ec-moneda').value = compData.Moneda_costo || 'ARS';
     document.getElementById('ec-margen').value = compData.Margen_default || 0;
@@ -649,7 +645,6 @@ async function saveComponent() {
         Unidad: document.getElementById('ec-unidad').value,
         Costo_unitario: newCosto,
         Moneda_costo: document.getElementById('ec-moneda').value,
-        Costo_armado: parseFloat(document.getElementById('ec-costo-armado').value) || 0,
         Pct_armado: parseFloat(document.getElementById('ec-pct-armado').value) || 0,
         Margen_default: parseFloat(document.getElementById('ec-margen').value),
         Proveedor: document.getElementById('ec-proveedor').value,
