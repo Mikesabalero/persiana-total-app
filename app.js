@@ -1776,6 +1776,8 @@ function addUnidadUI(n, uData) {
     let tipoRep = uData ? (uData.Tipo_reparacion || '') : '';
     let showRep = (tipo == 'Reparacion' || tipo == 'Service') ? 'display:block' : 'display:none';
 
+    let instPct = uData && uData.Pct_instalacion !== undefined ? parseFloat(uData.Pct_instalacion) : (INSTALACION_PCT[tipo] || 0);
+
     let html = '<div class="unidad-card" id="unidad-' + n + '" data-db-id="' + uId + '"><div class="unidad-header"><h3>Unidad ' + n + '</h3><div style="display:flex;gap:8px;align-items:center"><span class="unidad-subtotal" id="sub-u-' + n + '">$0</span><button class="btn-remove" onclick="duplicateUnidad(' + n + ')" title="Duplicar unidad">📋</button><button class="btn-remove" onclick="removeUnidad(' + n + ')" title="Eliminar">🗑</button></div></div>';
     html += '<div class="form-row" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;"><div class="form-group"><label>Ambiente</label><input id="u-' + n + '-nombre" placeholder="Ej: Dormitorio principal" value="' + nombre + '"></div>';
     html += '<div class="form-group"><label>Ubicación</label><input id="u-' + n + '-ubic" placeholder="Ej: Contra frente" value="' + ubic + '"></div>';
@@ -1801,6 +1803,13 @@ function addUnidadUI(n, uData) {
     html += '<div class="form-row" style="grid-template-columns:1fr 1fr 2fr"><div class="form-group"><label>Ancho (m)</label><input type="number" id="u-' + n + '-ancho" step="0.01" oninput="autoLoadComponents(' + n + ')" value="' + ancho + '"></div>';
     html += '<div class="form-group"><label>Alto (m)</label><input type="number" id="u-' + n + '-alto" step="0.01" oninput="autoLoadComponents(' + n + ')" value="' + alto + '"></div><div></div></div>';
     html += '<table class="comp-table"><thead><tr><th>Componente</th><th>Cant.</th><th class="hide-margin">Costo</th><th class="hide-margin">Moneda</th><th class="hide-margin">Margen%</th><th>Precio Unit.</th><th>Subtotal</th><th>IVA%</th><th></th></tr></thead><tbody id="comps-u-' + n + '"></tbody></table>';
+    
+    html += '<div class="instalacion-row" id="inst-u-' + n + '" style="display:flex; gap:12px; align-items:center; margin:8px 0; padding:8px; background:#f0fdf4; border-radius:6px; border:1px solid #bbf7d0;">';
+    html += '<label style="font-weight:600;">Instalación:</label>';
+    html += '<input type="number" id="inst-pct-u-' + n + '" value="' + instPct + '" step="0.5" style="width:70px" oninput="window._manualInstPct[' + n + ']=true; recalcUnidad(' + n + ')"> <span>%</span>';
+    html += '<span>= </span><span id="inst-monto-u-' + n + '" style="font-weight:700;">$0</span>';
+    html += '</div>';
+
     html += '<button class="btn-add-comp" onclick="addCompRow(' + n + ')">+ Agregar componente</button></div>';
     document.getElementById('np-unidades').insertAdjacentHTML('beforeend', html);
     autoLoadComponents(n);
@@ -1831,6 +1840,9 @@ function duplicateUnidad(origN) {
     if(document.getElementById('u-' + newN + '-accion')) document.getElementById('u-' + newN + '-accion').value = oldAccion;
     if(document.getElementById('u-' + newN + '-ancho')) document.getElementById('u-' + newN + '-ancho').value = oldAncho;
     if(document.getElementById('u-' + newN + '-alto')) document.getElementById('u-' + newN + '-alto').value = oldAlto;
+    
+    let oldInstPct = document.getElementById('inst-pct-u-' + origN)?.value || 0;
+    if(document.getElementById('inst-pct-u-' + newN)) document.getElementById('inst-pct-u-' + newN).value = oldInstPct;
 
     let cat = getCategoria(oldProd);
     let hideAccion = (cat === 'Seguridad') ? 'none' : 'block';
@@ -1874,6 +1886,17 @@ function duplicateUnidad(origN) {
 }
 
 // ===== AUTO-LOAD COMPONENTS =====
+const INSTALACION_PCT = {
+    'Instalacion_nueva': 6,
+    'Cambio_pano': 4,
+    'Cambio_guias': 5,
+    'Motorizacion': 5,
+    'Reparacion': 0,
+    'Service': 0,
+    'Otro': 0
+};
+window._manualInstPct = window._manualInstPct || {};
+
 const PESO_M2 = {
     16: 11, 17: 13, 18: 10, 19: 12, 20: 14,
     21: 4, 22: 7, 24: 3,
@@ -1982,6 +2005,14 @@ function autoLoadComponents(n) {
     let m2 = ancho * alto;
     let pesoM2 = PESO_M2[pid] || 5;
     let peso = m2 * pesoM2;
+    
+    // Set pct si no fue manual
+    if (!window._manualInstPct[n]) {
+        let pctInput = document.getElementById('inst-pct-u-' + n);
+        if (pctInput) {
+            pctInput.value = INSTALACION_PCT[tipoTrabajo] || 0;
+        }
+    }
 
     tbody.innerHTML = '';
 
@@ -2052,7 +2083,6 @@ function autoLoadComponents(n) {
             }
         }
         addCompWithPrice(58, 1); addCompWithPrice(102, 1);
-        if (m2 > 4) addCompWithPrice(95, 1);
         addCompWithPrice(103, 1);
     } else if (isPano) {
         let matCompId = PROD_COMP_MAP[pid];
@@ -2080,10 +2110,7 @@ function autoLoadComponents(n) {
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == ejeId), parseFloat(ancho.toFixed(2)));
             }
             addCompRowWithData(n, DATA.componentes.find(c => c.Id == (ancho < 5 ? 60 : 61)), 1);
-            addCompWithPrice(58, 1); addCompWithPrice(94, 1);
-            if (m2 > 4) addCompWithPrice(95, 1);
-            if (motorId) addCompWithPrice(96, 1);
-            addCompWithPrice(97, 1);
+            addCompWithPrice(58, 1);
         } else if (cat === 'Exterior') {
             if (accion === 'motor') {
                 let motorId = selectMotor(cat, peso, ancho, m2);
@@ -2091,10 +2118,7 @@ function autoLoadComponents(n) {
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 150), parseFloat(ancho.toFixed(2)));
                 if (pid === 27 || pid === 29) addCompRowWithData(n, DATA.componentes.find(c => c.Id == 161), Math.ceil(ancho / 0.4));
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 63), parseFloat((alto * 2).toFixed(2)));
-                addCompWithPrice(58, 1); addCompWithPrice(93, 1);
-                if (m2 > 4) addCompWithPrice(95, 1);
-                if (motorId) addCompWithPrice(96, 1);
-                addCompWithPrice(97, 1);
+                addCompWithPrice(58, 1);
             } else if (accion === 'manual_cinta') {
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 150), parseFloat(ancho.toFixed(2)));
                 if (pid === 27 || pid === 29) addCompWithPrice(161, Math.ceil(ancho / 0.4));
@@ -2105,9 +2129,6 @@ function autoLoadComponents(n) {
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 63), parseFloat((alto * 2).toFixed(2)));
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == (alto <= 1.4 ? 120 : (alto <= 2.3 ? 121 : 122))), 1);
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == (alto <= 1.4 ? 126 : (alto <= 2.3 ? 127 : 157))), 1);
-                addCompWithPrice(93, 1);
-                if (m2 > 4) addCompWithPrice(95, 1);
-                addCompWithPrice(97, 1);
             } else if (accion === 'manual_antognetti') {
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 150), parseFloat(ancho.toFixed(2)));
                 if (pid === 27 || pid === 29) addCompWithPrice(161, Math.ceil(ancho / 0.4));
@@ -2117,12 +2138,7 @@ function autoLoadComponents(n) {
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 129), 2);
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 63), parseFloat((alto * 2).toFixed(2)));
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == (m2 <= 1.5 ? 136 : 137)), 1);
-                addCompWithPrice(93, 1);
-                if (m2 > 4) addCompWithPrice(95, 1);
-                addCompWithPrice(97, 1);
             }
-        } else if (cat === 'Interior' && tipoTrabajo === 'Instalacion_nueva') {
-            addCompRowWithData(n, DATA.componentes.find(c => c.Id == 92), 1);
         }
     }
     recalcUnidad(n);
@@ -2206,6 +2222,16 @@ function recalcUnidad(n) {
         r.querySelector('.c-subtotal').textContent = fmt(sub);
         t += sub;
     });
+
+    let instPctInput = document.getElementById('inst-pct-u-' + n);
+    let instMontoSpan = document.getElementById('inst-monto-u-' + n);
+    if (instPctInput) {
+        let pct = parseFloat(instPctInput.value) || 0;
+        let instMonto = t * (pct / 100);
+        if (instMontoSpan) instMontoSpan.textContent = fmt(instMonto);
+        t += instMonto;
+    }
+
     document.getElementById('sub-u-' + n).textContent = fmt(t);
     recalcTotal();
 }
@@ -2376,6 +2402,8 @@ async function savePres() {
             Ancho_m: parseFloat(document.getElementById('u-' + n + '-ancho')?.value) || null,
             Alto_m: parseFloat(document.getElementById('u-' + n + '-alto')?.value) || null,
             Accionamiento: document.getElementById('u-' + n + '-accion')?.value || 'motor',
+            Pct_instalacion: parseFloat(document.getElementById('inst-pct-u-' + n)?.value) || 0,
+            Monto_instalacion: parseFloat(document.getElementById('inst-monto-u-' + n)?.textContent.replace('$', '').replace(/\./g, '').replace(',', '.')) || 0,
             Orden: parseInt(n)
         };
         let ancho = uData.Ancho_m || 0;
@@ -2685,7 +2713,6 @@ async function generarPDF(presId) {
                 html += `<li style="margin-bottom: 4px;">${repLabel}</li><li style="margin-bottom: 4px;">Incluye mano de obra</li>`;
             }
 
-            let hasMO = false, hasMotorMO = false, hasGuiasMO = false;
             for (let l of uLines) {
                 let compObj = l._componenteId ? DATA.componentes.find(c => c.Id == l._componenteId) : null;
                 let tipoComp = compObj ? compObj.Tipo_componente : '';
@@ -2694,17 +2721,13 @@ async function generarPDF(presId) {
                     continue; // Reparaciones ya dicen "Incluye mano de obra", no listamos componentes individuales internos como fletes o repuestos
                 }
 
-                if (tipoComp === 'Mano_obra') {
-                    if ([92, 93, 94].includes(compObj?.Id)) hasMO = true;
-                    else if (compObj?.Id == 96) hasMotorMO = true;
-                    else if (compObj?.Id == 97) hasGuiasMO = true;
-                    continue;
-                }
-
                 html += `<li style="margin-bottom: 4px;">${cleanLabel(l.Descripcion_pdf)}</li>`;
             }
 
-            if (!isRepair && (hasMO || hasMotorMO || hasGuiasMO)) html += `<li style="margin-bottom: 4px;">Incluye instalación completa</li>`;
+            if (!isRepair && u.Pct_instalacion > 0) {
+                html += `<li style="margin-bottom: 4px;">Instalación (${u.Pct_instalacion}%): ${fmt(u.Monto_instalacion || 0)}</li>`;
+                unitTotal += parseFloat(u.Monto_instalacion) || 0;
+            }
 
             html += `
                     </ul>
@@ -2888,6 +2911,12 @@ async function viewPresupuesto(presId) {
         uLines.forEach(l => {
             html += `<li style="margin-bottom:2px">${cleanLabel(l.Descripcion_pdf)} (${l.Cantidad}) — ${fmt(l.Subtotal_ARS)}</li>`;
         });
+        
+        if (!isRepair && u.Pct_instalacion > 0) {
+            html += `<li style="margin-bottom:2px">Instalación (${u.Pct_instalacion}%): ${fmt(u.Monto_instalacion || 0)}</li>`;
+            unitTotal += parseFloat(u.Monto_instalacion) || 0;
+        }
+
         html += `</ul><div style="text-align:right; margin-top:10px; font-size:1.1em;"><strong>Precio unidad: ${fmt(unitTotal)}</strong></div></div>`;
     });
     document.getElementById('vp-contenido').innerHTML = html;
