@@ -2658,7 +2658,7 @@ async function generarPDF(presId) {
         let diasValidez = DATA.tc.Validez_dias || 15;
         let venc = new Date(new Date(pres.Fecha).getTime() + diasValidez * 24 * 60 * 60 * 1000).toLocaleDateString();
         let html = `
-            <div id="pdf-content" style="width: 750px; margin: 0 auto; font-family: 'Montserrat', 'Segoe UI', Arial, sans-serif; color: #1f2937; display: flex; flex-direction: column; min-height: 1020px;">
+            <div id="pdf-content" style="width: 750px; margin: 0 auto; font-family: 'Montserrat', 'Segoe UI', Arial, sans-serif; color: #1f2937; display: flex; flex-direction: column; min-height: 960px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 2px solid #e5e7eb; margin-bottom: 15px;">
                     <div><img src="logo-pdf.png" alt="Persiana Total" style="max-width: 300px;"></div>
                     <div style="text-align: right; font-size: 0.85em; color: #4b5563;">
