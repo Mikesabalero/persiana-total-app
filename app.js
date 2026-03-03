@@ -2082,8 +2082,7 @@ function autoLoadComponents(n) {
                 if (pid === 27 || pid === 29) addCompWithPrice(161, Math.ceil(ancho / 0.4));
             }
         }
-        addCompWithPrice(58, 1); addCompWithPrice(102, 1);
-        addCompWithPrice(103, 1);
+        addCompWithPrice(58, 1);
     } else if (isPano) {
         let matCompId = PROD_COMP_MAP[pid];
         if (matCompId) {
