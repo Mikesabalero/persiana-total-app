@@ -897,7 +897,7 @@ async function renderClientes() {
                 <div style="display:flex;gap:4px">
                     <button class="btn-remove" onclick="viewCliente(${c.id || c.Id})" title="Ver" style="background:#f3f4f6;color:var(--text)">👁</button>
                     <button class="btn-remove" onclick="openNewCliente(${JSON.stringify(c).replace(/"/g, '&quot;')})" title="Editar" style="background:#f3f4f6;color:var(--text)">✏️</button>
-                    <button class="btn-remove" onclick="deleteCliente(${c.id || c.Id}, '${c.Nombre.replace(/'/g, "\\'")}')" title="Eliminar" style="color:var(--danger)">🗑</button>
+                    <button class="btn-remove" onclick="deleteCliente(${c.id || c.Id}, '${(c.Nombre||'').replace(/'/g, "\\'")}')" title="Eliminar" style="color:var(--danger)">🗑</button>
                 </div>
             </td>
         </tr>`;
