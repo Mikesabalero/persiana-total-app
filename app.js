@@ -411,14 +411,71 @@ async function reloadAllData() {
 
 // Mantener compatibilidad: loadAll llama a reloadAllData
 async function loadAll() { await reloadAllData(); }
-function renderClientDatalist() {
+// Reemplazar renderClientDatalist con búsqueda en tiempo real
+async function renderClientDatalist() {
+    // Ya no llenamos el datalist estático, usamos búsqueda dinámica
     let dl = document.getElementById('client-datalist');
-    if (!dl) return;
-    let html = '';
-    DATA.clientes.forEach(c => {
-        html += `<option value="${cleanLabel(c.Nombre)}">`;
+    if (dl) dl.innerHTML = '';
+}
+
+async function searchClientsAPI(query) {
+    if (!query || query.length < 2) return [];
+    let url = API + '/api/v2/tables/' + TBL.clientes + '/records?limit=15&where=(Nombre,like,%' + encodeURIComponent(query) + '%)&fields=Id,Nombre,Telefono';
+    let r = await fetch(url, { headers: H });
+    if (!r.ok) return [];
+    let data = await r.json();
+    return data.list || [];
+}
+
+function setupClientSearch(inputId, selectId) {
+    let input = document.getElementById(inputId);
+    if (!input) return;
+    // Remove datalist
+    input.removeAttribute('list');
+    
+    // Create dropdown
+    let dropdown = document.createElement('div');
+    dropdown.id = inputId + '-dropdown';
+    dropdown.style.cssText = 'position:absolute;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:6px;max-height:200px;overflow-y:auto;width:100%;display:none;box-shadow:0 4px 12px rgba(0,0,0,0.15);';
+    input.parentElement.style.position = 'relative';
+    input.parentElement.appendChild(dropdown);
+    
+    let debounce = null;
+    input.addEventListener('input', function() {
+        clearTimeout(debounce);
+        debounce = setTimeout(async () => {
+            let q = input.value.trim();
+            if (q.length < 2) { dropdown.style.display = 'none'; return; }
+            let results = await searchClientsAPI(q);
+            if (results.length === 0) {
+                dropdown.innerHTML = '<div style="padding:8px;color:var(--text-muted);font-size:0.85em;">Sin resultados</div>';
+            } else {
+                dropdown.innerHTML = results.map(c => 
+                    '<div style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:0.9em;" onmouseover="this.style.background=\'var(--hover)\'" onmouseout="this.style.background=\'transparent\'" data-id="' + c.Id + '">' +
+                    cleanLabel(c.Nombre) + ' <span style="color:var(--text-muted);font-size:0.8em;">' + (c.Telefono || '') + '</span></div>'
+                ).join('');
+            }
+            dropdown.style.display = 'block';
+            
+            dropdown.querySelectorAll('[data-id]').forEach(el => {
+                el.addEventListener('click', function() {
+                    let id = this.dataset.id;
+                    let name = cleanLabel(results.find(c => c.Id == id)?.Nombre || '');
+                    input.value = name;
+                    document.getElementById(selectId).value = id;
+                    dropdown.style.display = 'none';
+                    if (selectId === 'np-cliente') updatePropiedadesSelect();
+                });
+            });
+        }, 300);
     });
-    dl.innerHTML = html;
+    
+    // Cerrar dropdown al hacer click afuera
+    document.addEventListener('click', function(e) {
+        if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
 }
 function syncClientSelect(input, selectId) {
     let name = input.value;
@@ -1693,6 +1750,7 @@ async function openNewPres(presData = null) { window._manualVisitas = false;
 
     document.getElementById('np-unidades').innerHTML = '';
     recalcTraslado();
+    setupClientSearch("np-pres-cliente-search", "np-cliente");
     
     // Si era edicion, restauramos manuales que recalcTraslado piso (si los hubiese):
     if (presData && presData.Costo_traslado) {
