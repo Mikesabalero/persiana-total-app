@@ -167,7 +167,10 @@ async function loadClientMap() {
         if (!r.ok) break;
         let data = await r.json();
         let list = data.list || [];
-        list.forEach(c => { CLIENT_MAP[c.Id] = c.Nombre || '-'; });
+        list.forEach(c => { 
+            let id = c.Id || c.id;
+            if (id) CLIENT_MAP[id] = c.Nombre || '-'; 
+        });
         if (list.length < limit) hasMore = false;
         offset += limit;
     }
@@ -228,8 +231,8 @@ function _showPageSpinner(pageId, show) {
     if (show && !existing) {
         let d = document.createElement('div');
         d.className = 'lazy-spinner';
-        d.style.cssText = 'display:flex;align-items:center;justify-content:center;padding:60px;color:var(--text-light);font-size:1.1em;gap:10px;';
-        d.innerHTML = '<div style="width:22px;height:22px;border:3px solid var(--border);border-top-color:var(--grad1);border-radius:50%;animation:spin .7s linear infinite"></div> Cargando datos...';
+        d.style.cssText = 'position:absolute;top:50px;left:50%;transform:translateX(-50%);z-index:99;background:var(--surface);padding:10px 20px;border-radius:20px;box-shadow:0 4px 6px rgba(0,0,0,0.1);display:flex;align-items:center;color:var(--text);font-size:1em;gap:10px;';
+        d.innerHTML = '<div style="width:20px;height:20px;border:3px solid var(--border);border-top-color:var(--grad1);border-radius:50%;animation:spin .7s linear infinite"></div> Cargando datos...';
         page.prepend(d);
     } else if (!show && existing) {
         existing.remove();
@@ -282,9 +285,10 @@ async function showPage(id, btn) {
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     if (btn) btn.classList.add('active');
     // Show spinner and lazy-load data for the page
-    _showPageSpinner(id, true);
+    let showSpn = !DATA._loaded[id];
+    if (showSpn) _showPageSpinner(id, true);
     try { await ensureData(id); } catch(e) { console.error('ensureData error:', e); }
-    _showPageSpinner(id, false);
+    if (showSpn) _showPageSpinner(id, false);
     // Render
     if (id === 'dashboard') loadDashboard();
     if (id === 'presupuestos') loadPresupuestos();
@@ -346,8 +350,8 @@ function cleanLabel(text) {
 
 function fmt(n) { if (n == null) return '$0'; return '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
 function badgeHtml(estado) { let c = { 'Borrador': 'borrador', 'Enviado': 'enviado', 'Aprobado': 'aprobado', 'Rechazado': 'rechazado', 'Vencido': 'vencido', 'Facturado': 'facturado' }; return '<span class="badge badge-' + (c[estado] || 'borrador') + '">' + cleanLabel(estado) + '</span>'; }
-function resolveLink(row, field) { let v = row[field]; if (!v) return null; if (typeof v === 'object' && Array.isArray(v) && v.length > 0) return v[0]; if (typeof v === 'object' && v.Id) return v; return null; }
-function resolveName(row, field, list, idField) { let link = resolveLink(row, field); if (!link) return '-'; let id = link.Id || link.id || link; let found = list.find(i => i.Id == id); if (found) return found.Nombre || found.Title || '-'; if (field === 'Clientes' && CLIENT_MAP[id]) return CLIENT_MAP[id]; return (link.Nombre || link.Title || '-'); }
+function resolveLink(row, field) { let v = row[field]; if (!v) return null; if (typeof v === 'object' && Array.isArray(v) && v.length > 0) return v[0]; if (typeof v === 'object' && (v.Id || v.id)) return v; return null; }
+function resolveName(row, field, list, idField) { let link = resolveLink(row, field); if (!link) return '-'; let id = link.Id || link.id || link; let found = list.find(i => (i.Id == id || i.id == id)); if (found) return found.Nombre || found.Title || '-'; if (field === 'Clientes' && CLIENT_MAP[id]) return CLIENT_MAP[id]; return (link.Nombre || link.Title || '-'); }
 function showConfigTab(id, btn) { document.querySelectorAll('.config-section').forEach(s => s.style.display = 'none'); document.getElementById('config-' + id).style.display = 'block'; document.querySelectorAll('.config-tab').forEach(t => t.classList.remove('active')); btn.classList.add('active'); }
 const REPAIR_LABELS = {
     'cambio_eje': 'Cambio de eje completo',
