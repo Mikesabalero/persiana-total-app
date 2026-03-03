@@ -155,6 +155,24 @@ const BASE = 'pru2fsphj43juyr';
 const H = { 'xc-token': TOKEN, 'Content-Type': 'application/json' };
 const TBL = { clientes: 'mwby85581fhjy27', propiedades: 'm0dwlr7ccoim1kf', historial: 'mimh9lp8bkew4t0', categorias: 'mulo5ve82d9ex7q', productos: 'mdr6mo695g0qz6d', componentes: 'mgh9e1zivvhpg26', prod_comp: 'mmjzqw7v4que9q3', tc: 'mhj9fovlmv9036x', zonas: 'mottig5nmj5e3kx', presupuestos: 'mn1yyjyovvoyxme', lineas: 'mv1e9trh23j0q3o', servicios: 'mz8qrki3hz4y7iv', formas_pago: 'm2t4fnjie88gfo0', unidades: 'mix059xkpsz15um', anchos: 'mayai71j546g3as', historial_aumentos: 'myumlbp9hemi3cu' };
 let DATA = { clientes: [], propiedades: [], zonas: [], componentes: [], productos: [], prod_comp: [], presupuestos: [], lineas: [], unidades: [], formas_pago: [], tc: null, anchos: [], _loaded: { clientes: false, precios: false, presupuestos: false, presupuestos_deps: false, propiedades: false, config: false } };
+let CLIENT_MAP = {};
+async function loadClientMap() {
+    CLIENT_MAP = {};
+    let offset = 0;
+    let limit = 200;
+    let hasMore = true;
+    while (hasMore) {
+        let url = API + '/api/v2/tables/' + TBL.clientes + '/records?fields=Id,Nombre&limit=' + limit + '&offset=' + offset;
+        let r = await fetch(url, { headers: H });
+        if (!r.ok) break;
+        let data = await r.json();
+        let list = data.list || [];
+        list.forEach(c => { CLIENT_MAP[c.Id] = c.Nombre || '-'; });
+        if (list.length < limit) hasMore = false;
+        offset += limit;
+    }
+    console.log('CLIENT_MAP cargado:', Object.keys(CLIENT_MAP).length, 'clientes');
+}
 let appReady = false;
 
 const PAGE_SIZE = 20;
@@ -330,7 +348,7 @@ function cleanLabel(text) {
 function fmt(n) { if (n == null) return '$0'; return '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
 function badgeHtml(estado) { let c = { 'Borrador': 'borrador', 'Enviado': 'enviado', 'Aprobado': 'aprobado', 'Rechazado': 'rechazado', 'Vencido': 'vencido', 'Facturado': 'facturado' }; return '<span class="badge badge-' + (c[estado] || 'borrador') + '">' + cleanLabel(estado) + '</span>'; }
 function resolveLink(row, field) { let v = row[field]; if (!v) return null; if (typeof v === 'object' && Array.isArray(v) && v.length > 0) return v[0]; if (typeof v === 'object' && v.Id) return v; return null; }
-function resolveName(row, field, list, idField) { let link = resolveLink(row, field); if (!link) return '-'; let id = link.Id || link.id || link; let found = list.find(i => i.Id == id); return found ? found.Nombre || found.Title || '-' : (link.Nombre || link.Title || '-'); }
+function resolveName(row, field, list, idField) { let link = resolveLink(row, field); if (!link) return '-'; let id = link.Id || link.id || link; let found = list.find(i => i.Id == id); if (found) return found.Nombre || found.Title || '-'; if (field === 'Clientes' && CLIENT_MAP[id]) return CLIENT_MAP[id]; return (link.Nombre || link.Title || '-'); }
 function showConfigTab(id, btn) { document.querySelectorAll('.config-section').forEach(s => s.style.display = 'none'); document.getElementById('config-' + id).style.display = 'block'; document.querySelectorAll('.config-tab').forEach(t => t.classList.remove('active')); btn.classList.add('active'); }
 const REPAIR_LABELS = {
     'cambio_eje': 'Cambio de eje completo',
@@ -381,6 +399,7 @@ async function initApp() {
     // Resolver links de presupuestos para dashboard
     await _resolvePresupuestoLinks();
     loadDashboard();
+    await loadClientMap();
     appReady = true;
     console.timeEnd('initApp');
     console.log('initApp: totales', PAGING.clientes.total, 'clientes,', PAGING.presupuestos.total, 'presupuestos');
