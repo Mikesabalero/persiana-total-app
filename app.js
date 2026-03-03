@@ -227,6 +227,9 @@ async function nextPage(key) {
 function _showPageSpinner(pageId, show) {
     let page = document.getElementById('page-' + pageId);
     if (!page) return;
+    if (show && getComputedStyle(page).position === 'static') {
+        page.style.position = 'relative';
+    }
     let existing = page.querySelector('.lazy-spinner');
     if (show && !existing) {
         let d = document.createElement('div');
@@ -285,7 +288,7 @@ async function showPage(id, btn) {
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     if (btn) btn.classList.add('active');
     // Show spinner and lazy-load data for the page
-    let showSpn = !DATA._loaded[id];
+    let showSpn = DATA._loaded[id] === false;
     if (showSpn) _showPageSpinner(id, true);
     try { await ensureData(id); } catch(e) { console.error('ensureData error:', e); }
     if (showSpn) _showPageSpinner(id, false);
@@ -442,7 +445,8 @@ async function renderClientDatalist() {
 
 async function searchClientsAPI(query) {
     if (!query || query.length < 2) return [];
-    let url = API + '/api/v2/tables/' + TBL.clientes + '/records?limit=15&where=(Nombre,like,%' + encodeURIComponent(query) + '%)&fields=Id,Nombre,Telefono';
+    let q = encodeURIComponent(query);
+    let url = API + '/api/v2/tables/' + TBL.clientes + '/records?limit=15&where=(Nombre,like,%' + q + '%)~or(Telefono,like,%' + q + '%)&fields=Id,Nombre,Telefono';
     let r = await fetch(url, { headers: H });
     if (!r.ok) return [];
     let data = await r.json();
@@ -474,7 +478,7 @@ function setupClientSearch(inputId, selectId) {
             } else {
                 dropdown.innerHTML = results.map(c => 
                     '<div style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:0.9em;" onmouseover="this.style.background=\'var(--hover)\'" onmouseout="this.style.background=\'transparent\'" data-id="' + c.Id + '">' +
-                    cleanLabel(c.Nombre) + ' <span style="color:var(--text-muted);font-size:0.8em;">' + (c.Telefono || '') + '</span></div>'
+                    cleanLabel(c.Nombre) + (c.Telefono ? ' <span style="color:var(--text-muted);font-size:0.8em;"> - ' + c.Telefono + '</span>' : '') + '</div>'
                 ).join('');
             }
             dropdown.style.display = 'block';
