@@ -235,15 +235,13 @@ function _showPageSpinner(pageId, show) {
         existing.remove();
     }
 }
-
 async function ensureData(page) {
     if (page === 'clientes' || page === 'propiedades') {
-        if (!DATA._loaded.propiedades) {
-            DATA.propiedades = await apiGet(TBL.propiedades);
-            DATA._loaded.propiedades = true;
-            DATA._loaded.clientes = true;
-            console.log('Lazy loaded: Propiedades (' + DATA.propiedades.length + ')');
+        if (Object.keys(CLIENT_MAP).length === 0) {
+            await loadClientMap();
         }
+        DATA._loaded.propiedades = true;
+        DATA._loaded.clientes = true;
     }
     if (page === 'precios') {
         if (!DATA._loaded.precios) {
@@ -256,7 +254,7 @@ async function ensureData(page) {
         if (!DATA._loaded.presupuestos) {
             let [productos, prod_comp, unidades, lineas, propiedades] = await Promise.all([
                 apiGet(TBL.productos), apiGet(TBL.prod_comp),
-                apiGet(TBL.unidades), apiGet(TBL.lineas), apiGet(TBL.propiedades)
+                apiGet(TBL.unidades), apiGet(TBL.lineas), apiGetAll(TBL.propiedades)
             ]);
             DATA.productos = productos;
             DATA.prod_comp = prod_comp;
@@ -326,6 +324,7 @@ let unidadCount = 0;
 let editPresId = null;
 
 async function apiGet(tid, params = '') { let r = await fetch(API + '/api/v2/tables/' + tid + '/records?limit=200' + params, { headers: H }); if (!r.ok) return []; let d = await r.json(); return d.list || []; }
+async function apiGetAll(tid, params = '') { let all = []; let offset = 0; let limit = 200; while (true) { let r = await fetch(API + '/api/v2/tables/' + tid + '/records?limit=' + limit + '&offset=' + offset + params, { headers: H }); if (!r.ok) break; let d = await r.json(); let list = d.list || []; all = all.concat(list); if (list.length < limit) break; offset += limit; } return all; }
 async function apiGetLinks(tid, colId, rowId) { let r = await fetch(API + '/api/v2/tables/' + tid + '/links/' + colId + '/records/' + rowId + '?limit=10', { headers: H }); if (!r.ok) return []; let d = await r.json(); return d.list || []; }
 async function apiPost(tid, body) { let r = await fetch(API + '/api/v2/tables/' + tid + '/records', { method: 'POST', headers: H, body: JSON.stringify(body) }); return r.json(); }
 async function apiPatch(tid, body) { let r = await fetch(API + '/api/v2/tables/' + tid + '/records', { method: 'PATCH', headers: H, body: JSON.stringify(body) }); return r.json(); }
@@ -1662,7 +1661,7 @@ async function savePropiedad() {
             }
         }
 
-        DATA.propiedades = await apiGet(TBL.propiedades);
+        DATA.propiedades = await apiGetAll(TBL.propiedades);
         renderPropiedades();
         closeModalPropiedad();
         // Si el panel de cliente está abierto, actualizarlo
@@ -1685,7 +1684,7 @@ async function deletePropiedad(id, name) {
     if (!confirm(`¿Eliminar propiedad ${name}?`)) return;
     try {
         await apiDelete(TBL.propiedades, id);
-        DATA.propiedades = await apiGet(TBL.propiedades);
+        DATA.propiedades = await apiGetAll(TBL.propiedades);
         renderPropiedades();
     } catch (e) {
         console.error(e);
