@@ -937,7 +937,7 @@ async function renderPropiedades() {
             <td>
                 <div style="display:flex;gap:4px">
                     <button class="btn-remove" onclick="openNewPropiedad(${JSON.stringify(p).replace(/"/g, '&quot;')})" title="Editar" style="background:#f3f4f6;color:var(--text)">✏️</button>
-                    <button class="btn-remove" onclick="deletePropiedad(${p.id || p.Id}, '${p.Nombre.replace(/'/g, "\\\'")}')" title="Eliminar" style="color:var(--danger)">🗑</button>
+                    <button class="btn-remove" onclick="deletePropiedad(${p.id || p.Id}, '${(p.Nombre||'').replace(/'/g, "\\\'")}')" title="Eliminar" style="color:var(--danger)">🗑</button>
                 </div>
             </td>
         </tr>`;
