@@ -443,10 +443,15 @@ async function renderClientDatalist() {
     if (dl) dl.innerHTML = '';
 }
 
-async function searchClientsAPI(query) {
-    if (!query || query.length < 2) return [];
-    let q = encodeURIComponent(query);
-    let url = API + '/api/v2/tables/' + TBL.clientes + '/records?limit=15&where=(Nombre,like,%' + q + '%)~or(Telefono,like,%' + q + '%)&fields=Id,Nombre,Telefono';
+async function searchClientsAPI(query, all = false) {
+    let url;
+    if (all) {
+        url = API + '/api/v2/tables/' + TBL.clientes + '/records?limit=15&sort=-Id&fields=Id,Nombre,Telefono';
+    } else {
+        if (!query || query.length < 2) return [];
+        let q = encodeURIComponent('%' + query + '%');
+        url = API + '/api/v2/tables/' + TBL.clientes + '/records?limit=15&where=(Nombre,like,' + q + ')~or(Telefono,like,' + q + ')&fields=Id,Nombre,Telefono';
+    }
     let r = await fetch(url, { headers: H });
     if (!r.ok) return [];
     let data = await r.json();
@@ -464,7 +469,53 @@ function setupClientSearch(inputId, selectId) {
     dropdown.id = inputId + '-dropdown';
     dropdown.style.cssText = 'position:absolute;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:6px;max-height:200px;overflow-y:auto;width:100%;display:none;box-shadow:0 4px 12px rgba(0,0,0,0.15);';
     input.parentElement.style.position = 'relative';
+    
+    let btn = document.createElement('button');
+    btn.type = 'button';
+    btn.innerHTML = '▼';
+    btn.style.cssText = 'position:absolute;right:1px;top:1px;bottom:1px;width:30px;background:transparent;border:none;cursor:pointer;color:var(--text-muted);font-size:12px;display:flex;align-items:center;justify-content:center;padding:0;';
+    
+    input.parentElement.appendChild(btn);
     input.parentElement.appendChild(dropdown);
+    
+    // Make input have right padding so text doesn't overlap button
+    input.style.paddingRight = '30px';
+
+    function renderDropdown(results) {
+        if (results.length === 0) {
+            dropdown.innerHTML = '<div style="padding:8px;color:var(--text-muted);font-size:0.85em;">Sin resultados</div>';
+        } else {
+            dropdown.innerHTML = results.map(c => 
+                '<div style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:0.9em;" onmouseover="this.style.background=\'var(--hover)\'" onmouseout="this.style.background=\'transparent\'" data-id="' + c.Id + '">' +
+                cleanLabel(c.Nombre) + (c.Telefono ? ' <span style="color:var(--text-muted);font-size:0.8em;"> - ' + c.Telefono + '</span>' : '') + '</div>'
+            ).join('');
+        }
+        dropdown.style.display = 'block';
+        
+        dropdown.querySelectorAll('[data-id]').forEach(el => {
+            el.addEventListener('click', function(e) {
+                e.stopPropagation();
+                let id = this.dataset.id;
+                let name = cleanLabel(results.find(c => c.Id == id)?.Nombre || '');
+                input.value = name;
+                document.getElementById(selectId).value = id;
+                dropdown.style.display = 'none';
+                if (selectId === 'np-cliente') updatePropiedadesSelect();
+            });
+        });
+    }
+
+    btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (dropdown.style.display === 'block') {
+            dropdown.style.display = 'none';
+            return;
+        }
+        input.focus();
+        let results = await searchClientsAPI('', true);
+        renderDropdown(results);
+    });
     
     let debounce = null;
     input.addEventListener('input', function() {
@@ -473,32 +524,13 @@ function setupClientSearch(inputId, selectId) {
             let q = input.value.trim();
             if (q.length < 2) { dropdown.style.display = 'none'; return; }
             let results = await searchClientsAPI(q);
-            if (results.length === 0) {
-                dropdown.innerHTML = '<div style="padding:8px;color:var(--text-muted);font-size:0.85em;">Sin resultados</div>';
-            } else {
-                dropdown.innerHTML = results.map(c => 
-                    '<div style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:0.9em;" onmouseover="this.style.background=\'var(--hover)\'" onmouseout="this.style.background=\'transparent\'" data-id="' + c.Id + '">' +
-                    cleanLabel(c.Nombre) + (c.Telefono ? ' <span style="color:var(--text-muted);font-size:0.8em;"> - ' + c.Telefono + '</span>' : '') + '</div>'
-                ).join('');
-            }
-            dropdown.style.display = 'block';
-            
-            dropdown.querySelectorAll('[data-id]').forEach(el => {
-                el.addEventListener('click', function() {
-                    let id = this.dataset.id;
-                    let name = cleanLabel(results.find(c => c.Id == id)?.Nombre || '');
-                    input.value = name;
-                    document.getElementById(selectId).value = id;
-                    dropdown.style.display = 'none';
-                    if (selectId === 'np-cliente') updatePropiedadesSelect();
-                });
-            });
+            renderDropdown(results);
         }, 300);
     });
     
     // Cerrar dropdown al hacer click afuera
     document.addEventListener('click', function(e) {
-        if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+        if (!input.contains(e.target) && !dropdown.contains(e.target) && !btn.contains(e.target)) {
             dropdown.style.display = 'none';
         }
     });
