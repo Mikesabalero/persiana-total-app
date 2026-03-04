@@ -162,14 +162,14 @@ async function loadClientMap() {
     let limit = 200;
     let hasMore = true;
     while (hasMore) {
-        let url = API + '/api/v2/tables/' + TBL.clientes + '/records?fields=Id,Nombre&limit=' + limit + '&offset=' + offset;
+        let url = API + '/api/v2/tables/' + TBL.clientes + '/records?fields=Id,Nombre,Telefono&limit=' + limit + '&offset=' + offset;
         let r = await fetch(url, { headers: H });
         if (!r.ok) break;
         let data = await r.json();
         let list = data.list || [];
         list.forEach(c => { 
             let id = c.Id || c.id;
-            if (id) CLIENT_MAP[id] = c.Nombre || '-'; 
+            if (id) CLIENT_MAP[id] = { Nombre: c.Nombre || '', Telefono: c.Telefono || '' }; 
         });
         if (list.length < limit) hasMore = false;
         offset += limit;
@@ -354,7 +354,7 @@ function cleanLabel(text) {
 function fmt(n) { if (n == null) return '$0'; return '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
 function badgeHtml(estado) { let c = { 'Borrador': 'borrador', 'Enviado': 'enviado', 'Aprobado': 'aprobado', 'Rechazado': 'rechazado', 'Vencido': 'vencido', 'Facturado': 'facturado' }; return '<span class="badge badge-' + (c[estado] || 'borrador') + '">' + cleanLabel(estado) + '</span>'; }
 function resolveLink(row, field) { let v = row[field]; if (!v) return null; if (typeof v === 'object' && Array.isArray(v) && v.length > 0) return v[0]; if (typeof v === 'object' && (v.Id || v.id)) return v; return null; }
-function resolveName(row, field, list, idField) { let link = resolveLink(row, field); if (!link) return '-'; let id = link.Id || link.id || link; let found = list.find(i => (i.Id == id || i.id == id)); if (found) return found.Nombre || found.Title || '-'; if (field === 'Clientes' && CLIENT_MAP[id]) return CLIENT_MAP[id]; return (link.Nombre || link.Title || '-'); }
+function resolveName(row, field, list, idField) { let link = resolveLink(row, field); if (!link) return '-'; let id = link.Id || link.id || link; let found = list.find(i => (i.Id == id || i.id == id)); if (found) return found.Nombre || found.Title || '-'; if (field === 'Clientes' && CLIENT_MAP[id]) return CLIENT_MAP[id].Nombre; return (link.Nombre || link.Title || '-'); }
 function showConfigTab(id, btn) { document.querySelectorAll('.config-section').forEach(s => s.style.display = 'none'); document.getElementById('config-' + id).style.display = 'block'; document.querySelectorAll('.config-tab').forEach(t => t.classList.remove('active')); btn.classList.add('active'); }
 const REPAIR_LABELS = {
     'cambio_eje': 'Cambio de eje completo',
@@ -444,29 +444,23 @@ async function renderClientDatalist() {
 }
 
 async function searchClientsAPI(query, all = false) {
-    let url;
-    if (all) {
-        url = API + '/api/v2/tables/' + TBL.clientes + '/records?limit=15&sort=-Id&fields=Id,Nombre,Telefono';
-    } else {
-        if (!query || query.length < 2) return [];
-        let words = query.trim().split(/\s+/);
-        let firstWord = words[0];
-        let q = '%25' + encodeURIComponent(firstWord) + '%25';
-        url = API + '/api/v2/tables/' + TBL.clientes + '/records?limit=50&where=(Nombre,like,' + q + ')~or(Telefono,like,' + q + ')&fields=Id,Nombre,Telefono';
-    }
-    let r = await fetch(url, { headers: H });
-    if (!r.ok) return [];
-    let data = await r.json();
-    let list = data.list || [];
+    let clients = Object.entries(CLIENT_MAP).map(([id, data]) => ({ Id: parseInt(id), Nombre: data.Nombre, Telefono: data.Telefono }));
+    clients.sort((a, b) => b.Id - a.Id);
     
-    if (!all && query) {
-        let words = query.trim().split(/\s+/);
-        if (words.length > 1) {
-            let fullQuery = query.toLowerCase();
-            list = list.filter(c => (c.Nombre || '').toLowerCase().includes(fullQuery) || (c.Telefono || '').toLowerCase().includes(fullQuery));
-        }
+    if (all) {
+        return clients.slice(0, 15);
     }
-    return list;
+    
+    if (!query) return [];
+    
+    let words = query.trim().toLowerCase().split(/\s+/);
+    let results = clients.filter(c => {
+        let n = (c.Nombre || '').toLowerCase();
+        let t = (c.Telefono || '').toLowerCase();
+        return words.every(w => n.includes(w) || t.includes(w));
+    });
+    
+    return results.slice(0, 15);
 }
 
 function setupClientSearch(inputId, selectId) {
@@ -915,46 +909,30 @@ async function renderClientes() {
     let tipo = document.getElementById('cli-filter-tipo')?.value || '';
     
     let parts = [];
-    let words = [];
     if (search) {
-        words = search.trim().split(/\s+/);
-        let firstWord = words[0];
-        let isNumeric = /^[0-9\s\+\-]+$/.test(firstWord);
-        let q = '%25' + encodeURIComponent(firstWord) + '%25';
-        if (isNumeric) {
-            parts.push(`(Telefono,like,${q})`);
-        } else {
-            parts.push(`(Nombre,like,${q})`);
-        }
-    }
-    if (tipo) {
-        parts.push(`(Tipo,eq,${tipo})`);
-    }
-    let extra = '&sort=-CreatedAt';
-    if(parts.length > 0) extra += `&where=${parts.join('~and')}`;
-
-    let res;
-    if (words.length > 1) {
-        let offset = (PAGING.clientes.page - 1) * 50;
-        let r = await fetch(API + '/api/v2/tables/' + TBL.clientes + '/records?limit=50&offset=' + offset + extra, { headers: H });
-        if (r.ok) {
-            let d = await r.json();
-            res = { list: d.list || [], total: d.pageInfo?.totalRows || 0 };
-        } else {
-            res = { list: [], total: 0 };
-        }
+        let words = search.trim().toLowerCase().split(/\s+/);
+        let list = Object.entries(CLIENT_MAP).map(([id, data]) => ({ Id: parseInt(id), Nombre: data.Nombre, Telefono: data.Telefono }));
+        list = list.filter(c => {
+            let n = (c.Nombre || '').toLowerCase();
+            let t = (c.Telefono || '').toLowerCase();
+            return words.every(w => n.includes(w) || t.includes(w));
+        });
+        list.sort((a, b) => b.Id - a.Id);
+        
+        PAGING.clientes.total = list.length;
+        let startIndex = (PAGING.clientes.page - 1) * PAGE_SIZE;
+        DATA.clientes = list.slice(startIndex, startIndex + PAGE_SIZE);
     } else {
-        res = await apiGetPaged(TBL.clientes, PAGING.clientes.page, extra);
+        if (tipo) {
+            parts.push(`(Tipo,eq,${tipo})`);
+        }
+        let extra = '&sort=-CreatedAt';
+        if(parts.length > 0) extra += `&where=${parts.join('~and')}`;
+
+        let res = await apiGetPaged(TBL.clientes, PAGING.clientes.page, extra);
+        DATA.clientes = res.list;
+        PAGING.clientes.total = res.total;
     }
-    
-    let list = res.list;
-    if (words.length > 1) {
-        let fullQuery = search.toLowerCase();
-        list = list.filter(c => (c.Nombre || '').toLowerCase().includes(fullQuery) || (c.Telefono || '').toLowerCase().includes(fullQuery));
-    }
-    
-    DATA.clientes = list;
-    PAGING.clientes.total = res.total;
 
     let tb = document.getElementById('cli-table');
     if(!tb) return;
@@ -1582,8 +1560,11 @@ async function saveCliente() {
     try {
         if (id) {
             await apiPatch(TBL.clientes, { id: id, ...data });
+            CLIENT_MAP[id] = { Nombre: data.Nombre, Telefono: data.Telefono };
         } else {
-            await apiPost(TBL.clientes, data);
+            let result = await apiPost(TBL.clientes, data);
+            let nId = result && (result.Id || result.id || (Array.isArray(result) && result[0] && (result[0].Id || result[0].id)));
+            if (nId) CLIENT_MAP[nId] = { Nombre: data.Nombre, Telefono: data.Telefono };
         }
         DATA.clientes = await apiGet(TBL.clientes);
         renderClientes();
