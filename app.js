@@ -390,8 +390,8 @@ async function _resolvePresupuestoLinks() {
 async function initApp() {
     console.time('initApp');
     // Fase 1: Solo datos esenciales para dashboard
-    let cliPaged = await apiGetPaged(TBL.clientes, 1, '&limit=1');
-    let presPaged = await apiGetPaged(TBL.presupuestos, 1, '&sort=-Fecha&limit=5');
+    let cliPaged = await apiGetPaged(TBL.clientes, 1, '');
+    let presPaged = await apiGetPaged(TBL.presupuestos, 1, '&sort=-Fecha');
     
     PAGING.clientes.total = cliPaged.total;
     PAGING.presupuestos.total = presPaged.total;
@@ -413,8 +413,8 @@ async function initApp() {
 
 async function reloadAllData() {
     // Recarga todo para dashboard y limpia lazy variables
-    let cliPaged = await apiGetPaged(TBL.clientes, 1, '&limit=1');
-    let presPaged = await apiGetPaged(TBL.presupuestos, 1, '&sort=-Fecha&limit=5');
+    let cliPaged = await apiGetPaged(TBL.clientes, 1, '');
+    let presPaged = await apiGetPaged(TBL.presupuestos, 1, '&sort=-Fecha');
     PAGING.clientes.total = cliPaged.total;
     PAGING.presupuestos.total = presPaged.total;
     DATA.presupuestos = presPaged.list;
