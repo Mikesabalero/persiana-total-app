@@ -476,6 +476,7 @@ function setupClientSearch(inputId, selectId) {
     dropdown.style.cssText = 'position:absolute;z-index:99999;background:' + bgColor + ';border:1px solid var(--border);border-radius:6px;max-height:200px;overflow-y:auto;width:100%;display:none;box-shadow:0 4px 12px rgba(0,0,0,0.15);top:100%;';
     input.parentElement.style.position = 'relative';
     input.parentElement.style.overflow = 'visible';
+    input.parentElement.style.zIndex = '100';
     
     let btn = document.createElement('button');
     btn.type = 'button';
