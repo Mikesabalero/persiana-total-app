@@ -449,13 +449,24 @@ async function searchClientsAPI(query, all = false) {
         url = API + '/api/v2/tables/' + TBL.clientes + '/records?limit=15&sort=-Id&fields=Id,Nombre,Telefono';
     } else {
         if (!query || query.length < 2) return [];
-        let q = '%25' + encodeURIComponent(query) + '%25';
-        url = API + '/api/v2/tables/' + TBL.clientes + '/records?limit=15&where=(Nombre,like,' + q + ')~or(Telefono,like,' + q + ')&fields=Id,Nombre,Telefono';
+        let words = query.trim().split(/\s+/);
+        let firstWord = words[0];
+        let q = '%25' + encodeURIComponent(firstWord) + '%25';
+        url = API + '/api/v2/tables/' + TBL.clientes + '/records?limit=50&where=(Nombre,like,' + q + ')~or(Telefono,like,' + q + ')&fields=Id,Nombre,Telefono';
     }
     let r = await fetch(url, { headers: H });
     if (!r.ok) return [];
     let data = await r.json();
-    return data.list || [];
+    let list = data.list || [];
+    
+    if (!all && query) {
+        let words = query.trim().split(/\s+/);
+        if (words.length > 1) {
+            let fullQuery = query.toLowerCase();
+            list = list.filter(c => (c.Nombre || '').toLowerCase().includes(fullQuery) || (c.Telefono || '').toLowerCase().includes(fullQuery));
+        }
+    }
+    return list;
 }
 
 function setupClientSearch(inputId, selectId) {
@@ -904,9 +915,12 @@ async function renderClientes() {
     let tipo = document.getElementById('cli-filter-tipo')?.value || '';
     
     let parts = [];
+    let words = [];
     if (search) {
-        let isNumeric = /^[0-9\s\+\-]+$/.test(search);
-        let q = '%25' + encodeURIComponent(search) + '%25';
+        words = search.trim().split(/\s+/);
+        let firstWord = words[0];
+        let isNumeric = /^[0-9\s\+\-]+$/.test(firstWord);
+        let q = '%25' + encodeURIComponent(firstWord) + '%25';
         if (isNumeric) {
             parts.push(`(Telefono,like,${q})`);
         } else {
@@ -919,8 +933,27 @@ async function renderClientes() {
     let extra = '&sort=-CreatedAt';
     if(parts.length > 0) extra += `&where=${parts.join('~and')}`;
 
-    let res = await apiGetPaged(TBL.clientes, PAGING.clientes.page, extra);
-    DATA.clientes = res.list;
+    let res;
+    if (words.length > 1) {
+        let offset = (PAGING.clientes.page - 1) * 50;
+        let r = await fetch(API + '/api/v2/tables/' + TBL.clientes + '/records?limit=50&offset=' + offset + extra, { headers: H });
+        if (r.ok) {
+            let d = await r.json();
+            res = { list: d.list || [], total: d.pageInfo?.totalRows || 0 };
+        } else {
+            res = { list: [], total: 0 };
+        }
+    } else {
+        res = await apiGetPaged(TBL.clientes, PAGING.clientes.page, extra);
+    }
+    
+    let list = res.list;
+    if (words.length > 1) {
+        let fullQuery = search.toLowerCase();
+        list = list.filter(c => (c.Nombre || '').toLowerCase().includes(fullQuery) || (c.Telefono || '').toLowerCase().includes(fullQuery));
+    }
+    
+    DATA.clientes = list;
     PAGING.clientes.total = res.total;
 
     let tb = document.getElementById('cli-table');
