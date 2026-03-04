@@ -467,7 +467,8 @@ function setupClientSearch(inputId, selectId) {
     // Create dropdown
     let dropdown = document.createElement('div');
     dropdown.id = inputId + '-dropdown';
-    dropdown.style.cssText = 'position:absolute;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:6px;max-height:200px;overflow-y:auto;width:100%;display:none;box-shadow:0 4px 12px rgba(0,0,0,0.15);';
+    let bgColor = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? '#1f2937' : '#ffffff';
+    dropdown.style.cssText = 'position:absolute;z-index:9999;background:' + bgColor + ';border:1px solid var(--border);border-radius:6px;max-height:200px;overflow-y:auto;width:100%;display:none;box-shadow:0 4px 12px rgba(0,0,0,0.15);';
     input.parentElement.style.position = 'relative';
     
     let btn = document.createElement('button');
@@ -486,7 +487,7 @@ function setupClientSearch(inputId, selectId) {
             dropdown.innerHTML = '<div style="padding:8px;color:var(--text-muted);font-size:0.85em;">Sin resultados</div>';
         } else {
             dropdown.innerHTML = results.map(c => 
-                '<div style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:0.9em;" onmouseover="this.style.background=\'var(--hover)\'" onmouseout="this.style.background=\'transparent\'" data-id="' + c.Id + '">' +
+                '<div style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:0.9em;" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'transparent\'" data-id="' + c.Id + '">' +
                 cleanLabel(c.Nombre) + (c.Telefono ? ' <span style="color:var(--text-muted);font-size:0.8em;"> - ' + c.Telefono + '</span>' : '') + '</div>'
             ).join('');
         }
@@ -902,10 +903,15 @@ async function renderClientes() {
     let tipo = document.getElementById('cli-filter-tipo')?.value || '';
     
     let parts = [];
-    if(search) parts.push(`(Nombre,like,%${search}%)`);
-    if(tipo) parts.push(`(Tipo,eq,${tipo})`);
+    if (search) {
+        let q = encodeURIComponent('%' + search + '%');
+        parts.push(`((Nombre,like,${q})~or(Telefono,like,${q}))`);
+    }
+    if (tipo) {
+        parts.push(`(Tipo,eq,${tipo})`);
+    }
     let extra = '&sort=-CreatedAt';
-    if(parts.length > 0) extra += `&where=(${parts.join('~and')})`;
+    if(parts.length > 0) extra += `&where=${parts.join('~and')}`;
 
     let res = await apiGetPaged(TBL.clientes, PAGING.clientes.page, extra);
     DATA.clientes = res.list;
