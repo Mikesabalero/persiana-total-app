@@ -449,7 +449,7 @@ async function searchClientsAPI(query, all = false) {
         url = API + '/api/v2/tables/' + TBL.clientes + '/records?limit=15&sort=-Id&fields=Id,Nombre,Telefono';
     } else {
         if (!query || query.length < 2) return [];
-        let q = encodeURIComponent('%' + query + '%');
+        let q = '%25' + encodeURIComponent(query) + '%25';
         url = API + '/api/v2/tables/' + TBL.clientes + '/records?limit=15&where=(Nombre,like,' + q + ')~or(Telefono,like,' + q + ')&fields=Id,Nombre,Telefono';
     }
     let r = await fetch(url, { headers: H });
@@ -906,7 +906,7 @@ async function renderClientes() {
     let parts = [];
     if (search) {
         let isNumeric = /^[0-9\s\+\-]+$/.test(search);
-        let q = encodeURIComponent('%' + search + '%');
+        let q = '%25' + encodeURIComponent(search) + '%25';
         if (isNumeric) {
             parts.push(`(Telefono,like,${q})`);
         } else {
