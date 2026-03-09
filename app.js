@@ -312,15 +312,20 @@ function calcPrecioVentaComp() {
     let pctArmado = parseFloat(document.getElementById('ec-pct-armado').value) || 0;
     let margen = parseFloat(document.getElementById('ec-margen').value) || 0;
     let ivaVenta = parseFloat(document.getElementById('ec-iva-venta').value) || 21;
+    let tc = DATA.tc.Dolar_oficial || 1150;
+    let moneda = document.getElementById('ec-moneda').value;
     
-    let costoTotal = costo + (costo * pctArmado / 100);
-    let precioVenta = costoTotal * (1 + margen / 100);
-    let precioConIva = precioVenta * (1 + ivaVenta / 100);
+    // Nueva Fórmula: Precio = Costo * (1 + Armado/100) * (1 + Margen/100) * (1 + IVA/100)
+    let costoBase = costo * (1 + pctArmado / 100);
+    if (moneda === 'USD') costoBase *= tc;
+    
+    let precioSinIva = costoBase * (1 + margen / 100);
+    let precioConIva = precioSinIva * (1 + ivaVenta / 100);
     
     let fmtStr = n => '$' + Math.round(n).toLocaleString('es-AR');
     let elPV = document.getElementById('ec-precio-venta');
     let elPVI = document.getElementById('ec-precio-venta-iva');
-    if(elPV) elPV.value = fmtStr(precioVenta);
+    if(elPV) elPV.value = fmtStr(precioSinIva);
     if(elPVI) elPVI.value = fmtStr(precioConIva);
 }
 
@@ -354,7 +359,15 @@ function cleanLabel(text) {
 function fmt(n) { if (n == null) return '$0'; return '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
 function badgeHtml(estado) { let c = { 'Borrador': 'borrador', 'Enviado': 'enviado', 'Aprobado': 'aprobado', 'Rechazado': 'rechazado', 'Vencido': 'vencido', 'Facturado': 'facturado' }; return '<span class="badge badge-' + (c[estado] || 'borrador') + '">' + cleanLabel(estado) + '</span>'; }
 function resolveLink(row, field) { let v = row[field]; if (!v) return null; if (typeof v === 'object' && Array.isArray(v) && v.length > 0) return v[0]; if (typeof v === 'object' && (v.Id || v.id)) return v; return null; }
-function resolveName(row, field, list, idField) { let link = resolveLink(row, field); if (!link) return '-'; let id = link.Id || link.id || link; let found = list.find(i => (i.Id == id || i.id == id)); if (found) return found.Nombre || found.Title || '-'; if (field === 'Clientes' && CLIENT_MAP[id]) return CLIENT_MAP[id].Nombre; return (link.Nombre || link.Title || '-'); }
+function resolveName(row, field, list, idField) { 
+    let link = resolveLink(row, field); 
+    if (!link) return '-'; 
+    let id = link.Id || link.id || link; 
+    if (field === 'Clientes' && CLIENT_MAP[id]) return CLIENT_MAP[id].Nombre || '-'; 
+    let found = list.find(i => (i.Id == id || i.id == id)); 
+    if (found) return found.Nombre || found.Title || '-'; 
+    return (link.Nombre || link.Title || '-'); 
+}
 function showConfigTab(id, btn) { document.querySelectorAll('.config-section').forEach(s => s.style.display = 'none'); document.getElementById('config-' + id).style.display = 'block'; document.querySelectorAll('.config-tab').forEach(t => t.classList.remove('active')); btn.classList.add('active'); }
 const REPAIR_LABELS = {
     'cambio_eje': 'Cambio de eje completo',
@@ -506,7 +519,14 @@ function setupClientSearch(inputId, selectId) {
                 let id = this.dataset.id;
                 let name = cleanLabel(results.find(c => c.Id == id)?.Nombre || '');
                 input.value = name;
-                document.getElementById(selectId).value = id;
+                let sel = document.getElementById(selectId);
+                let opt = sel.querySelector('option[value="' + id + '"]');
+                if (!opt) {
+                    sel.innerHTML = '<option value="' + id + '" selected>' + name + '</option>';
+                } else {
+                    opt.selected = true;
+                }
+                sel.value = id;
                 dropdown.style.display = 'none';
                 if (selectId === 'np-cliente') updatePropiedadesSelect();
             });
@@ -547,7 +567,15 @@ function syncClientSelect(input, selectId) {
     let name = input.value;
     let client = DATA.clientes.find(c => cleanLabel(c.Nombre) === name);
     if (client) {
-        document.getElementById(selectId).value = client.Id;
+        let sel = document.getElementById(selectId);
+        let id = client.Id;
+        let opt = sel.querySelector('option[value="' + id + '"]');
+        if (!opt) {
+            sel.innerHTML = '<option value="' + id + '" selected>' + cleanLabel(client.Nombre) + '</option>';
+        } else {
+            opt.selected = true;
+        }
+        sel.value = id;
         if (selectId === 'np-cliente') updatePropiedadesSelect();
     }
 }
@@ -649,23 +677,26 @@ function loadPrecios() {
     let currentData = Array.from(DATA.componentes);
     
     currentData.forEach(c => {
-        let costo = c.Costo_unitario || 0;
-        let pctArmado = parseFloat(c.Pct_armado) || 0;
-        let costoTotal = costo + (costo * pctArmado / 100);
-        let margen = c.Margen_default || 0;
-        let precioArs = c.Moneda_costo === 'USD' ? costoTotal * tc * (1 + margen / 100) : costoTotal * (1 + margen / 100);
+        let costo = parseFloat(c.Costo_unitario) || 0;
+        let pctArmado = parseFloat(c.Porcentaje_Armado || c.Pct_armado) || 0;
+        let margen = parseFloat(c.Margen_default) || 0;
+        let ivaVenta = parseFloat(c.Alicuota_IVA_venta || c.Alicuota_IVA_Venta) || 21;
+
+        // Fórmula: Costo * (1 + Armado/100) * (1 + Margen/100) * (1 + IVA/100)
+        let costoBase = costo * (1 + pctArmado / 100);
+        if (c.Moneda_costo === 'USD') costoBase *= tc;
         
-        let isOld = false;
-        let pDateStr = '-';
+        let precioSinIva = costoBase * (1 + margen / 100);
+        let precioFinal = precioSinIva * (1 + ivaVenta / 100);
+        
+        let pDateStr = '—';
         if (c.Fecha_ult_actualizacion) {
             let pDate = new Date(c.Fecha_ult_actualizacion);
-            // fix timezone offset trick for correct date formatting (skip if it looks weird)
             let pDateLocal = new Date(pDate.getTime() + pDate.getTimezoneOffset() * 60000);
             pDateStr = pDateLocal.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-            let diffDays = (new Date() - pDateLocal) / (1000 * 60 * 60 * 24);
-            if (diffDays > 30) isOld = true;
         }
-        let dateColor = isOld ? 'color:var(--danger);font-weight:bold;' : '';
+        
+        let tipoCompClass = 'row-' + (c.Tipo_componente || 'Material');
         let activoIcon = (c.Activo === false || c.Activo === 'false' || c.Activo === 0) ? '❌' : '✅';
         
         let cData = JSON.stringify(c).replace(/"/g, '&quot;');
@@ -674,18 +705,13 @@ function loadPrecios() {
             <button class="btn-remove" onclick="deleteComponent(${c.Id || c.id}, '${cleanLabel(c.Nombre).replace(/'/g, "\\'")}')" title="Eliminar" style="color:var(--danger)">🗑</button>
         </div>`;
 
-        tb.innerHTML += `<tr>
+        tb.innerHTML += `<tr class="row-comp ${tipoCompClass}">
             <td><strong>${cleanLabel(c.Nombre)}</strong></td>
-            <td>${cleanLabel(c.Codigo_interno || '-')}</td>
             <td>${cleanLabel(c.Tipo_componente || '-')}</td>
-            <td class="hide-margin">${Number(costo).toFixed(2)}</td>
-            <td class="hide-margin">${c.Moneda_costo || '-'}</td>
             <td>${c.Unidad || '-'}</td>
-            <td class="hide-margin">${margen}%</td>
-            <td><strong>${fmt(precioArs)}</strong></td>
-            <td>${cleanLabel(c.Proveedor || '-')}</td>
+            <td><strong>${fmt(precioFinal)}</strong></td>
             <td>${activoIcon}</td>
-            <td style="${dateColor}">${pDateStr}</td>
+            <td>${pDateStr}</td>
             <td>${actionBtn}</td>
         </tr>`;
     });
@@ -737,7 +763,7 @@ function openModalEditComp(compData) {
     document.getElementById('ec-tipo').value = compData.Tipo_componente || 'Material';
     document.getElementById('ec-unidad').value = compData.Unidad || 'unidad';
     document.getElementById('ec-costo').value = compData.Costo_unitario || 0;
-    document.getElementById('ec-pct-armado').value = compData.Pct_armado || 0;
+    document.getElementById('ec-pct-armado').value = compData.Porcentaje_Armado || compData.Pct_armado || 0;
     document.getElementById('ec-moneda').value = compData.Moneda_costo || 'ARS';
     document.getElementById('ec-margen').value = compData.Margen_default || 0;
     document.getElementById('ec-proveedor').value = compData.Proveedor || '';
@@ -768,7 +794,7 @@ async function saveComponent() {
         Unidad: document.getElementById('ec-unidad').value,
         Costo_unitario: newCosto,
         Moneda_costo: document.getElementById('ec-moneda').value,
-        Pct_armado: parseFloat(document.getElementById('ec-pct-armado').value) || 0,
+        Porcentaje_Armado: parseFloat(document.getElementById('ec-pct-armado').value) || 0,
         Margen_default: parseFloat(document.getElementById('ec-margen').value),
         Proveedor: document.getElementById('ec-proveedor').value,
         Alicuota_IVA_compra: document.getElementById('ec-iva-compra').value,
@@ -828,8 +854,8 @@ function filterComp() {
     let rows = document.querySelectorAll('#precios-table tr');
     rows.forEach(r => {
         let name = r.cells[0]?.textContent.toLowerCase() || '';
-        let t = r.cells[2]?.textContent || '';
-        let isActivo = r.cells[9]?.textContent.includes('✅');
+        let t = r.cells[1]?.textContent || '';
+        let isActivo = r.cells[4]?.textContent.includes('✅');
         
         let matchActivo = true;
         if (activoVal === 'true') matchActivo = isActivo;
@@ -859,10 +885,18 @@ function sortCompTable(colIdx) {
         let textB = b.cells[colIdx]?.textContent.trim().toLowerCase() || '';
 
         // If numerical or currency column, parse floats
-        if ([3, 6, 7].includes(colIdx)) {
+        if (colIdx === 3) {
             let numA = parseFloat(textA.replace(/[^0-9.-]+/g, '')) || 0;
             let numB = parseFloat(textB.replace(/[^0-9.-]+/g, '')) || 0;
             return currentSortDir === 'asc' ? numA - numB : numB - numA;
+        }
+        
+        if (colIdx === 5) {
+            let dateA = textA === '—' ? '' : textA.split('/').reverse().join('');
+            let dateB = textB === '—' ? '' : textB.split('/').reverse().join('');
+            if (dateA < dateB) return currentSortDir === 'asc' ? -1 : 1;
+            if (dateA > dateB) return currentSortDir === 'asc' ? 1 : -1;
+            return 0;
         }
 
         if (textA < textB) return currentSortDir === 'asc' ? -1 : 1;
@@ -876,23 +910,15 @@ function sortCompTable(colIdx) {
 
 function exportCsv() {
     let rows = document.querySelectorAll('#precios-table tr');
-    let csvContent = '\uFEFFNombre,Código,Tipo,Costo,Moneda,Unidad,Margen,Precio final ARS,Proveedor,Activo,Última actualización\n';
+    let csvContent = '\uFEFFNombre,Tipo,Unidad,Precio final ARS,Activo,Última actualización\n';
     
     rows.forEach(r => {
         if (r.style.display !== 'none') {
-            let c0 = `"${r.cells[0]?.textContent.replace(/"/g, '""') || ''}"`;
-            let c1 = `"${r.cells[1]?.textContent.replace(/"/g, '""') || ''}"`;
-            let c2 = `"${r.cells[2]?.textContent.replace(/"/g, '""') || ''}"`;
-            let c3 = `"${r.cells[3]?.textContent.replace(/"/g, '""') || ''}"`;
-            let c4 = `"${r.cells[4]?.textContent.replace(/"/g, '""') || ''}"`;
-            let c5 = `"${r.cells[5]?.textContent.replace(/"/g, '""') || ''}"`;
-            let c6 = `"${r.cells[6]?.textContent.replace(/"/g, '""') || ''}"`;
-            let c7 = `"${r.cells[7]?.textContent.replace(/"/g, '""') || ''}"`;
-            let c8 = `"${r.cells[8]?.textContent.replace(/"/g, '""') || ''}"`;
-            let c9 = `"${r.cells[9]?.textContent.replace(/"/g, '""') || ''}"`;
-            let c10 = `"${r.cells[10]?.textContent.replace(/"/g, '""') || ''}"`;
-            
-            csvContent += `${c0},${c1},${c2},${c3},${c4},${c5},${c6},${c7},${c8},${c9},${c10}\n`;
+            let rowCsv = [];
+            for (let i = 0; i < 6; i++) {
+                rowCsv.push(`"${r.cells[i]?.textContent.replace(/"/g, '""') || ''}"`);
+            }
+            csvContent += rowCsv.join(',') + '\n';
         }
     });
 
@@ -1043,9 +1069,22 @@ function showClientDetail(id) {
     document.getElementById('panel-cliente').classList.add('open');
 }
 
-function viewCliente(clientId) {
+async function viewCliente(clientId) {
     let c = DATA.clientes.find(x => x.Id == clientId);
-    if (!c) return;
+    if (!c) {
+        try {
+            c = await apiGet(`${TBL.clientes}/${clientId}`);
+            if (c && c.Id) DATA.clientes.push(c);
+        } catch(e) { console.error('Fetch client error', e); }
+    }
+    // Fallback if API fails but it's in CLIENT_MAP
+    if (!c && CLIENT_MAP[clientId]) {
+        c = { Id: clientId, Nombre: CLIENT_MAP[clientId].Nombre, Telefono: CLIENT_MAP[clientId].Telefono };
+    }
+    if (!c) {
+        alert("No se pudo cargar la información del cliente.");
+        return;
+    }
 
     document.getElementById('vc-nombre').textContent = cleanLabel(c.Nombre);
     document.getElementById('vc-telefono').textContent = c.Telefono || '-';
@@ -1056,8 +1095,20 @@ function viewCliente(clientId) {
 
     let props = DATA.propiedades.filter(p => {
         let link = resolveLink(p, 'Clientes');
-        return link && (link.Id == clientId || link.id == clientId);
+        return (link && (link.Id == clientId || link.id == clientId)) || (p.Clientes_id == clientId);
     });
+
+    if (props.length === 0) {
+        try {
+            let fetched = await apiGet(TBL.propiedades, `&where=(Clientes_id,eq,${clientId})`);
+            if (fetched && fetched.length > 0) {
+                fetched.forEach(f => {
+                    if (!DATA.propiedades.find(x => x.Id == f.Id)) DATA.propiedades.push(f);
+                });
+                props = fetched;
+            }
+        } catch(e) { console.warn("Could not fetch additional properties", e); }
+    }
 
     let tb = document.getElementById('vc-prop-table');
     tb.innerHTML = '';
@@ -1068,7 +1119,7 @@ function viewCliente(clientId) {
             let zonaName = '-';
             if (p.Zona_id) { let z = DATA.zonas.find(z => z.Id == p.Zona_id); if (z) zonaName = cleanLabel(z.Nombre); }
             tb.innerHTML += `<tr>
-                <td><strong>${cleanLabel(p.Nombre)}</strong></td>
+                <td><strong>${cleanLabel(p.Nombre || '-')}</strong></td>
                 <td>${p.Direccion || '-'}</td>
                 <td>${p.Localidad || '-'}</td>
                 <td>${zonaName}</td>
@@ -1087,6 +1138,8 @@ function viewCliente(clientId) {
         closeVerCliente();
         openNewPropiedad(null, clientId, true);
     };
+    
+    document.getElementById('modal-ver-cliente').classList.add('show');
 
     // Historial de Presupuestos
     let clientPres = DATA.presupuestos.filter(p => p._clienteId == clientId);
@@ -1402,11 +1455,11 @@ async function deleteAncho(id, anchoSol) {
     } catch (e) { console.error(e); alert('Error al eliminar: ' + e.message); }
 }
 
-function updatePropiedadesSelect() {
-    loadPropiedadesSelect();
+async function updatePropiedadesSelect() {
+    await loadPropiedadesSelect();
 }
 
-function loadPropiedadesSelect(presData) {
+async function loadPropiedadesSelect(presData) {
     let ps = document.getElementById('np-propiedad');
     if (!ps) return;
     let cliId = document.getElementById('np-cliente').value;
@@ -1415,8 +1468,20 @@ function loadPropiedadesSelect(presData) {
 
     let props = DATA.propiedades.filter(p => {
         let link = resolveLink(p, 'Clientes');
-        return link && (link.Id == cliId || link.id == cliId);
+        return (link && (link.Id == cliId || link.id == cliId)) || (p.Clientes_id == cliId);
     });
+
+    if (props.length === 0) {
+        try {
+            let fetched = await apiGet(TBL.propiedades, `&where=(Clientes_id,eq,${cliId})`);
+            if (fetched && fetched.length > 0) {
+                fetched.forEach(f => {
+                    if (!DATA.propiedades.find(x => x.Id == f.Id)) DATA.propiedades.push(f);
+                });
+                props = fetched;
+            }
+        } catch(e) { console.warn("Could not fetch properties", e); }
+    }
 
     let selectedPropId = null;
     if (presData && presData.Id) {
@@ -1512,16 +1577,21 @@ async function autoDetectarZonaProp() {
 }
 
 async function openNewCliente(clientData = null) {
+    // Avoid event leakage or invalid payload masking as an object.
+    if (clientData && (clientData instanceof Event || typeof clientData !== 'object' || (!clientData.Id && !clientData.Nombre && !clientData.id))) {
+        clientData = null;
+    }
+    
     document.getElementById('mc-title').textContent = clientData ? 'Editar Cliente' : 'Nuevo Cliente';
     let modal = document.getElementById('modal-cliente');
-    modal.setAttribute('data-db-id', clientData ? (clientData.id || clientData.Id) : '');
+    modal.setAttribute('data-db-id', clientData ? (clientData.id || clientData.Id || '') : '');
 
-    document.getElementById('nc-nombre').value = clientData ? clientData.Nombre : '';
-    document.getElementById('nc-telefono').value = clientData ? clientData.Telefono || '' : '';
-    document.getElementById('nc-mail').value = clientData ? clientData.Mail || '' : '';
+    document.getElementById('nc-nombre').value = clientData ? (clientData.Nombre || '') : '';
+    document.getElementById('nc-telefono').value = clientData ? (clientData.Telefono || '') : '';
+    document.getElementById('nc-mail').value = clientData ? (clientData.Mail || '') : '';
     document.getElementById('nc-tipo').value = clientData ? (clientData.Tipo || 'Particular') : 'Particular';
     document.getElementById('nc-cond-fiscal').value = clientData ? (clientData.Condicion_fiscal || 'Consumidor Final') : 'Consumidor Final';
-    document.getElementById('nc-cuit').value = clientData ? clientData.CUIT_CUIL_DNI || '' : '';
+    document.getElementById('nc-cuit').value = clientData ? (clientData.CUIT_CUIL_DNI || '') : '';
 
     modal.classList.add('show');
 }
@@ -1608,9 +1678,10 @@ async function openNewPropiedad(propData = null, preselectedClientId = null, for
     });
 
     // Deshabilitar/Habilitar según corresponda
-    cs.disabled = forceDisableClient;
+    let forceDisabled = forceDisableClient || (propData && propData.Id ? true : false);
+    cs.disabled = forceDisabled;
     let si = document.getElementById('np-prop-cliente-search');
-    if (si) si.disabled = forceDisableClient;
+    if (si) si.disabled = forceDisabled;
 
     document.getElementById('np-prop-nombre').value = propData ? propData.Nombre : '';
     document.getElementById('np-prop-direccion').value = propData ? propData.Direccion || '' : '';
@@ -1919,7 +1990,7 @@ function addUnidadUI(n, uData) {
     let tipoRep = uData ? (uData.Tipo_reparacion || '') : '';
     let showRep = (tipo == 'Reparacion' || tipo == 'Service') ? 'display:block' : 'display:none';
 
-    let instPct = uData && uData.Pct_instalacion !== undefined ? parseFloat(uData.Pct_instalacion) : (INSTALACION_PCT[tipo] || 0);
+    let instPct = uData && uData.Pct_instalacion !== undefined ? parseFloat(uData.Pct_instalacion) : (INSTALACION_PCT[tipo] ?? 8);
 
     let html = '<div class="unidad-card" id="unidad-' + n + '" data-db-id="' + uId + '"><div class="unidad-header"><h3>Unidad ' + n + '</h3><div style="display:flex;gap:8px;align-items:center"><span class="unidad-subtotal" id="sub-u-' + n + '">$0</span><button class="btn-remove" onclick="duplicateUnidad(' + n + ')" title="Duplicar unidad">📋</button><button class="btn-remove" onclick="removeUnidad(' + n + ')" title="Eliminar">🗑</button></div></div>';
     html += '<div class="form-row" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;"><div class="form-group"><label>Ambiente</label><input id="u-' + n + '-nombre" placeholder="Ej: Dormitorio principal" value="' + nombre + '"></div>';
@@ -2030,10 +2101,10 @@ function duplicateUnidad(origN) {
 
 // ===== AUTO-LOAD COMPONENTS =====
 const INSTALACION_PCT = {
-    'Instalacion_nueva': 6,
-    'Cambio_pano': 4,
-    'Cambio_guias': 5,
-    'Motorizacion': 5,
+    'Instalacion_nueva': 8,
+    'Cambio_pano': 8,
+    'Cambio_guias': 8,
+    'Motorizacion': 8,
     'Reparacion': 0,
     'Service': 0,
     'Otro': 0
@@ -2066,25 +2137,23 @@ function getCategoria(prodId) {
 function selectMotor(cat, peso, ancho, m2) {
     if (cat === 'Seguridad') {
         if (ancho < 6) {
-            if (m2 <= 10) return 55; // Tubular 140
-            if (peso <= 330) return 50; // Paralelo 600
-            if (peso <= 370) return 51; // Paralelo 700
+            if (m2 <= 12) return 55;   // Tubular 140
+            if (peso <= 340) return 50; // Paralelo 600
+            if (peso <= 400) return 51; // Paralelo 700
         } else {
-            if (peso <= 330) return 52;
-            if (peso <= 390) return 53;
-            if (peso <= 770) return 54;
+            // Ancho >= 6m: siempre motores grandes
+            if (peso <= 440) return 52; // Paralelo 800
+            if (peso <= 550) return 53; // Paralelo 1000
+            return 54;                  // Paralelo 1500 (hasta 800kg)
         }
     } else if (cat === 'Exterior') {
-        if (ancho < 6) {
-            if (peso <= 115) return 56; // Tubular 60
-            if (peso <= 200) return 55; // Tubular 140
-            if (peso <= 330) return 50;
-            if (peso <= 370) return 51;
-        } else {
-            if (peso <= 330) return 52;
-            if (peso <= 390) return 53;
-            if (peso <= 770) return 54;
-        }
+        if (peso <= 115) return 56; // Tubular 60
+        if (peso <= 200) return 55; // Tubular 140
+        if (peso <= 330) return 50; // Paralelo 600
+        if (peso <= 370) return 51; // Paralelo 700
+        if (peso <= 450) return 52; // Paralelo 800
+        if (peso <= 600) return 53; // Paralelo 1000
+        return 54; // Paralelo 1500
     } else if (cat === 'Interior') {
         if (peso <= 35) return 144;
         if (peso <= 47) return 145;
@@ -2153,7 +2222,7 @@ function autoLoadComponents(n) {
     if (!window._manualInstPct[n]) {
         let pctInput = document.getElementById('inst-pct-u-' + n);
         if (pctInput) {
-            pctInput.value = INSTALACION_PCT[tipoTrabajo] || 0;
+            pctInput.value = INSTALACION_PCT[tipoTrabajo] ?? 8;
         }
     }
 
@@ -2182,7 +2251,9 @@ function autoLoadComponents(n) {
             addCompRowWithData(n, comp, qty);
             let tc = DATA.tc.Dolar_oficial || 1150;
             let costoArs = (comp.Moneda_costo === 'USD' ? comp.Costo_unitario * tc : comp.Costo_unitario) || 0;
-            let precioUnit = costoArs * (1 + (comp.Margen_default || 40) / 100);
+            let pctArmado = comp.Porcentaje_Armado || comp.Pct_armado || 0;
+            let costoBase = costoArs * (1 + pctArmado / 100);
+            let precioUnit = costoBase * (1 + (comp.Margen_default || 40) / 100);
             materialPriceTotal += precioUnit * qty;
             return precioUnit * qty;
         }
@@ -2217,11 +2288,19 @@ function autoLoadComponents(n) {
         let motorId = selectMotor(cat, peso, ancho, m2);
         if (motorId) {
             addCompRowWithData(n, DATA.componentes.find(c => c.Id == motorId), 1);
+            let ejeId;
+            let mId = Number(motorId);
+            if (mId === 55) {
+                ejeId = 147; // Eje 4"
+            } else if ([50, 51].includes(mId)) {
+                ejeId = 148; // Eje 5"
+            } else {
+                ejeId = 149; // Eje 7.5" Exagonal (motores 800, 1000, 1500)
+            }
             if (cat === 'Seguridad') {
-                let ejeId = motorId === 55 ? 147 : ([50, 51].includes(motorId) ? 148 : ([52, 53, 54].includes(motorId) ? 149 : 147));
                 addCompWithPrice(ejeId, parseFloat(ancho.toFixed(2)));
             } else {
-                addCompWithPrice(150, parseFloat(ancho.toFixed(2)));
+                addCompWithPrice(ejeId, parseFloat(ancho.toFixed(2)));
                 if (pid === 27 || pid === 29) addCompWithPrice(161, Math.ceil(ancho / 0.4));
             }
         }
@@ -2238,8 +2317,13 @@ function autoLoadComponents(n) {
         addCustomLabor("Mano de obra cambio paño", Math.max(materialPriceTotal * 0.5, 40000));
     } else if (isGuias) {
         let effectiveCat = cat || 'Exterior';
-        if (effectiveCat === 'Seguridad') addCompWithPrice(ancho < 5 ? 60 : 61, parseFloat((alto * 2).toFixed(2)));
-        else addCompWithPrice(63, parseFloat((alto * 2).toFixed(2)));
+        if (effectiveCat === 'Seguridad') {
+            let guiaId = (ancho <= 5) ? 60 : 61; // 60x50 hasta 5m, 100x60 mayor a 5m
+            let cantGuia = Math.max(parseFloat(alto.toFixed(2)), 3); // mínimo 3ml
+            addCompRowWithData(n, DATA.componentes.find(c => c.Id == guiaId), cantGuia);
+        } else {
+            addCompWithPrice(63, parseFloat(alto.toFixed(2)));
+        }
         addCustomLabor("Mano de obra cambio guías", Math.max(materialPriceTotal * 0.5, 40000));
     } else {
         let matCompId = PROD_COMP_MAP[pid];
@@ -2248,18 +2332,41 @@ function autoLoadComponents(n) {
             let motorId = selectMotor(cat, peso, ancho, m2);
             if (motorId) {
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == motorId), 1);
-                let ejeId = motorId === 55 ? 147 : ([50, 51].includes(motorId) ? 148 : 147);
+                let ejeId;
+                let mId = Number(motorId);
+                if (mId === 55) {
+                    ejeId = 147; // Eje 4"
+                } else if ([50, 51].includes(mId)) {
+                    ejeId = 148; // Eje 5"
+                } else {
+                    ejeId = 149; // Eje 7.5" Exagonal (motores 800, 1000, 1500)
+                }
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == ejeId), parseFloat(ancho.toFixed(2)));
             }
-            addCompRowWithData(n, DATA.componentes.find(c => c.Id == (ancho < 5 ? 60 : 61)), 1);
+            let guiaId = (ancho <= 5) ? 60 : 61; // 60x50 hasta 5m, 100x60 mayor a 5m
+            let cantGuia = Math.max(parseFloat(alto.toFixed(2)), 3); // mínimo 3ml
+            addCompRowWithData(n, DATA.componentes.find(c => c.Id == guiaId), cantGuia);
             addCompWithPrice(58, 1);
         } else if (cat === 'Exterior') {
             if (accion === 'motor') {
                 let motorId = selectMotor(cat, peso, ancho, m2);
-                if (motorId) addCompRowWithData(n, DATA.componentes.find(c => c.Id == motorId), 1);
-                addCompRowWithData(n, DATA.componentes.find(c => c.Id == 150), parseFloat(ancho.toFixed(2)));
+                if (motorId) {
+                    addCompRowWithData(n, DATA.componentes.find(c => c.Id == motorId), 1);
+                    let ejeId;
+                    let mId = Number(motorId);
+                    if (mId === 55) {
+                        ejeId = 147; // Eje 4"
+                    } else if ([50, 51].includes(mId)) {
+                        ejeId = 148; // Eje 5"
+                    } else {
+                        ejeId = 149; // Eje 7.5" Exagonal (motores 800, 1000, 1500)
+                    }
+                    addCompRowWithData(n, DATA.componentes.find(c => c.Id == ejeId), parseFloat(ancho.toFixed(2)));
+                } else {
+                    addCompRowWithData(n, DATA.componentes.find(c => c.Id == 150), parseFloat(ancho.toFixed(2)));
+                }
                 if (pid === 27 || pid === 29) addCompRowWithData(n, DATA.componentes.find(c => c.Id == 161), Math.ceil(ancho / 0.4));
-                addCompRowWithData(n, DATA.componentes.find(c => c.Id == 63), parseFloat((alto * 2).toFixed(2)));
+                addCompRowWithData(n, DATA.componentes.find(c => c.Id == 63), parseFloat(alto.toFixed(2)));
                 addCompWithPrice(58, 1);
             } else if (accion === 'manual_cinta') {
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 150), parseFloat(ancho.toFixed(2)));
@@ -2268,7 +2375,7 @@ function autoLoadComponents(n) {
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 153), 2);
                 addCompWithPrice(154, 1); addCompWithPrice(155, parseFloat((alto + 0.5).toFixed(2)));
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 129), 2);
-                addCompRowWithData(n, DATA.componentes.find(c => c.Id == 63), parseFloat((alto * 2).toFixed(2)));
+                addCompRowWithData(n, DATA.componentes.find(c => c.Id == 63), parseFloat(alto.toFixed(2)));
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == (alto <= 1.4 ? 120 : (alto <= 2.3 ? 121 : 122))), 1);
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == (alto <= 1.4 ? 126 : (alto <= 2.3 ? 127 : 157))), 1);
             } else if (accion === 'manual_antognetti') {
@@ -2278,7 +2385,7 @@ function autoLoadComponents(n) {
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 153), 2);
                 addCompWithPrice(154, 1); addCompWithPrice(156, parseFloat((alto + 0.5).toFixed(2)));
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == 129), 2);
-                addCompRowWithData(n, DATA.componentes.find(c => c.Id == 63), parseFloat((alto * 2).toFixed(2)));
+                addCompRowWithData(n, DATA.componentes.find(c => c.Id == 63), parseFloat(alto.toFixed(2)));
                 addCompRowWithData(n, DATA.componentes.find(c => c.Id == (m2 <= 1.5 ? 136 : 137)), 1);
             }
         }
@@ -2295,7 +2402,7 @@ function addCompRow(n) {
         <datalist id="${datalistId}">${compOpts}</datalist>
     </td>
     <td><input type="number" value="1" step="0.01" style="width:60px" oninput="recalcUnidad(${n})"></td>
-    <td class="c-costo hide-margin">0</td>
+    <td class="c-costo hide-margin" data-armado="0">0</td>
     <td class="c-moneda hide-margin">-</td>
     <td class="hide-margin"><input type="number" value="40" style="width:60px" oninput="recalcUnidad(${n})"></td>
     <td class="c-precio">$0</td>
@@ -2309,12 +2416,25 @@ function addCompRow(n) {
 }
 function addCompRowWithData(n, comp, qty, lineId = null, forcedPrice = null) {
     let tc = DATA.tc.Dolar_oficial || 1150;
+    
+    // Check missing 3ml min for Guías 60x50 and 100x60
+    if (comp && comp.Nombre && (comp.Nombre.includes('60x50') || comp.Nombre.includes('100x60'))) {
+        qty = Math.max(parseFloat(qty), 3);
+    }
+    
     let costo = comp.Costo_unitario || 0;
     let moneda = comp.Moneda_costo || 'ARS';
+    let pctArmado = comp.Porcentaje_Armado || comp.Pct_armado || 0;
     let margen = comp.Margen_default || 40;
+    let iva = comp.Alicuota_IVA_venta || comp.Alicuota_IVA_Venta || '21';
+    
     let costoArs = moneda === 'USD' ? costo * tc : costo;
-    let precio = forcedPrice !== null ? forcedPrice : (costoArs * (1 + margen / 100));
-    let iva = comp.Alicuota_IVA_venta || '21';
+    let costoBase = costoArs * (1 + pctArmado / 100);
+    let pSinIva = costoBase * (1 + margen / 100);
+    
+    let precio = forcedPrice !== null ? forcedPrice : pSinIva;
+    let pFinal = precio * (1 + parseFloat(iva) / 100);
+    
     let datalistId = `comp-list-${n}-${Date.now()}`;
     let compOpts = '';
     DATA.componentes.forEach(c => { compOpts += `<option value="${cleanLabel(c.Nombre)}">`; });
@@ -2326,11 +2446,11 @@ function addCompRowWithData(n, comp, qty, lineId = null, forcedPrice = null) {
         <datalist id="${datalistId}">${compOpts}</datalist>
     </td>
     <td><input type="number" value="${qty}" step="0.01" style="width:60px" oninput="recalcUnidad(${n})"></td>
-    <td class="c-costo hide-margin">${Number(costo).toFixed(2)}</td>
+    <td class="c-costo hide-margin" data-armado="${pctArmado}" data-costo="${costo}">${Number(costo).toFixed(2)}</td>
     <td class="c-moneda hide-margin">${moneda}</td>
     <td class="hide-margin"><input type="number" value="${margen}" style="width:60px" oninput="recalcUnidad(${n})"></td>
-    <td class="c-precio">${fmt(precio)}</td>
-    <td class="c-subtotal">${fmt(precio * qty)}</td>
+    <td class="c-precio">${fmt(pFinal)}</td>
+    <td class="c-subtotal">${fmt(pFinal * qty)}</td>
     <td class="c-iva">${iva}%</td>
     <td><button class="btn-remove" onclick="this.closest('tr').remove();recalcUnidad(${n})">✕</button></td>`;
     tbody.appendChild(row);
@@ -2340,9 +2460,17 @@ function compSelected(input, n) {
     let comp = DATA.componentes.find(c => cleanLabel(c.Nombre) === name);
     if (!comp) return;
     let row = input.closest('tr');
+    
+    // Check minimum 3ml
+    let isGuia3ml = comp.Nombre.includes('60x50') || comp.Nombre.includes('100x60');
+    let qtyInput = row.querySelectorAll('input[type="number"]')[0];
+    if (isGuia3ml && parseFloat(qtyInput.value) < 3) qtyInput.value = 3;
+
     row.querySelector('.c-costo').textContent = (comp.Costo_unitario || 0).toFixed(2);
+    row.querySelector('.c-costo').dataset.costo = comp.Costo_unitario || 0;
+    row.querySelector('.c-costo').dataset.armado = comp.Porcentaje_Armado || comp.Pct_armado || 0;
     row.querySelector('.c-moneda').textContent = comp.Moneda_costo || 'ARS';
-    row.querySelector('.c-iva').textContent = (comp.Alicuota_IVA_venta || '21') + '%';
+    row.querySelector('.c-iva').textContent = (comp.Alicuota_IVA_venta || comp.Alicuota_IVA_Venta || '21') + '%';
     let margenInput = row.querySelectorAll('input[type="number"]')[1];
     if (margenInput) margenInput.value = comp.Margen_default || 40;
     recalcUnidad(n);
@@ -2352,15 +2480,30 @@ function recalcUnidad(n) {
     let tc = DATA.tc.Dolar_oficial || 1150;
     let t = 0;
     document.querySelectorAll('#comps-u-' + n + ' tr').forEach(r => {
-        let costo = parseFloat(r.querySelector('.c-costo')?.textContent) || 0;
+        let cCostoEl = r.querySelector('.c-costo');
+        let costo = parseFloat(cCostoEl?.dataset.costo || cCostoEl?.textContent) || 0;
+        let pctArmado = parseFloat(cCostoEl?.dataset.armado) || 0;
         let mon = r.querySelector('.c-moneda')?.textContent || 'ARS';
+        let ivaTxt = r.querySelector('.c-iva')?.textContent || '21';
+        let iva = parseFloat(ivaTxt.replace('%','')) || 21;
+        
         let inputs = r.querySelectorAll('input[type="number"]');
         let qty = parseFloat(inputs[0]?.value) || 0;
+        let pInput = r.querySelector('input[list]');
+        if (pInput && (pInput.value.includes('60x50') || pInput.value.includes('100x60'))) {
+            qty = Math.max(qty, 3);
+            if(inputs[0]) inputs[0].value = qty;
+        }
         let marg = parseFloat(inputs[1]?.value) || 0;
+        
         let costoArs = mon === 'USD' ? costo * tc : costo;
-        let pUnit = costoArs * (1 + marg / 100);
-        let sub = pUnit * qty;
-        r.querySelector('.c-precio').textContent = fmt(pUnit);
+        let costoBase = costoArs * (1 + pctArmado / 100);
+        
+        let pUnitSinIva = costoBase * (1 + marg / 100);
+        let pUnitConIva = pUnitSinIva * (1 + iva / 100);
+        
+        let sub = pUnitConIva * qty;
+        r.querySelector('.c-precio').textContent = fmt(pUnitConIva);
         r.querySelector('.c-subtotal').textContent = fmt(sub);
         t += sub;
     });
@@ -2410,6 +2553,7 @@ function recalcTraslado() {
         recalcTotal();
         return;
     }
+    tVis.disabled = false;
     let viatico = zona.Costo_viatico || 0;
     let transporte = zona.Costo_transporte || 0;
     let visitas = parseInt(tVis.value) || 0;
@@ -2889,6 +3033,13 @@ async function generarPDF(presId) {
 
         html += `<div style="margin-top: auto; margin-left: auto; width: fit-content; min-width: 320px; background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; page-break-inside: avoid;">`;
 
+        let cTraslado = parseFloat(pres.Costo_traslado) || 0;
+        if (cTraslado > 0) {
+            let zName = zona.Nombre ? cleanLabel(zona.Nombre) : '-';
+            let numVis = pres.Visitas_traslado || 1;
+            html += `<div style="display: flex; justify-content: space-between; font-size: 1.1em; color: #374151; margin-bottom: 5px;"><span>Traslado (${zName} - ${numVis} visita/s):</span> <span>${fmt(cTraslado)}</span></div>`;
+        }
+
         if (billingMode === 'con_iva') {
             html += `
                 <div style="display: flex; justify-content: space-between; font-size: 1.4em; font-weight: bold; color: #111; margin-bottom: 5px;"><span>TOTAL:</span> <span>${fmt(total)}</span></div>
@@ -3194,3 +3345,147 @@ window.addEventListener('mouseup', function (event) {
         if (event.target.classList.contains('detail-panel')) closeDetail();
     }
 });
+
+// --- CHATBOT CARGAR CLIENTE ---
+let chatSessionId = null;
+
+// Solo para mantener compatibilidad con _saveChatbotData por ahora
+let chatState = { data: {}, props: [] };
+
+function openChatbot() {
+    chatSessionId = 'session_' + Date.now();
+    document.getElementById('modal-chatbot').style.display = 'flex';
+    document.getElementById('chat-messages').innerHTML = '';
+    showChatInput();
+    appendChatMessage('bot', '¡Hola! Soy el asistente de Persiana Total. Decime, ¿qué cliente o propiedad querés cargar?');
+}
+
+function closeChatbot() {
+    document.getElementById('modal-chatbot').style.display = 'none';
+    document.getElementById('chat-messages').innerHTML = '';
+    chatSessionId = null;
+}
+
+function appendChatMessage(sender, text) {
+    let msgDiv = document.createElement('div');
+    msgDiv.style.maxWidth = '85%';
+    msgDiv.style.padding = '10px 14px';
+    msgDiv.style.borderRadius = '12px';
+    msgDiv.style.fontSize = '14px';
+    msgDiv.style.lineHeight = '1.4';
+    
+    if (sender === 'bot') {
+        msgDiv.style.alignSelf = 'flex-start';
+        msgDiv.style.background = '#f3f4f6';
+        msgDiv.style.color = '#1f2937';
+        msgDiv.style.borderTopLeftRadius = '4px';
+        
+        let htmlText = text.replace(/\\n/g, '<br>').replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        msgDiv.innerHTML = htmlText;
+    } else {
+        msgDiv.style.alignSelf = 'flex-end';
+        msgDiv.style.background = 'var(--grad1)';
+        msgDiv.style.color = 'white';
+        msgDiv.style.borderTopRightRadius = '4px';
+        msgDiv.innerText = text;
+    }
+    
+    let msgs = document.getElementById('chat-messages');
+    msgs.appendChild(msgDiv);
+    setTimeout(() => msgs.scrollTop = msgs.scrollHeight, 50);
+    return msgDiv;
+}
+
+function showChatInput() {
+    document.getElementById('chat-input-area').style.display = 'flex';
+    let optsArea = document.getElementById('chat-options-area');
+    if (optsArea) optsArea.style.display = 'none';
+    let input = document.getElementById('chat-input');
+    input.value = '';
+    setTimeout(() => input.focus(), 100);
+}
+
+async function submitChatInput() {
+    let input = document.getElementById('chat-input');
+    let text = input.value;
+    if (!text.trim()) return;
+    
+    input.value = '';
+    appendChatMessage('user', text);
+    
+    let typingDiv = appendChatMessage('bot', 'Escribiendo...');
+    
+    try {
+        let res = await fetch('https://n8n.srv1323649.hstgr.cloud/webhook/chat-app', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: text, sessionId: chatSessionId })
+        });
+        
+        if (typingDiv && typingDiv.parentNode) {
+            typingDiv.parentNode.removeChild(typingDiv);
+        }
+        
+        if (res.ok) {
+            let data = await res.json();
+            if (data && data.response) {
+                appendChatMessage('bot', data.response);
+            } else {
+                appendChatMessage('bot', 'Error: Respuesta inesperada del agente.\n' + JSON.stringify(data));
+            }
+        } else {
+            appendChatMessage('bot', 'Error al procesar el mensaje del agente.');
+        }
+    } catch (e) {
+        console.error(e);
+        if (typingDiv && typingDiv.parentNode) {
+            typingDiv.parentNode.removeChild(typingDiv);
+        }
+        appendChatMessage('bot', 'Error de conexión con el servidor.');
+    }
+}
+
+async function _saveChatbotData() {
+    showChatOptions([]);
+    appendChatMessage('bot', '⏳ Guardando...');
+    try {
+        let nClient = await apiPost(TBL.clientes, chatState.data);
+        let nId = nClient && (nClient.Id || nClient.id || (Array.isArray(nClient) && nClient[0] && (nClient[0].Id || nClient[0].id)));
+        
+        if (nId) {
+            chatState.nId = nId;
+            CLIENT_MAP[nId] = { Nombre: chatState.data.Nombre, Telefono: chatState.data.Telefono };
+            for(let i=0; i<chatState.props.length; i++) {
+                let p = Object.assign({}, chatState.props[i]);
+                p.Clientes_id = parseInt(nId);
+                if(p.Zona_id) p.Zona_id = parseInt(p.Zona_id);
+                delete p.Principal; // Asegura que las propiedades sean creadas con la estructura apropiada
+                p.Principal = chatState.props[i].Principal ? true : false;
+                let cProp = await apiPost(TBL.propiedades, p);
+                
+                // Agregarlo a mano para que el presupuesto lo vea sin recargar 1000 items
+                let pObj = Array.isArray(cProp) ? cProp[0] : (cProp || p);
+                if (!pObj.Clientes) pObj.Clientes = [{Id: parseInt(nId)}];
+                DATA.propiedades.push(pObj);
+            }
+            
+            // Recargar datos en memoria
+            if (DATA._loaded.clientes) { DATA.clientes = await apiGet(TBL.clientes); if(typeof renderClientes === 'function') renderClientes(); }
+            if (DATA._loaded.propiedades) { DATA.propiedades = await apiGetAll(TBL.propiedades); if(typeof renderPropiedades === 'function') renderPropiedades(); }
+            
+            appendChatMessage('bot', `¡Listo! <b>${chatState.data.Nombre}</b> fue cargado con ${chatState.props.length} propiedade(s). Ya podés hacerle un presupuesto.`);
+            showChatOptions([
+                {label:'📋 Hacer presupuesto', value:'presupuesto'},
+                {label:'❌ Cerrar', value:'cerrar'}
+            ]);
+        } else {
+            appendChatMessage('bot', '❌ Error: No se pudo obtener el ID del cliente generado.');
+            showChatInput();
+        }
+    } catch (e) {
+        console.error(e);
+        appendChatMessage('bot', '❌ Ocurrió un error al intentar guardar los datos.');
+        showChatInput();
+    }
+}
+

@@ -1,0 +1,352 @@
+{
+  "name": "Chatbot Carga de Clientes",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chat-app",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [ 0, 0 ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ JSON.stringify({response: $json.output}) }}",
+        "options": {}
+      },
+      "id": "2",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [ 400, 0 ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.message }}",
+        "options": {
+          "systemMessage": "Sos un asistente de Persiana Total para cargar clientes y propiedades.\n\nFLUJO:\n1. Saluda y pedi el telefono del cliente\n2. Normaliza el telefono y busca en la base de datos\n3. Si existe: mostra los datos y pregunta que quiere hacer (actualizar datos, agregar propiedad, o nada)\n4. Si no existe: preguntar nombre, y los demas datos opcionales paso a paso\n5. Despues de cargar el cliente, preguntar si quiere agregar una propiedad\n6. Para la propiedad: pedir direccion, localidad, tipo, zona\n7. Al final confirmar todo y guardar\n\nREGLAS:\n- Siempre normaliza el telefono antes de buscar\n- Si el usuario escribe todo junto, parsea los datos sin preguntar de nuevo\n- Si dice 'no', 'no tengo' o 'saltar', avanza al siguiente campo\n- Si dice 'corregir' o 'volver', volve al paso anterior\n- Se conciso y amigable, usa espanol argentino\n- Los campos obligatorios son: Nombre y Telefono\n- La primera propiedad siempre es Principal=true"
+        }
+      },
+      "id": "3",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.1,
+      "position": [ 200, 0 ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {}
+      },
+      "id": "4",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [ 150, 200 ]
+    },
+    {
+      "parameters": {
+        "contextWindowLength": 10,
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.body.sessionId }}"
+      },
+      "id": "5",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.2,
+      "position": [ 250, 200 ]
+    },
+    {
+      "parameters": {
+        "name": "normalizar_telefono",
+        "description": "Limpia y normaliza telefonos argentinos a formato estandar de 10 digitos. Recive el telefono en la variable 'phone'.",
+        "code": "let phone = $input.first().json.query ? $input.first().json.query.phone : $input.first().json.phone;\nif (!phone) return [{json: {phone: ''}}];\nphone = phone.replace(/[\\s\\-+()]/g, '');\nif (phone.startsWith('54')) phone = phone.substring(2);\nif (phone.startsWith('0')) phone = phone.substring(1);\nif (phone.length > 8 && phone.includes('15') && phone.indexOf('15') > 1 && phone.indexOf('15') <= 4) {\n  phone = phone.replace('15', '4');\n}\nreturn [{json: {phone: phone}}];"
+      },
+      "id": "6",
+      "name": "Normalizar Telefono",
+      "type": "n8n-nodes-base.codeTool",
+      "typeVersion": 1,
+      "position": [ 350, -200 ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://nocodb.srv1323649.hstgr.cloud/api/v2/tables/mwby85581fhjy27/records",
+        "authentication": "headerAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "where",
+              "value": "(Telefono,eq,{{ $json.query.telefono || $json.telefono }})"
+            }
+          ]
+        },
+        "name": "buscar_cliente_telefono",
+        "description": "Busca un cliente por su telefono exacto normalizado. Llama esta tool pasando 'telefono' como parametro."
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_NOCODB_CREDENTIAL_ID",
+          "name": "Header Auth account"
+        }
+      },
+      "id": "7",
+      "name": "Buscar Cliente Telefono",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.1,
+      "position": [ 450, -200 ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://nocodb.srv1323649.hstgr.cloud/api/v2/tables/mwby85581fhjy27/records",
+        "authentication": "headerAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "where",
+              "value": "(Nombre,like,%{{ $json.query.nombre || $json.nombre }}%)"
+            }
+          ]
+        },
+        "name": "buscar_cliente_nombre",
+        "description": "Busca un cliente por su nombre mediante una busqueda parcial. Llama esta tool pasando 'nombre' como parametro."
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_NOCODB_CREDENTIAL_ID",
+          "name": "Header Auth account"
+        }
+      },
+      "id": "8",
+      "name": "Buscar Cliente Nombre",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.1,
+      "position": [ 550, -200 ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://nocodb.srv1323649.hstgr.cloud/api/v2/tables/mwby85581fhjy27/records",
+        "authentication": "headerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body || $json) }}",
+        "name": "crear_cliente",
+        "description": "Crea un nuevo cliente en base de datos. Pasa un objeto JSON completo en 'body'. Campos validos: Nombre, Telefono, Mail, Tipo, Condicion_fiscal, CUIT_CUIL_DNI, Razon_social, Localidad, Notas."
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_NOCODB_CREDENTIAL_ID",
+          "name": "Header Auth account"
+        }
+      },
+      "id": "9",
+      "name": "Crear Cliente",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.1,
+      "position": [ 650, -200 ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://nocodb.srv1323649.hstgr.cloud/api/v2/tables/mwby85581fhjy27/records",
+        "authentication": "headerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body || $json) }}",
+        "name": "actualizar_cliente",
+        "description": "Actualiza un cliente existente. Pasa un objeto JSON completo en 'body' que DEBE incluir el 'Id' del cliente y los campos a actualizar."
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_NOCODB_CREDENTIAL_ID",
+          "name": "Header Auth account"
+        }
+      },
+      "id": "10",
+      "name": "Actualizar Cliente",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.1,
+      "position": [ 750, -200 ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://nocodb.srv1323649.hstgr.cloud/api/v2/tables/m0dwlr7ccoim1kf/records",
+        "authentication": "headerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body || $json) }}",
+        "name": "crear_propiedad",
+        "description": "Crea una nueva propiedad. Pasa un objeto JSON en 'body'. Clientes_id y Zona_id deben ser numericos."
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_NOCODB_CREDENTIAL_ID",
+          "name": "Header Auth account"
+        }
+      },
+      "id": "11",
+      "name": "Crear Propiedad",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.1,
+      "position": [ 850, -200 ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://nocodb.srv1323649.hstgr.cloud/api/v2/tables/mottig5nmj5e3kx/records",
+        "authentication": "headerAuth",
+        "name": "listar_zonas",
+        "description": "Obtiene la lista de Zonas que se pueden asignar a las propiedades. Usalo para mostrarle al usuario las zonas disponibles para elegir."
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_NOCODB_CREDENTIAL_ID",
+          "name": "Header Auth account"
+        }
+      },
+      "id": "12",
+      "name": "Listar Zonas",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.1,
+      "position": [ 950, -200 ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar Telefono": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Cliente Telefono": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Cliente Nombre": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Cliente": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Cliente": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Propiedad": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Listar Zonas": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

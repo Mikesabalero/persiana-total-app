@@ -1,0 +1,67 @@
+[
+  {
+    "id": 50,
+    "nombre": "Motor Paralelo 600",
+    "activo": true
+  },
+  {
+    "id": 51,
+    "nombre": "Motor Paralelo 700",
+    "activo": true
+  },
+  {
+    "id": 52,
+    "nombre": "Motor Paralelo 800",
+    "activo": true
+  },
+  {
+    "id": 53,
+    "nombre": "Motor Paralelo 1000",
+    "activo": true
+  },
+  {
+    "id": 54,
+    "nombre": "Motor Paralelo 1500",
+    "activo": true
+  },
+  {
+    "id": 55,
+    "nombre": "Motor Tubular 140",
+    "activo": true
+  },
+  {
+    "id": 56,
+    "nombre": "Motor Tubular 60",
+    "activo": true
+  },
+  {
+    "id": 96,
+    "nombre": "Plus por motor",
+    "activo": true
+  },
+  {
+    "id": 102,
+    "nombre": "Base motorizacion cortina existente",
+    "activo": true
+  },
+  {
+    "id": 115,
+    "nombre": "Bobinado de motor",
+    "activo": true
+  },
+  {
+    "id": 144,
+    "nombre": "Motor Tubular 10",
+    "activo": true
+  },
+  {
+    "id": 145,
+    "nombre": "Motor Tubular 20",
+    "activo": true
+  },
+  {
+    "id": 146,
+    "nombre": "Motor Tubular 30",
+    "activo": true
+  }
+]
