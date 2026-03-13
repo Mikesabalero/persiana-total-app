@@ -192,8 +192,64 @@ window.aplicarAumento = aplicarAumento;
 window.toggleAumentoModo = toggleAumentoModo;
 window.loadHistorialPrecios = loadHistorialPrecios;
 
+// ============================================================
+// MÓDULOS — Fase 5: Presupuestos
+// ============================================================
+
+// --- Módulo: Presupuestos / List ---
+import { loadPresupuestos, filterPresupuestos, changeStatus,
+         duplicatePresupuesto, deletePresupuesto } from './modules/presupuestos/list.js';
+window.loadPresupuestos = loadPresupuestos;
+window.filterPresupuestos = filterPresupuestos;
+window.changeStatus = changeStatus;
+window.duplicatePresupuesto = duplicatePresupuesto;
+window.deletePresupuesto = deletePresupuesto;
+
+// --- Módulo: Presupuestos / Form ---
+import { openNewPres, addUnidad, addUnidadUI, removeUnidad, duplicateUnidad,
+         addCompRow, addCompRowWithData, compSelected,
+         recalcUnidad, recalcTraslado, recalcTotal,
+         updatePropiedadesSelect, loadPropiedadesSelect, updateZonaFromProp } from './modules/presupuestos/form.js';
+window.openNewPres = openNewPres;
+window.addUnidad = addUnidad;
+window.addUnidadUI = addUnidadUI;
+window.removeUnidad = removeUnidad;
+window.duplicateUnidad = duplicateUnidad;
+window.addCompRow = addCompRow;
+window.addCompRowWithData = addCompRowWithData;
+window.compSelected = compSelected;
+window.recalcUnidad = recalcUnidad;
+window.recalcTraslado = recalcTraslado;
+window.recalcTotal = recalcTotal;
+window.updatePropiedadesSelect = updatePropiedadesSelect;
+window.loadPropiedadesSelect = loadPropiedadesSelect;
+window.updateZonaFromProp = updateZonaFromProp;
+
+// --- Módulo: Presupuestos / Save ---
+import { savePres } from './modules/presupuestos/save.js';
+window.savePres = savePres;
+
+// --- Módulo: Presupuestos / View ---
+import { fetchBudgetDeepData, viewPresupuesto } from './modules/presupuestos/view.js';
+window.fetchBudgetDeepData = fetchBudgetDeepData;
+window.viewPresupuesto = viewPresupuesto;
+
+// --- Módulo: Presupuestos / PDF ---
+import { generarPDF } from './modules/presupuestos/pdf.js';
+window.generarPDF = generarPDF;
+
+// --- Módulo: Presupuestos / Components Engine ---
+import { getCategoria, selectMotor, autoLoadComponents } from './modules/presupuestos/components-engine.js';
+window.getCategoria = getCategoria;
+window.selectMotor = selectMotor;
+window.autoLoadComponents = autoLoadComponents;
+
+// --- Estado local de presupuestos ---
+window._manualInstPct = window._manualInstPct || {};
+window._manualVisitas = window._manualVisitas || undefined;
+
 // --- Iniciar autenticación ---
 // initAuth recibe initApp como callback para evitar dependencia circular
 initAuth(initApp);
 
-console.log('[main.js] Módulos core + Fase 3 + Fase 4 cargados correctamente');
+console.log('[main.js] Módulos core + Fase 3 + Fase 4 + Fase 5 cargados correctamente');
