@@ -1,22 +1,105 @@
 // ============================================================
 // main.js — Entry point de la aplicación (ES6 module)
 // ============================================================
-// Este archivo es el punto de entrada. Importa los módulos core
-// y expone funciones en window para que los onclick del HTML funcionen.
-// En fases posteriores, se irán importando los módulos extraídos.
+// Importa los módulos core y expone funciones en window para
+// que los onclick del HTML y el código legacy de app.js funcionen.
 // ============================================================
 
-// --- Imports core ---
+// --- Core: Notify ---
 import { showToast, handleApiError } from './core/notify.js';
-
-// Exponer utilidades en window para uso global
 window.showToast = showToast;
 window.handleApiError = handleApiError;
 
-// --- Cargar app.js legacy ---
-// En esta fase, app.js sigue conteniendo toda la lógica.
-// Se carga como script legacy (no module) desde index.html.
-// A medida que avancemos en las fases, las funciones migrarán aquí.
+// --- Core: State ---
+import { DATA, CLIENT_MAP, PAGING, appReady, currentUser, currentRole,
+         setAppReady, setCurrentUser, setCurrentRole,
+         editPresId, unidadCount, _loadingEdit,
+         setEditPresId, setUnidadCount, setLoadingEdit } from './core/state.js';
+// Exponer estado global para que app.js legacy pueda accederlo
+window._STATE = { DATA, CLIENT_MAP, PAGING };
 
-// Verificar que los módulos cargaron correctamente
-console.log('[main.js] Módulos core cargados correctamente');
+// --- Core: Config ---
+import { API, TOKEN, BASE, H, TBL, PAGE_SIZE, USER_ROLES, firebaseConfig,
+         INSTALACION_PCT, PESO_M2, CAT_SEGURIDAD, CAT_EXTERIOR, CAT_INTERIOR,
+         REPAIR_LABELS } from './core/config.js';
+
+// --- Core: API ---
+import { apiGet, apiGetAll, apiGetPaged, apiGetLinks,
+         apiPost, apiPatch, apiDelete, apiLink,
+         loadClientMap } from './core/api.js';
+window.apiGet = apiGet;
+window.apiGetAll = apiGetAll;
+window.apiGetPaged = apiGetPaged;
+window.apiGetLinks = apiGetLinks;
+window.apiPost = apiPost;
+window.apiPatch = apiPatch;
+window.apiDelete = apiDelete;
+window.apiLink = apiLink;
+window.loadClientMap = loadClientMap;
+
+// --- Core: UI ---
+import { fmt, cleanLabel, badgeHtml, resolveLink, resolveName,
+         renderPagination, _showPageSpinner,
+         closeModal, closeDetail, closeVerPres, closeVerCliente,
+         closeModalCliente, closeModalEditComp, showConfigTab } from './core/ui.js';
+window.fmt = fmt;
+window.cleanLabel = cleanLabel;
+window.badgeHtml = badgeHtml;
+window.resolveLink = resolveLink;
+window.resolveName = resolveName;
+window.renderPagination = renderPagination;
+window._showPageSpinner = _showPageSpinner;
+window.closeModal = closeModal;
+window.closeDetail = closeDetail;
+window.closeVerPres = closeVerPres;
+window.closeVerCliente = closeVerCliente;
+window.closeModalCliente = closeModalCliente;
+window.closeModalEditComp = closeModalEditComp;
+window.showConfigTab = showConfigTab;
+
+// --- Core: Router ---
+import { showPage, ensureData, initApp, reloadAllData, loadAll,
+         prevPage, nextPage, _resolvePresupuestoLinks } from './core/router.js';
+window.showPage = showPage;
+window.ensureData = ensureData;
+window.initApp = initApp;
+window.reloadAllData = reloadAllData;
+window.loadAll = loadAll;
+window.prevPage = prevPage;
+window.nextPage = nextPage;
+window._resolvePresupuestoLinks = _resolvePresupuestoLinks;
+
+// --- Core: Auth ---
+import { loginEmail, loginGoogle, logout, applyRolePermissions, initAuth } from './core/auth.js';
+window.loginEmail = loginEmail;
+window.loginGoogle = loginGoogle;
+window.logout = logout;
+window.applyRolePermissions = applyRolePermissions;
+
+// --- Exponer constantes de config que usa app.js legacy ---
+window.API = API;
+window.TOKEN = TOKEN;
+window.BASE = BASE;
+window.H = H;
+window.TBL = TBL;
+window.PAGE_SIZE = PAGE_SIZE;
+window.USER_ROLES = USER_ROLES;
+window.INSTALACION_PCT = INSTALACION_PCT;
+window.PESO_M2 = PESO_M2;
+window.CAT_SEGURIDAD = CAT_SEGURIDAD;
+window.CAT_EXTERIOR = CAT_EXTERIOR;
+window.CAT_INTERIOR = CAT_INTERIOR;
+window.REPAIR_LABELS = REPAIR_LABELS;
+
+// --- Exponer estado mutable para app.js legacy ---
+// app.js usa DATA, CLIENT_MAP, PAGING directamente como globales.
+// Los exponemos en window para que siga funcionando.
+window.DATA = DATA;
+window.CLIENT_MAP = CLIENT_MAP;
+window.PAGING = PAGING;
+
+// --- Iniciar autenticación ---
+// initAuth recibe initApp como callback para evitar dependencia circular
+initAuth(initApp);
+
+console.log('[main.js] Módulos core cargados correctamente (Fase 2)');

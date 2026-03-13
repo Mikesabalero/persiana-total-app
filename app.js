@@ -1,457 +1,36 @@
-// === FIREBASE AUTH ===
-const firebaseConfig = {
-  apiKey: "AIzaSyDbhin3nW4qySZbWsX3EZs-GAsTK5qfhYE",
-  authDomain: "persiana-total.firebaseapp.com",
-  projectId: "persiana-total",
-  storageBucket: "persiana-total.firebasestorage.app",
-  messagingSenderId: "572769200027",
-  appId: "1:572769200027:web:60b41b57ce4632d674633e"
-};
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+// ============================================================
+// app.js — Código legacy (se irá vaciando fase a fase)
+// ============================================================
+// Las funciones de auth, config, state, API, UI y router
+// fueron extraídas a js/core/*.js y se cargan via js/main.js.
+// Este archivo ahora es un ES6 module que importa lo necesario.
+// ============================================================
 
-const USER_ROLES = {
-    'E6922Is70Db54pv2mioWpszvKru2': 'admin',
-    'A5IKpIzEmbXN1SVQvwFKj4zIgbn1': 'admin'
-};
+import { API, TOKEN, BASE, H, TBL, PAGE_SIZE, USER_ROLES,
+         INSTALACION_PCT, PESO_M2, CAT_SEGURIDAD, CAT_EXTERIOR, CAT_INTERIOR,
+         REPAIR_LABELS } from './js/core/config.js';
+import { DATA, CLIENT_MAP, PAGING, appReady,
+         editPresId, unidadCount, _loadingEdit,
+         setEditPresId, setUnidadCount, setLoadingEdit } from './js/core/state.js';
+import { apiGet, apiGetAll, apiGetPaged, apiGetLinks,
+         apiPost, apiPatch, apiDelete, apiLink, loadClientMap } from './js/core/api.js';
+import { fmt, cleanLabel, badgeHtml, resolveLink, resolveName,
+         renderPagination, _showPageSpinner, showConfigTab,
+         closeModal, closeDetail, closeVerPres, closeVerCliente,
+         closeModalEditComp } from './js/core/ui.js';
+import { _resolvePresupuestoLinks, reloadAllData, ensureData, showPage } from './js/core/router.js';
+import { showToast } from './js/core/notify.js';
 
-let currentUser = null;
-let currentRole = null;
+// Variables de estado locales a presupuestos (se migrarán en Fase 5)
+window._manualInstPct = window._manualInstPct || {};
+window._manualVisitas = window._manualVisitas || undefined;
 
-function loginEmail() {
-    let email = document.getElementById('login-email').value;
-    let pass = document.getElementById('login-pass').value;
-    let errDiv = document.getElementById('login-error');
-    errDiv.style.display = 'none';
-    if (!email || !pass) {
-        errDiv.textContent = 'Ingresá tu email y contraseña';
-        errDiv.style.display = 'block';
-        return;
-    }
-    auth.signInWithEmailAndPassword(email, pass).catch(function(error) {
-        let msg = 'Error desconocido. Intentá de nuevo.';
-        switch(error.code) {
-            case 'auth/invalid-credential':
-            case 'auth/wrong-password':
-            case 'auth/user-not-found':
-                msg = 'Email o contraseña incorrectos';
-                break;
-            case 'auth/invalid-email':
-                msg = 'El email ingresado no es válido';
-                break;
-            case 'auth/user-disabled':
-                msg = 'Esta cuenta fue deshabilitada. Contactá al administrador.';
-                break;
-            case 'auth/too-many-requests':
-                msg = 'Demasiados intentos fallidos. Esperá unos minutos e intentá de nuevo.';
-                break;
-            case 'auth/network-request-failed':
-                msg = 'Error de conexión. Verificá tu internet.';
-                break;
-        }
-        errDiv.textContent = msg;
-        errDiv.style.display = 'block';
-    });
-}
+// --- Funciones que aún no fueron migradas a módulos ---
+// Todas se exponen en window al final del archivo para que
+// los onclick del HTML y los módulos core puedan llamarlas.
 
-function loginGoogle() {
-    let provider = new firebase.auth.GoogleAuthProvider();
-    auth.signInWithPopup(provider).catch(function(error) {
-        let errDiv = document.getElementById('login-error');
-        let msg = 'Error al iniciar sesión con Google. Intentá de nuevo.';
-        if (error.code === 'auth/popup-closed-by-user') {
-            return; // No mostrar error si el usuario cerró el popup
-        }
-        if (error.code === 'auth/network-request-failed') {
-            msg = 'Error de conexión. Verificá tu internet.';
-        }
-        errDiv.textContent = msg;
-        errDiv.style.display = 'block';
-    });
-}
-
-function logout() {
-    localStorage.removeItem("persiana_uid");
-    localStorage.removeItem("persiana_email");
-    localStorage.removeItem("persiana_role");
-    window._appInitialized = false;
-    auth.signOut();
-}
-
-auth.onAuthStateChanged(function(user) {
-    if (user) {
-        currentUser = user;
-        currentRole = USER_ROLES[user.uid] || null;
-        if (!currentRole) {
-            if (window._appInitialized) {
-                return;
-            }
-            alert('Tu cuenta (' + user.email + ') no tiene permisos asignados.');
-            auth.signOut();
-            return;
-        }
-        localStorage.setItem('persiana_uid', user.uid);
-        localStorage.setItem('persiana_email', user.email);
-        localStorage.setItem('persiana_role', currentRole);
-        
-        document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('user-info').textContent = user.email + ' (' + currentRole + ')';
-        applyRolePermissions(currentRole);
-        
-        if (!window._appInitialized) {
-            window._appInitialized = true;
-            initApp();
-        }
-    } else {
-        let savedUid = localStorage.getItem('persiana_uid');
-        let savedRole = localStorage.getItem('persiana_role');
-        let savedEmail = localStorage.getItem('persiana_email');
-        
-        if (savedUid && savedRole && window._appInitialized) {
-            console.warn('Firebase desconectado temporalmente - sesión local activa');
-            return;
-        }
-        
-        if (savedUid && savedRole && !window._appInitialized) {
-            currentRole = savedRole;
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('user-info').textContent = savedEmail + ' (' + savedRole + ')';
-            applyRolePermissions(savedRole);
-            window._appInitialized = true;
-            initApp();
-            return;
-        }
-        
-        currentUser = null;
-        currentRole = null;
-        document.getElementById('login-screen').style.display = 'flex';
-    }
-});
-
-function applyRolePermissions(role) {
-    let tabConfig = document.querySelector('[onclick*="config"]');
-    if (tabConfig) tabConfig.style.display = (role === 'admin') ? '' : 'none';
-    
-    let tabComp = document.querySelector('[onclick*="precios"]');
-    if (tabComp) tabComp.style.display = (role === 'admin') ? '' : 'none';
-    
-    let tabZonas = document.querySelector('[onclick*="zonas"]');
-    if (tabZonas) tabZonas.style.display = (role === 'admin') ? '' : 'none';
-    
-    if (role !== 'admin') {
-        document.querySelectorAll('.hide-margin').forEach(el => el.style.display = 'none');
-    }
-    
-    if (role === 'instalador') {
-        let btnNuevoPres = document.querySelector('[onclick*="openNewPres"]');
-        if (btnNuevoPres) btnNuevoPres.style.display = 'none';
-    }
-}
-
-const API = 'https://nocodb.srv1323649.hstgr.cloud';
-const TOKEN = 'dZMS2te8v6cf47Jlmlnk3S3ft9LT_QO8bjNdOcZZ';
-const BASE = 'pru2fsphj43juyr';
-const H = { 'xc-token': TOKEN, 'Content-Type': 'application/json' };
-const TBL = { clientes: 'mwby85581fhjy27', propiedades: 'm0dwlr7ccoim1kf', historial: 'mimh9lp8bkew4t0', categorias: 'mulo5ve82d9ex7q', productos: 'mdr6mo695g0qz6d', componentes: 'mgh9e1zivvhpg26', prod_comp: 'mmjzqw7v4que9q3', tc: 'mhj9fovlmv9036x', zonas: 'mottig5nmj5e3kx', presupuestos: 'mn1yyjyovvoyxme', lineas: 'mv1e9trh23j0q3o', servicios: 'mz8qrki3hz4y7iv', formas_pago: 'm2t4fnjie88gfo0', unidades: 'mix059xkpsz15um', anchos: 'mayai71j546g3as', historial_aumentos: 'myumlbp9hemi3cu' };
-let DATA = { clientes: [], propiedades: [], zonas: [], componentes: [], productos: [], prod_comp: [], presupuestos: [], lineas: [], unidades: [], formas_pago: [], tc: null, anchos: [], _loaded: { clientes: false, precios: false, presupuestos: false, presupuestos_deps: false, propiedades: false, config: false } };
-let CLIENT_MAP = {};
-async function loadClientMap() {
-    CLIENT_MAP = {};
-    let offset = 0;
-    let limit = 200;
-    let hasMore = true;
-    while (hasMore) {
-        let url = API + '/api/v2/tables/' + TBL.clientes + '/records?fields=Id,Nombre,Telefono&limit=' + limit + '&offset=' + offset;
-        let r = await fetch(url, { headers: H });
-        if (!r.ok) break;
-        let data = await r.json();
-        let list = data.list || [];
-        list.forEach(c => { 
-            let id = c.Id || c.id;
-            if (id) CLIENT_MAP[id] = { Nombre: c.Nombre || '', Telefono: c.Telefono || '' }; 
-        });
-        if (list.length < limit) hasMore = false;
-        offset += limit;
-    }
-    console.log('CLIENT_MAP cargado:', Object.keys(CLIENT_MAP).length, 'clientes');
-}
-let appReady = false;
-
-const PAGE_SIZE = 20;
-let PAGING = {
-    clientes: { page: 1, total: 0 },
-    presupuestos: { page: 1, total: 0 },
-    propiedades: { page: 1, total: 0 }
-};
-
-async function apiGetPaged(tid, page, extraParams = '') {
-    let offset = (page - 1) * PAGE_SIZE;
-    let r = await fetch(API + '/api/v2/tables/' + tid + '/records?limit=' + PAGE_SIZE + '&offset=' + offset + extraParams, { headers: H });
-    if (!r.ok) return { list: [], total: 0 };
-    let d = await r.json();
-    return { list: d.list || [], total: d.pageInfo?.totalRows || 0 };
-}
-
-function renderPagination(containerId, pagingState, pageKey) {
-    let container = document.getElementById(containerId);
-    if (!container) return;
-    let totalPages = Math.ceil(pagingState.total / PAGE_SIZE) || 1;
-    container.innerHTML = `
-        <div style="display:flex; justify-content:center; align-items:center; gap:16px; margin-top:16px; color:var(--text)">
-            <button class="btn btn-secondary btn-sm" onclick="prevPage('${pageKey}')" ${pagingState.page <= 1 ? 'disabled' : ''}>« Anterior</button>
-            <span>Página ${pagingState.page} de ${totalPages}</span>
-            <button class="btn btn-secondary btn-sm" onclick="nextPage('${pageKey}')" ${pagingState.page >= totalPages ? 'disabled' : ''}>Siguiente »</button>
-        </div>
-    `;
-}
-
-async function prevPage(key) {
-    if (PAGING[key].page > 1) {
-        PAGING[key].page--;
-        if (key === 'clientes') await renderClientes();
-        if (key === 'presupuestos') await loadPresupuestos();
-        if (key === 'propiedades') await renderPropiedades();
-    }
-}
-async function nextPage(key) {
-    let totalPages = Math.ceil(PAGING[key].total / PAGE_SIZE) || 1;
-    if (PAGING[key].page < totalPages) {
-        PAGING[key].page++;
-        if (key === 'clientes') await renderClientes();
-        if (key === 'presupuestos') await loadPresupuestos();
-        if (key === 'propiedades') await renderPropiedades();
-    }
-}
-
-function _showPageSpinner(pageId, show) {
-    let page = document.getElementById('page-' + pageId);
-    if (!page) return;
-    if (show && getComputedStyle(page).position === 'static') {
-        page.style.position = 'relative';
-    }
-    let existing = page.querySelector('.lazy-spinner');
-    if (show && !existing) {
-        let d = document.createElement('div');
-        d.className = 'lazy-spinner';
-        d.style.cssText = 'position:absolute;top:50px;left:50%;transform:translateX(-50%);z-index:99;background:var(--surface);padding:10px 20px;border-radius:20px;box-shadow:0 4px 6px rgba(0,0,0,0.1);display:flex;align-items:center;color:var(--text);font-size:1em;gap:10px;';
-        d.innerHTML = '<div style="width:20px;height:20px;border:3px solid var(--border);border-top-color:var(--grad1);border-radius:50%;animation:spin .7s linear infinite"></div> Cargando datos...';
-        page.prepend(d);
-    } else if (!show && existing) {
-        existing.remove();
-    }
-}
-async function ensureData(page) {
-    if (page === 'clientes' || page === 'propiedades') {
-        if (Object.keys(CLIENT_MAP).length === 0) {
-            await loadClientMap();
-        }
-        DATA._loaded.propiedades = true;
-        DATA._loaded.clientes = true;
-    }
-    if (page === 'precios') {
-        if (!DATA._loaded.precios) {
-            DATA.componentes = await apiGet(TBL.componentes);
-            DATA._loaded.precios = true;
-            console.log('Lazy loaded: Componentes (' + DATA.componentes.length + ')');
-        }
-    }
-    if (page === 'presupuestos') {
-        if (!DATA._loaded.presupuestos) {
-            let [productos, prod_comp, unidades, lineas, propiedades] = await Promise.all([
-                apiGet(TBL.productos), apiGet(TBL.prod_comp),
-                apiGet(TBL.unidades), apiGet(TBL.lineas), apiGetAll(TBL.propiedades)
-            ]);
-            DATA.productos = productos;
-            DATA.prod_comp = prod_comp;
-            DATA.unidades = unidades;
-            DATA.lineas = lineas;
-            DATA.propiedades = propiedades;
-            DATA._loaded.propiedades = true;
-            DATA._loaded.presupuestos = true;
-            console.log('Lazy loaded: Productos, Prod_Comp, Unidades, Lineas, Propiedades');
-        }
-    }
-    if (page === 'config') {
-        if (!DATA._loaded.config) {
-            DATA.anchos = await apiGet(TBL.anchos);
-            DATA._loaded.config = true;
-            console.log('Lazy loaded: Anchos (' + DATA.anchos.length + ')');
-        }
-    }
-}
-
-async function showPage(id, btn) {
-    if (!appReady) { alert("Cargando datos, por favor espere..."); return; }
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.getElementById('page-' + id).classList.add('active');
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    if (btn) btn.classList.add('active');
-    // Show spinner and lazy-load data for the page
-    let showSpn = DATA._loaded[id] === false;
-    if (showSpn) _showPageSpinner(id, true);
-    try { await ensureData(id); } catch(e) { console.error('ensureData error:', e); }
-    if (showSpn) _showPageSpinner(id, false);
-    // Render
-    if (id === 'dashboard') loadDashboard();
-    if (id === 'presupuestos') loadPresupuestos();
-    if (id === 'precios') loadPrecios();
-    if (id === 'clientes') renderClientes();
-    if (id === 'propiedades') renderPropiedades();
-    if (id === 'config') loadConfig();
-}
-function closeModal() { document.getElementById('modal-pres').classList.remove('show'); }
-function closeDetail() { document.getElementById('panel-cliente').classList.remove('open'); }
-function closeVerPres() { document.getElementById('modal-ver-pres').classList.remove('show'); }
-function closeVerCliente() { document.getElementById('modal-ver-cliente').classList.remove('show'); }
-function closeModalCliente() { document.getElementById('modal-cliente').classList.remove('show'); }
-function closeModalEditComp() { document.getElementById('modal-edit-comp').classList.remove('show'); }
-
-function calcPrecioVentaComp() {
-    let costo = parseFloat(document.getElementById('ec-costo').value) || 0;
-    let pctArmado = parseFloat(document.getElementById('ec-pct-armado').value) || 0;
-    let margen = parseFloat(document.getElementById('ec-margen').value) || 0;
-    let ivaVenta = parseFloat(document.getElementById('ec-iva-venta').value) || 21;
-    let tc = DATA.tc.Dolar_oficial || 1150;
-    let moneda = document.getElementById('ec-moneda').value;
-    
-    // Nueva Fórmula: Precio = Costo * (1 + Armado/100) * (1 + Margen/100) * (1 + IVA/100)
-    let costoBase = costo * (1 + pctArmado / 100);
-    if (moneda === 'USD') costoBase *= tc;
-    
-    let precioSinIva = costoBase * (1 + margen / 100);
-    let precioConIva = precioSinIva * (1 + ivaVenta / 100);
-    
-    let fmtStr = n => '$' + Math.round(n).toLocaleString('es-AR');
-    let elPV = document.getElementById('ec-precio-venta');
-    let elPVI = document.getElementById('ec-precio-venta-iva');
-    if(elPV) elPV.value = fmtStr(precioSinIva);
-    if(elPVI) elPVI.value = fmtStr(precioConIva);
-}
-
-// closeModalPropiedad definida más abajo (línea ~1363)
-
-let _loadingEdit = false;
-let unidadCount = 0;
-let editPresId = null;
-
-async function apiGet(tid, params = '') { let r = await fetch(API + '/api/v2/tables/' + tid + '/records?limit=200' + params, { headers: H }); if (!r.ok) return []; let d = await r.json(); return d.list || []; }
-async function apiGetAll(tid, params = '') { let all = []; let offset = 0; let limit = 200; while (true) { let r = await fetch(API + '/api/v2/tables/' + tid + '/records?limit=' + limit + '&offset=' + offset + params, { headers: H }); if (!r.ok) break; let d = await r.json(); let list = d.list || []; all = all.concat(list); if (list.length < limit) break; offset += limit; } return all; }
-async function apiGetLinks(tid, colId, rowId) { let r = await fetch(API + '/api/v2/tables/' + tid + '/links/' + colId + '/records/' + rowId + '?limit=10', { headers: H }); if (!r.ok) return []; let d = await r.json(); return d.list || []; }
-async function apiPost(tid, body) { let r = await fetch(API + '/api/v2/tables/' + tid + '/records', { method: 'POST', headers: H, body: JSON.stringify(body) }); return r.json(); }
-async function apiPatch(tid, body) { let r = await fetch(API + '/api/v2/tables/' + tid + '/records', { method: 'PATCH', headers: H, body: JSON.stringify(body) }); return r.json(); }
-async function apiDelete(tid, id) { let r = await fetch(API + '/api/v2/tables/' + tid + '/records', { method: 'DELETE', headers: H, body: JSON.stringify({ Id: id }) }); return r.json(); }
-async function apiLink(tid, colId, rowId, linked) { let r = await fetch(API + '/api/v2/tables/' + tid + '/links/' + colId + '/records/' + rowId, { method: 'POST', headers: H, body: JSON.stringify(linked) }); return r.json(); }
-// Helpers
-function cleanLabel(text) {
-    if (!text || typeof text !== 'string') return text || '';
-    let s = text.replace(/_/g, ' ');
-    const acentos = {
-        'Instalacion nueva': 'Instalación nueva',
-        'Cambio pano': 'Cambio paño',
-        'Motorizacion': 'Motorización',
-        'Cambio guias': 'Cambio guías',
-        'Reparacion': 'Reparación',
-    };
-    return acentos[s] || s;
-}
-
-function fmt(n) { if (n == null) return '$0'; return '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
-function badgeHtml(estado) { let c = { 'Borrador': 'borrador', 'Enviado': 'enviado', 'Aprobado': 'aprobado', 'Rechazado': 'rechazado', 'Vencido': 'vencido', 'Facturado': 'facturado' }; return '<span class="badge badge-' + (c[estado] || 'borrador') + '">' + cleanLabel(estado) + '</span>'; }
-function resolveLink(row, field) { let v = row[field]; if (!v) return null; if (typeof v === 'object' && Array.isArray(v) && v.length > 0) return v[0]; if (typeof v === 'object' && (v.Id || v.id)) return v; return null; }
-function resolveName(row, field, list, idField) { 
-    let link = resolveLink(row, field); 
-    if (!link) return '-'; 
-    let id = link.Id || link.id || link; 
-    if (field === 'Clientes' && CLIENT_MAP[id]) return CLIENT_MAP[id].Nombre || '-'; 
-    let found = list.find(i => (i.Id == id || i.id == id)); 
-    if (found) return found.Nombre || found.Title || '-'; 
-    return (link.Nombre || link.Title || '-'); 
-}
-function showConfigTab(id, btn) { document.querySelectorAll('.config-section').forEach(s => s.style.display = 'none'); document.getElementById('config-' + id).style.display = 'block'; document.querySelectorAll('.config-tab').forEach(t => t.classList.remove('active')); btn.classList.add('active'); }
-const REPAIR_LABELS = {
-    'cambio_eje': 'Cambio de eje completo',
-    'cambio_cinta': 'Cambio de cinta',
-    'cambio_laterales': 'Cambio de laterales y flejes',
-    'cambio_resortes': 'Cambio de resortes',
-    'cambio_polea_tacos': 'Cambio polea, tacos y punteras',
-    'bobinado_motor': 'Bobinado de motor'
-};
-
-// cleanLabel ya definida arriba (línea 159)
-async function _resolvePresupuestoLinks() {
-    await Promise.all(DATA.presupuestos.map(async p => {
-        try {
-            const [cl, zl, pl] = await Promise.all([
-                apiGetLinks(TBL.presupuestos, 'canpten8owymbde', p.Id),
-                apiGetLinks(TBL.presupuestos, 'cr3s0ox51qopwl4', p.Id),
-                apiGetLinks(TBL.presupuestos, 'cpf764utp1w7yj0', p.Id)
-            ]);
-            if (cl.length > 0) { p._clienteNombre = cl[0].Nombre || cl[0].Title || '-'; p._clienteId = cl[0].Id; }
-            else { p._clienteNombre = '-'; p._clienteId = null; }
-            if (zl.length > 0) { p._zonaNombre = zl[0].Nombre || zl[0].Title || '-'; p._zonaId = zl[0].Id; }
-            else { p._zonaNombre = '-'; p._zonaId = null; }
-            if (pl.length > 0) {
-                p._propiedadId = pl[0].Id;
-                let propFull = DATA.propiedades.find(pr => pr.Id == pl[0].Id);
-                p._propiedadDir = propFull ? (propFull.Direccion || '-') + ' - ' + (propFull.Localidad || '-') : (pl[0].Nombre || '-');
-            } else { p._propiedadDir = '-'; p._propiedadId = null; }
-        } catch (e) { p._clienteNombre = '-'; p._clienteId = null; p._zonaNombre = '-'; p._zonaId = null; p._propiedadDir = '-'; p._propiedadId = null; }
-    }));
-}
-
-async function initApp() {
-    console.time('initApp');
-    // Fase 1: Solo datos esenciales para dashboard
-    let cliPaged = await apiGetPaged(TBL.clientes, 1, '');
-    let presPaged = await apiGetPaged(TBL.presupuestos, 1, '&sort=-Fecha');
-    
-    PAGING.clientes.total = cliPaged.total;
-    PAGING.presupuestos.total = presPaged.total;
-    DATA.presupuestos = presPaged.list;
-
-    [DATA.tc, DATA.zonas, DATA.formas_pago] = await Promise.all([
-        apiGet(TBL.tc, '&where=(Vigente,eq,true)').then(r => r[0] || { Dolar_oficial: 1150 }),
-        apiGet(TBL.zonas),
-        apiGet(TBL.formas_pago)
-    ]);
-    // Resolver links de presupuestos para dashboard
-    await _resolvePresupuestoLinks();
-    loadDashboard();
-    await loadClientMap();
-    appReady = true;
-    console.timeEnd('initApp');
-    console.log('initApp: totales', PAGING.clientes.total, 'clientes,', PAGING.presupuestos.total, 'presupuestos');
-}
-
-async function reloadAllData() {
-    // Recarga todo para dashboard y limpia lazy variables
-    let cliPaged = await apiGetPaged(TBL.clientes, 1, '');
-    let presPaged = await apiGetPaged(TBL.presupuestos, 1, '&sort=-Fecha');
-    PAGING.clientes.total = cliPaged.total;
-    PAGING.presupuestos.total = presPaged.total;
-    DATA.presupuestos = presPaged.list;
-
-    [DATA.tc, DATA.zonas, DATA.formas_pago] = await Promise.all([
-        apiGet(TBL.tc, '&where=(Vigente,eq,true)').then(r => r[0] || { Dolar_oficial: 1150 }),
-        apiGet(TBL.zonas),
-        apiGet(TBL.formas_pago)
-    ]);
-    // Invalidar lazy flags
-    DATA._loaded.precios = false;
-    DATA._loaded.presupuestos = false;
-    DATA._loaded.clientes = false;
-    DATA._loaded.propiedades = false;
-    
-    await _resolvePresupuestoLinks();
-    if(document.getElementById('page-dashboard').classList.contains('active')) loadDashboard();
-}
-
-// Mantener compatibilidad: loadAll llama a reloadAllData
-async function loadAll() { await reloadAllData(); }
 // Reemplazar renderClientDatalist con búsqueda en tiempo real
 async function renderClientDatalist() {
-    // Ya no llenamos el datalist estático, usamos búsqueda dinámica
     let dl = document.getElementById('client-datalist');
     if (dl) dl.innerHTML = '';
 }
@@ -459,30 +38,28 @@ async function renderClientDatalist() {
 async function searchClientsAPI(query, all = false) {
     let clients = Object.entries(CLIENT_MAP).map(([id, data]) => ({ Id: parseInt(id), Nombre: data.Nombre, Telefono: data.Telefono }));
     clients.sort((a, b) => b.Id - a.Id);
-    
+
     if (all) {
         return clients.slice(0, 15);
     }
-    
+
     if (!query) return [];
-    
+
     let words = query.trim().toLowerCase().split(/\s+/);
     let results = clients.filter(c => {
         let n = (c.Nombre || '').toLowerCase();
         let t = (c.Telefono || '').toLowerCase();
         return words.every(w => n.includes(w) || t.includes(w));
     });
-    
+
     return results.slice(0, 15);
 }
 
 function setupClientSearch(inputId, selectId) {
     let input = document.getElementById(inputId);
     if (!input) return;
-    // Remove datalist
     input.removeAttribute('list');
-    
-    // Create dropdown
+
     let dropdown = document.createElement('div');
     dropdown.id = inputId + '-dropdown';
     let bgColor = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? '#1f2937' : '#ffffff';
@@ -490,29 +67,27 @@ function setupClientSearch(inputId, selectId) {
     input.parentElement.style.position = 'relative';
     input.parentElement.style.overflow = 'visible';
     input.parentElement.style.zIndex = '100';
-    
+
     let btn = document.createElement('button');
     btn.type = 'button';
     btn.innerHTML = '▼';
     btn.style.cssText = 'position:absolute;right:1px;top:1px;bottom:1px;width:30px;background:transparent;border:none;cursor:pointer;color:var(--text-muted);font-size:12px;display:flex;align-items:center;justify-content:center;padding:0;';
-    
+
     input.parentElement.appendChild(btn);
     input.parentElement.appendChild(dropdown);
-    
-    // Make input have right padding so text doesn't overlap button
     input.style.paddingRight = '30px';
 
     function renderDropdown(results) {
         if (results.length === 0) {
             dropdown.innerHTML = '<div style="padding:8px;color:var(--text-muted);font-size:0.85em;">Sin resultados</div>';
         } else {
-            dropdown.innerHTML = results.map(c => 
+            dropdown.innerHTML = results.map(c =>
                 '<div style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:0.9em;" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'transparent\'" data-id="' + c.Id + '">' +
                 cleanLabel(c.Nombre) + (c.Telefono ? ' <span style="color:var(--text-muted);font-size:0.8em;"> - ' + c.Telefono + '</span>' : '') + '</div>'
             ).join('');
         }
         dropdown.style.display = 'block';
-        
+
         dropdown.querySelectorAll('[data-id]').forEach(el => {
             el.addEventListener('click', function(e) {
                 e.stopPropagation();
@@ -544,7 +119,7 @@ function setupClientSearch(inputId, selectId) {
         let results = await searchClientsAPI('', true);
         renderDropdown(results);
     });
-    
+
     let debounce = null;
     input.addEventListener('input', function() {
         clearTimeout(debounce);
@@ -555,8 +130,7 @@ function setupClientSearch(inputId, selectId) {
             renderDropdown(results);
         }, 300);
     });
-    
-    // Cerrar dropdown al hacer click afuera
+
     document.addEventListener('click', function(e) {
         if (!input.contains(e.target) && !dropdown.contains(e.target) && !btn.contains(e.target)) {
             dropdown.style.display = 'none';
@@ -579,6 +153,25 @@ function syncClientSelect(input, selectId) {
         if (selectId === 'np-cliente') updatePropiedadesSelect();
     }
 }
+
+function calcPrecioVentaComp() {
+    let costo = parseFloat(document.getElementById('ec-costo').value) || 0;
+    let pctArmado = parseFloat(document.getElementById('ec-pct-armado').value) || 0;
+    let margen = parseFloat(document.getElementById('ec-margen').value) || 0;
+    let ivaVenta = parseFloat(document.getElementById('ec-iva-venta').value) || 21;
+    let tc = DATA.tc.Dolar_oficial || 1150;
+    let moneda = document.getElementById('ec-moneda').value;
+    let costoBase = costo * (1 + pctArmado / 100);
+    if (moneda === 'USD') costoBase *= tc;
+    let precioSinIva = costoBase * (1 + margen / 100);
+    let precioConIva = precioSinIva * (1 + ivaVenta / 100);
+    let fmtStr = n => '$' + Math.round(n).toLocaleString('es-AR');
+    let elPV = document.getElementById('ec-precio-venta');
+    let elPVI = document.getElementById('ec-precio-venta-iva');
+    if(elPV) elPV.value = fmtStr(precioSinIva);
+    if(elPVI) elPVI.value = fmtStr(precioConIva);
+}
+
 function loadDashboard() {
     document.getElementById('dash-total-pres').textContent = PAGING.presupuestos.total;
     // Cálculos parciales con los cargados (Dashboard summary)
@@ -1845,7 +1438,7 @@ async function openNewPres(presData = null) { window._manualVisitas = false;
     }
     // Actualizar datalist de clientes
     renderClientDatalist();
-    editPresId = presData ? (presData.Id || presData.id) : null;
+    setEditPresId(presData ? (presData.Id || presData.id) : null);
 
     // Reset Modal
     document.getElementById('modal-title').textContent = presData ? ('Editar Presupuesto ' + presData.Numero) : 'Nuevo Presupuesto';
@@ -1916,14 +1509,14 @@ async function openNewPres(presData = null) { window._manualVisitas = false;
     }
     
     document.getElementById('np-resumen').style.display = 'none';
-    unidadCount = 0;
+    setUnidadCount(0);
 
-    _loadingEdit = true; window._manualVisitas = false;
+    setLoadingEdit(true); window._manualVisitas = false;
 
     if (presData && presData._unidades && presData._unidades.length > 0) {
         // Load existing units
         for (let u of presData._unidades) {
-            unidadCount++;
+            setUnidadCount(unidadCount + 1);
             let n = unidadCount;
             addUnidadUI(n, u);
 
@@ -1958,12 +1551,12 @@ async function openNewPres(presData = null) { window._manualVisitas = false;
     }
 
     recalcTotal();
-    _loadingEdit = false;
+    setLoadingEdit(false);
     document.getElementById('modal-pres').classList.add('show');
 }
 
 function addUnidad() {
-    unidadCount++;
+    setUnidadCount(unidadCount + 1);
     addUnidadUI(unidadCount, null);
 }
 
@@ -2041,7 +1634,7 @@ function duplicateUnidad(origN) {
     let oldAncho = document.getElementById('u-' + origN + '-ancho')?.value || '';
     let oldAlto = document.getElementById('u-' + origN + '-alto')?.value || '';
 
-    _loadingEdit = true; window._manualVisitas = false;
+    setLoadingEdit(true); window._manualVisitas = false;
     
     addUnidad();
     let newN = unidadCount;
@@ -2065,7 +1658,7 @@ function duplicateUnidad(origN) {
     let showRep = (oldTipo == 'Reparacion' || oldTipo == 'Service') ? 'block' : 'none';
     if(document.getElementById('div-u-' + newN + '-tiporep')) document.getElementById('div-u-' + newN + '-tiporep').style.display = showRep;
 
-    _loadingEdit = true; window._manualVisitas = false;
+    setLoadingEdit(true); window._manualVisitas = false;
     let origTbody = document.getElementById('comps-u-' + origN);
     document.getElementById('comps-u-' + newN).innerHTML = '';
 
@@ -2096,35 +1689,18 @@ function duplicateUnidad(origN) {
 
     recalcUnidad(newN);
     recalcTotal();
-    _loadingEdit = false;
+    setLoadingEdit(false);
 }
 
 // ===== AUTO-LOAD COMPONENTS =====
-const INSTALACION_PCT = {
-    'Instalacion_nueva': 8,
-    'Cambio_pano': 8,
-    'Cambio_guias': 8,
-    'Motorizacion': 8,
-    'Reparacion': 0,
-    'Service': 0,
-    'Otro': 0
-};
-window._manualInstPct = window._manualInstPct || {};
-
-const PESO_M2 = {
-    16: 11, 17: 13, 18: 10, 19: 12, 20: 14,
-    21: 4, 22: 7, 24: 3,
-    25: 10, 26: 5, 27: 10, 28: 5, 29: 10
-};
+// INSTALACION_PCT, PESO_M2, CAT_* importados desde config.js
+// PROD_COMP_MAP: temporal hasta Fase 5 (será reemplazado por consulta dinámica a NocoDB)
 const PROD_COMP_MAP = {
     16: 33, 17: 34, 18: 35, 19: 36, 20: 37,
     21: 38, 22: 39, 23: 40, 24: 41,
     25: 42, 26: 43, 27: 44, 28: 45, 29: 46,
     31: 48, 32: 49
 };
-const CAT_SEGURIDAD = [16, 17, 18, 19, 20];
-const CAT_EXTERIOR = [21, 22, 23, 24, 25, 26, 27, 28, 29];
-const CAT_INTERIOR = [31, 32];
 
 function getCategoria(prodId) {
     let pid = parseInt(prodId);
@@ -3488,4 +3064,88 @@ async function _saveChatbotData() {
         showChatInput();
     }
 }
+
+// ============================================================
+// Exponer TODAS las funciones en window para onclick del HTML
+// (Este bloque se irá reduciendo a medida que migremos módulos)
+// ============================================================
+window.loadDashboard = loadDashboard;
+window.loadPresupuestos = loadPresupuestos;
+window.loadPrecios = loadPrecios;
+window.renderClientes = renderClientes;
+window.renderPropiedades = renderPropiedades;
+window.loadConfig = loadConfig;
+window.renderClientDatalist = renderClientDatalist;
+window.searchClientsAPI = searchClientsAPI;
+window.setupClientSearch = setupClientSearch;
+window.syncClientSelect = syncClientSelect;
+window.calcPrecioVentaComp = calcPrecioVentaComp;
+window.updateTcFromPrecios = updateTcFromPrecios;
+window.nuevoComponente = nuevoComponente;
+window.openModalEditComp = openModalEditComp;
+window.saveComponent = saveComponent;
+window.deleteComponent = deleteComponent;
+window.filterComp = filterComp;
+window.sortCompTable = sortCompTable;
+window.exportCsv = exportCsv;
+window.filterSelectOptions = filterSelectOptions;
+window.filterPropiedades = filterPropiedades;
+window.filterCli = filterCli;
+window.filterPresupuestos = filterPresupuestos;
+window.showClientDetail = showClientDetail;
+window.viewCliente = viewCliente;
+window.loadConfigEmpresa = loadConfigEmpresa;
+window.saveConfigEmpresa = saveConfigEmpresa;
+window.openModalZona = openModalZona;
+window.closeModalZona = closeModalZona;
+window.saveZona = saveZona;
+window.deleteZona = deleteZona;
+window.geocodificarDireccion = geocodificarDireccion;
+window.asignarZonaAutomatica = asignarZonaAutomatica;
+window.autoDetectarZonaProp = autoDetectarZonaProp;
+window.openModalPago = openModalPago;
+window.closeModalPago = closeModalPago;
+window.savePago = savePago;
+window.deletePago = deletePago;
+window.openModalAncho = openModalAncho;
+window.closeModalAncho = closeModalAncho;
+window.saveAncho = saveAncho;
+window.deleteAncho = deleteAncho;
+window.updatePropiedadesSelect = updatePropiedadesSelect;
+window.loadPropiedadesSelect = loadPropiedadesSelect;
+window.updateZonaFromProp = updateZonaFromProp;
+window.openNewCliente = openNewCliente;
+window.saveCliente = saveCliente;
+window.deleteCliente = deleteCliente;
+window.openNewPropiedad = openNewPropiedad;
+window.closeModalPropiedad = closeModalPropiedad;
+window.savePropiedad = savePropiedad;
+window.deletePropiedad = deletePropiedad;
+window.openNewPres = openNewPres;
+window.addUnidad = addUnidad;
+window.addUnidadUI = addUnidadUI;
+window.removeUnidad = removeUnidad;
+window.duplicateUnidad = duplicateUnidad;
+window.getCategoria = getCategoria;
+window.selectMotor = selectMotor;
+window.autoLoadComponents = autoLoadComponents;
+window.addCompRow = addCompRow;
+window.addCompRowWithData = addCompRowWithData;
+window.compSelected = compSelected;
+window.recalcUnidad = recalcUnidad;
+window.recalcTraslado = recalcTraslado;
+window.recalcTotal = recalcTotal;
+window.savePres = savePres;
+window.aplicarAumento = aplicarAumento;
+window.toggleAumentoModo = toggleAumentoModo;
+window.loadHistorialPrecios = loadHistorialPrecios;
+window.generarPDF = generarPDF;
+window.fetchBudgetDeepData = fetchBudgetDeepData;
+window.viewPresupuesto = viewPresupuesto;
+window.changeStatus = changeStatus;
+window.duplicatePresupuesto = duplicatePresupuesto;
+window.deletePresupuesto = deletePresupuesto;
+window.openChatbot = openChatbot;
+window.closeChatbot = closeChatbot;
+window.submitChatInput = submitChatInput;
 
