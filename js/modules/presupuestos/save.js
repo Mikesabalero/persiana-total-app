@@ -9,8 +9,13 @@ import { fmt, cleanLabel, closeModal } from '../../core/ui.js';
 import { reloadAllData, ensureData, showPage } from '../../core/router.js';
 
 export async function savePres() {
-    let clienteId = document.getElementById('np-cliente').value;
-    let zonaId = document.getElementById('np-zona').value;
+    // En modo edición, los selects de cliente/propiedad/zona están disabled.
+    // Leer primero de data-attributes originales (guardados por form.js), con fallback al .value del select.
+    let modalEl = document.querySelector('#modal-pres .modal');
+    let clienteId = document.getElementById('np-cliente').value
+        || (modalEl ? modalEl.getAttribute('data-original-cliente') : '');
+    let zonaId = document.getElementById('np-zona').value
+        || (modalEl ? modalEl.getAttribute('data-original-zona') : '');
     if (!clienteId || !zonaId) { alert('Completar Cliente y Zona'); return; }
     let tc = DATA.tc.Dolar_oficial || 1150;
 
@@ -25,11 +30,13 @@ export async function savePres() {
             Canal: document.getElementById('np-canal').value,
             Facturacion: document.getElementById('np-factura').value
         });
+        // En edición, cliente/propiedad/zona no cambian pero re-linkear para consistencia
         await apiLink(TBL.presupuestos, 'canpten8owymbde', editPresId, [{ Id: parseInt(clienteId) }]);
         await apiLink(TBL.presupuestos, 'cr3s0ox51qopwl4', editPresId, [{ Id: parseInt(zonaId) }]);
         let pagoId = document.getElementById('np-pago').value;
         if (pagoId) await apiLink(TBL.presupuestos, 'cr9l2n9wiubrcra', editPresId, [{ Id: parseInt(pagoId) }]);
-        let propId = document.getElementById('np-propiedad').value;
+        let propId = document.getElementById('np-propiedad').value
+            || (modalEl ? modalEl.getAttribute('data-original-propiedad') : '');
         if (propId) await apiLink(TBL.presupuestos, 'cpf764utp1w7yj0', editPresId, [{ Id: parseInt(propId) }]);
     } else {
         let year = new Date().getFullYear();

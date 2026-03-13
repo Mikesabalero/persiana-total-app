@@ -113,10 +113,14 @@ export async function openNewPres(presData = null) { window._manualVisitas = fal
     // Populate Selects
     let cs = document.getElementById('np-cliente');
     cs.innerHTML = '<option value="">Seleccionar cliente...</option>';
+    let editClienteId = null;
     DATA.clientes.forEach(c => {
         let sel = (presData && presData._clienteData && (presData._clienteData.Id == c.Id)) ? 'selected' : '';
+        if (sel) editClienteId = c.Id;
         cs.innerHTML += '<option value="' + c.Id + '" ' + sel + '>' + cleanLabel(c.Nombre) + ' - ' + (c.Telefono || '') + '</option>';
     });
+    // Forzar el valor explícitamente para evitar que se pierda
+    if (editClienteId) cs.value = editClienteId;
 
     // Sincronizar buscador de clientes
     let searchInput = document.getElementById('np-pres-cliente-search');
@@ -140,23 +144,40 @@ export async function openNewPres(presData = null) { window._manualVisitas = fal
         ps.innerHTML += '<option value="' + f.Id + '" ' + sel + '>' + cleanLabel(f.Nombre) + '</option>';
     });
 
-    loadPropiedadesSelect(presData);
+    // IMPORTANTE: await para que las propiedades se carguen ANTES de bloquear campos
+    await loadPropiedadesSelect(presData);
+
+    // Inicializar búsqueda de clientes ANTES de bloquear campos
+    window.setupClientSearch("np-pres-cliente-search", "np-cliente");
 
     if (presData) {
+        // Restaurar valores explícitamente después de setupClientSearch
+        if (editClienteId) cs.value = editClienteId;
+        if (searchInput) searchInput.value = cleanLabel(presData._clienteData?.Nombre || '');
+
         document.getElementById('np-pago').value = resolveLink(presData, 'Formas_pago')?.Id || '';
         document.getElementById('np-canal').value = presData.Canal || 'Manual';
         document.getElementById('np-factura').value = presData.Facturacion || 'con_iva';
-        document.getElementById('np-cliente').disabled = true;
-        let searchInput = document.getElementById('np-pres-cliente-search');
+
+        // Bloquear Cliente y Propiedad — no se puede cambiar en edición
+        cs.disabled = true;
         if (searchInput) searchInput.disabled = true;
         document.getElementById('np-propiedad').disabled = true;
         document.getElementById('np-zona').disabled = true;
+
+        // Guardar IDs originales como data-attributes para que save.js los lea de forma segura
+        let modalEl2 = document.querySelector('#modal-pres .modal');
+        if (modalEl2) {
+            modalEl2.setAttribute('data-original-cliente', editClienteId || '');
+            let propSel = document.getElementById('np-propiedad');
+            modalEl2.setAttribute('data-original-propiedad', propSel ? propSel.value : '');
+            modalEl2.setAttribute('data-original-zona', zs.value || '');
+        }
     } else {
         document.getElementById('np-pago').value = '';
         document.getElementById('np-canal').value = 'Manual';
         document.getElementById('np-factura').value = 'con_iva';
-        document.getElementById('np-cliente').disabled = false;
-        let searchInput = document.getElementById('np-pres-cliente-search');
+        cs.disabled = false;
         if (searchInput) searchInput.disabled = false;
         document.getElementById('np-propiedad').disabled = false;
         document.getElementById('np-zona').disabled = false;
@@ -164,7 +185,6 @@ export async function openNewPres(presData = null) { window._manualVisitas = fal
 
     document.getElementById('np-unidades').innerHTML = '';
     recalcTraslado();
-    window.setupClientSearch("np-pres-cliente-search", "np-cliente");
 
     // Si era edicion, restauramos manuales que recalcTraslado piso (si los hubiese):
     if (presData && presData.Costo_traslado) {
