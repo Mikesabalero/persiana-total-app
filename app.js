@@ -172,22 +172,7 @@ function calcPrecioVentaComp() {
     if(elPVI) elPVI.value = fmtStr(precioConIva);
 }
 
-function loadDashboard() {
-    document.getElementById('dash-total-pres').textContent = PAGING.presupuestos.total;
-    // Cálculos parciales con los cargados (Dashboard summary)
-    let ps = DATA.presupuestos;
-    let totalMonto = ps.reduce((s, p) => s + (p.Total_con_IVA || p.Total || 0), 0);
-    document.getElementById('dash-facturado').textContent = fmt(totalMonto); // Será el de los últimos 5
-    let pend = ps.filter(p => p.Estado === 'Borrador' || p.Estado === 'Enviado').length;
-    document.getElementById('dash-pendientes').textContent = pend;
-    document.getElementById('dash-tc').textContent = '$' + Number(DATA.tc.Dolar_oficial || 0).toLocaleString('es-AR');
-    let tb = document.getElementById('dash-table');
-    tb.innerHTML = '';
-    ps.slice(0, 5).forEach(p => {
-        let cliName = cleanLabel(p._clienteNombre) || '-';
-        tb.innerHTML += '<tr><td><strong>' + (p.Numero || '-') + '</strong></td><td>' + (p.Fecha || '-') + '</td><td>' + cliName + '</td><td>' + fmt(p.Total_con_IVA || p.Total) + '</td><td>' + badgeHtml(p.Estado || 'Borrador') + '</td></tr>';
-    });
-}
+// loadDashboard → js/modules/dashboard.js
 async function loadPresupuestos() {
     _showPageSpinner('presupuestos', true);
     
@@ -777,276 +762,15 @@ async function viewCliente(clientId) {
 
     document.getElementById('modal-ver-cliente').classList.add('show');
 }
-function loadConfig() {
-    loadConfigEmpresa();
-    let zt = document.getElementById('cfg-zonas-table');
-    zt.innerHTML = '';
-    DATA.zonas.forEach(z => {
-        let zData = JSON.stringify(z).replace(/"/g, '&quot;');
-        let actionBtn = `<div style="display:flex;gap:4px">
-            <button class="btn-remove" onclick="openModalZona(${zData})" title="Editar" style="background:#f3f4f6;color:var(--text)">✏️</button>
-            <button class="btn-remove" onclick="deleteZona(${z.Id || z.id}, '${cleanLabel(z.Nombre).replace(/'/g, "\\'")}')" title="Eliminar" style="color:var(--danger)">🗑</button>
-        </div>`;
-        let activoIcon = (z.Activo === false || z.Activo === 'false' || z.Activo === 0) ? '❌' : '✅';
-        zt.innerHTML += '<tr><td><strong>' + cleanLabel(z.Nombre) + '</strong></td><td>' + fmt(z.Costo_viatico) + '</td><td>' + fmt(z.Costo_transporte) + '</td><td>' + activoIcon + '</td><td>' + actionBtn + '</td></tr>';
-    });
-    let pt = document.getElementById('cfg-pagos-table');
-    pt.innerHTML = '';
-    DATA.formas_pago.forEach(f => {
-        let fData = JSON.stringify(f).replace(/"/g, '&quot;');
-        let actionBtn = `<div style="display:flex;gap:4px">
-            <button class="btn-remove" onclick="openModalPago(${fData})" title="Editar" style="background:#f3f4f6;color:var(--text)">✏️</button>
-            <button class="btn-remove" onclick="deletePago(${f.Id || f.id}, '${cleanLabel(f.Nombre).replace(/'/g, "\\'")}')" title="Eliminar" style="color:var(--danger)">🗑</button>
-        </div>`;
-        let activoIcon = (f.Activo === false || f.Activo === 'false' || f.Activo === 0) ? '❌' : '✅';
-        pt.innerHTML += '<tr><td><strong>' + cleanLabel(f.Nombre) + '</strong></td><td>' + (f.Recargo_pct || 0) + '%</td><td>' + (f.Descuento_pct || 0) + '%</td><td>' + (f.Plazo_dias || 0) + '</td><td>' + activoIcon + '</td><td>' + actionBtn + '</td></tr>';
-    });
-    let at = document.getElementById('cfg-anchos-table');
-    at.innerHTML = '';
-    DATA.anchos.forEach(a => {
-        let aData = JSON.stringify(a).replace(/"/g, '&quot;');
-        let actionBtn = `<div style="display:flex;gap:4px">
-            <button class="btn-remove" onclick="openModalAncho(${aData})" title="Editar" style="background:#f3f4f6;color:var(--text)">✏️</button>
-            <button class="btn-remove" onclick="deleteAncho(${a.Id || a.id}, '${(a.Ancho_solicitado_hasta || '')}')" title="Eliminar" style="color:var(--danger)">🗑</button>
-        </div>`;
-        at.innerHTML += '<tr><td>' + a.Ancho_solicitado_hasta + '</td><td>' + a.Ancho_real_pano + '</td><td>' + (a.Notas || '-') + '</td><td>' + actionBtn + '</td></tr>';
-    });
-}
-function loadConfigEmpresa() {
-    document.getElementById('cfg-emp-nombre').value = DATA.tc.Empresa_nombre || '';
-    document.getElementById('cfg-emp-cuit').value = DATA.tc.Empresa_cuit || '';
-    document.getElementById('cfg-emp-telefono').value = DATA.tc.Empresa_telefono || '';
-    document.getElementById('cfg-emp-whatsapp').value = DATA.tc.Empresa_whatsapp || '';
-    document.getElementById('cfg-emp-email').value = DATA.tc.Empresa_email || '';
-    document.getElementById('cfg-emp-web').value = DATA.tc.Empresa_web || '';
-    document.getElementById('cfg-emp-validez').value = DATA.tc.Validez_dias || 15;
-    document.getElementById('cfg-emp-condiciones').value = DATA.tc.PDF_condiciones || '';
-    document.getElementById('cfg-emp-garantia').value = DATA.tc.PDF_garantia || '';
-    document.getElementById('cfg-emp-nota').value = DATA.tc.PDF_nota_pie || '';
-}
+// loadConfig, loadConfigEmpresa, saveConfigEmpresa → js/modules/config/
 
-async function saveConfigEmpresa() {
-    let empData = {
-        Id: 3,
-        Empresa_nombre: document.getElementById('cfg-emp-nombre').value,
-        Empresa_cuit: document.getElementById('cfg-emp-cuit').value,
-        Empresa_telefono: document.getElementById('cfg-emp-telefono').value,
-        Empresa_whatsapp: document.getElementById('cfg-emp-whatsapp').value,
-        Empresa_email: document.getElementById('cfg-emp-email').value,
-        Empresa_web: document.getElementById('cfg-emp-web').value,
-        Validez_dias: parseInt(document.getElementById('cfg-emp-validez').value) || 15,
-        PDF_condiciones: document.getElementById('cfg-emp-condiciones').value,
-        PDF_garantia: document.getElementById('cfg-emp-garantia').value,
-        PDF_nota_pie: document.getElementById('cfg-emp-nota').value
-    };
-    try {
-        await apiPatch('mhj9fovlmv9036x', empData);
-        Object.assign(DATA.tc, empData);
-        alert('Configuración guardada correctamente.');
-    } catch (e) {
-        console.error(e);
-        alert('Error guardando configuración: ' + e.message);
-    }
-}
+// Zonas CRUD → js/modules/config/zonas.js
 
-// ================= ZONAS CRUD =================
-function openModalZona(zona = null) {
-    document.getElementById('mz-id').value = zona ? zona.Id || zona.id : '';
-    document.getElementById('mz-nombre').value = zona ? zona.Nombre || '' : '';
-    document.getElementById('mz-viatico').value = zona ? zona.Costo_viatico || 0 : '';
-    document.getElementById('mz-transporte').value = zona ? zona.Costo_transporte || 0 : '';
-    document.getElementById('mz-traslado').value = zona ? zona.Costo_traslado_service || 0 : '';
-    document.getElementById('mz-tiempo').value = zona ? zona.Tiempo_viaje_hs || 0 : '';
-    document.getElementById('mz-lat').value = zona ? zona.Lat_centro || '' : '';
-    document.getElementById('mz-lon').value = zona ? zona.Lon_centro || '' : '';
-    document.getElementById('mz-radio').value = zona ? zona.Radio_km || '' : '';
-    document.getElementById('mz-notas').value = zona ? zona.Notas || '' : '';
-    document.getElementById('mz-activo').checked = zona ? (zona.Activo !== false && zona.Activo !== 'false' && zona.Activo !== 0) : true;
-    document.getElementById('mz-title').textContent = zona ? 'Editar Zona' : 'Nueva Zona';
-    document.getElementById('modal-zona').classList.add('show');
-}
-function closeModalZona() { document.getElementById('modal-zona').classList.remove('show'); }
-async function saveZona() {
-    let id = document.getElementById('mz-id').value;
-    let data = {
-        Nombre: document.getElementById('mz-nombre').value,
-        Costo_viatico: parseFloat(document.getElementById('mz-viatico').value) || 0,
-        Costo_transporte: parseFloat(document.getElementById('mz-transporte').value) || 0,
-        Costo_traslado_service: parseFloat(document.getElementById('mz-traslado').value) || 0,
-        Tiempo_viaje_hs: parseFloat(document.getElementById('mz-tiempo').value) || 0,
-        Lat_centro: parseFloat(document.getElementById('mz-lat').value) || null,
-        Lon_centro: parseFloat(document.getElementById('mz-lon').value) || null,
-        Radio_km: parseFloat(document.getElementById('mz-radio').value) || null,
-        Notas: document.getElementById('mz-notas').value,
-        Activo: document.getElementById('mz-activo').checked
-    };
-    try {
-        if (id) {
-            data.Id = parseInt(id);
-            await apiPatch(TBL.zonas, data);
-            let idx = DATA.zonas.findIndex(z => (z.Id || z.id) == id);
-            if (idx >= 0) Object.assign(DATA.zonas[idx], data);
-        } else {
-            let res = await apiPost(TBL.zonas, [data]);
-            data.Id = res[0].Id;
-            DATA.zonas.push(data);
-        }
-        closeModalZona();
-        loadConfig();
-        if (typeof renderPresupuestosOptions === 'function') renderPresupuestosOptions();
-    } catch (e) { console.error(e); alert('Error al guardar: ' + e.message); }
-}
-async function deleteZona(id, nombre) {
-    if (!confirm('¿Seguro que querés eliminar la zona: ' + nombre + '?')) return;
-    try {
-        await apiDelete(TBL.zonas, id);
-        DATA.zonas = DATA.zonas.filter(z => (z.Id || z.id) != id);
-        loadConfig();
-        if (typeof renderPresupuestosOptions === 'function') renderPresupuestosOptions();
-    } catch (e) { console.error(e); alert('Error al eliminar: ' + e.message); }
-}
+// Geocodificación → js/modules/geo.js
 
-// ================= GEOCODIFICACIÓN =================
-let _lastGeoTime = 0;
-async function geocodificarDireccion(direccion, localidad) {
-    try {
-        let now = Date.now();
-        let wait = 1000 - (now - _lastGeoTime);
-        if (wait > 0) await new Promise(r => setTimeout(r, wait));
-        _lastGeoTime = Date.now();
-        let q = encodeURIComponent(`${direccion}, ${localidad}, Santa Fe, Argentina`);
-        let resp = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&viewbox=-61.05,-31.35,-60.45,-32.05&bounded=1`, {
-            headers: { 'User-Agent': 'PersianaTotal-ERP/1.0' }
-        });
-        let data = await resp.json();
-        if (data && data.length > 0) return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
-        return null;
-    } catch (e) { console.error('Geocodificación error:', e); return null; }
-}
+// Formas de pago CRUD → js/modules/config/formas-pago.js
 
-function _haversineKm(lat1, lon1, lat2, lon2) {
-    const R = 6371;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function asignarZonaAutomatica(lat, lon) {
-    // Calcular distancia a TODAS las zonas activas con coordenadas
-    let zonasConDist = [];
-    for (let z of DATA.zonas) {
-        if (z.Activo === false || z.Activo === 'false' || z.Activo === 0) continue;
-        if (!z.Lat_centro || !z.Lon_centro) continue;
-        let dist = _haversineKm(lat, lon, z.Lat_centro, z.Lon_centro);
-        zonasConDist.push({ zona: z, dist: dist });
-    }
-    // Filtrar zonas internas: tienen Radio_km y la distancia cae dentro
-    let internas = zonasConDist.filter(zd => zd.zona.Radio_km && zd.zona.Radio_km > 0 && zd.dist <= zd.zona.Radio_km);
-    if (internas.length > 0) {
-        // De las que matchean, elegir la MÁS CERCANA
-        internas.sort((a, b) => a.dist - b.dist);
-        return internas[0].zona;
-    }
-    // Fallback: zona más cercana sin importar radio
-    if (zonasConDist.length > 0) {
-        zonasConDist.sort((a, b) => a.dist - b.dist);
-        return zonasConDist[0].zona;
-    }
-    return null;
-}
-
-// ================= FORMAS DE PAGO CRUD =================
-function openModalPago(pago = null) {
-    document.getElementById('mpg-id').value = pago ? pago.Id || pago.id : '';
-    document.getElementById('mpg-nombre').value = pago ? pago.Nombre || '' : '';
-    document.getElementById('mpg-recargo').value = pago ? pago.Recargo_pct || 0 : '';
-    document.getElementById('mpg-descuento').value = pago ? pago.Descuento_pct || 0 : '';
-    document.getElementById('mpg-plazo').value = pago ? pago.Plazo_dias || 0 : '';
-    document.getElementById('mpg-descripcion').value = pago ? pago.Descripcion || '' : '';
-    document.getElementById('mpg-notas').value = pago ? pago.Notas || '' : '';
-    document.getElementById('mpg-activo').checked = pago ? (pago.Activo !== false && pago.Activo !== 'false' && pago.Activo !== 0) : true;
-    document.getElementById('mpg-title').textContent = pago ? 'Editar Forma de Pago' : 'Nueva Forma de Pago';
-    document.getElementById('modal-pago').classList.add('show');
-}
-function closeModalPago() { document.getElementById('modal-pago').classList.remove('show'); }
-async function savePago() {
-    let id = document.getElementById('mpg-id').value;
-    let data = {
-        Nombre: document.getElementById('mpg-nombre').value,
-        Recargo_pct: parseFloat(document.getElementById('mpg-recargo').value) || 0,
-        Descuento_pct: parseFloat(document.getElementById('mpg-descuento').value) || 0,
-        Plazo_dias: parseInt(document.getElementById('mpg-plazo').value) || 0,
-        Descripcion: document.getElementById('mpg-descripcion').value,
-        Notas: document.getElementById('mpg-notas').value,
-        Activo: document.getElementById('mpg-activo').checked
-    };
-    try {
-        if (id) {
-            data.Id = parseInt(id);
-            await apiPatch(TBL.formas_pago, data);
-            let idx = DATA.formas_pago.findIndex(p => (p.Id || p.id) == id);
-            if (idx >= 0) Object.assign(DATA.formas_pago[idx], data);
-        } else {
-            let res = await apiPost(TBL.formas_pago, [data]);
-            data.Id = res[0].Id;
-            DATA.formas_pago.push(data);
-        }
-        closeModalPago();
-        loadConfig();
-        if (typeof renderPresupuestosOptions === 'function') renderPresupuestosOptions();
-    } catch (e) { console.error(e); alert('Error al guardar: ' + e.message); }
-}
-async function deletePago(id, nombre) {
-    if (!confirm('¿Seguro que querés eliminar la forma de pago: ' + nombre + '?')) return;
-    try {
-        await apiDelete(TBL.formas_pago, id);
-        DATA.formas_pago = DATA.formas_pago.filter(p => (p.Id || p.id) != id);
-        loadConfig();
-        if (typeof renderPresupuestosOptions === 'function') renderPresupuestosOptions();
-    } catch (e) { console.error(e); alert('Error al eliminar: ' + e.message); }
-}
-
-// ================= ANCHOS PVC CRUD =================
-function openModalAncho(ancho = null) {
-    document.getElementById('ma-id').value = ancho ? ancho.Id || ancho.id : '';
-    document.getElementById('ma-solicitado').value = ancho ? ancho.Ancho_solicitado_hasta || '' : '';
-    document.getElementById('ma-real').value = ancho ? ancho.Ancho_real_pano || '' : '';
-    document.getElementById('ma-notas').value = ancho ? ancho.Notas || '' : '';
-    document.getElementById('ma-title').textContent = ancho ? 'Editar Ancho PVC' : 'Nuevo Ancho PVC';
-    document.getElementById('modal-ancho').classList.add('show');
-}
-function closeModalAncho() { document.getElementById('modal-ancho').classList.remove('show'); }
-async function saveAncho() {
-    let id = document.getElementById('ma-id').value;
-    let data = {
-        Ancho_solicitado_hasta: parseFloat(document.getElementById('ma-solicitado').value) || 0,
-        Ancho_real_pano: parseFloat(document.getElementById('ma-real').value) || 0,
-        Notas: document.getElementById('ma-notas').value
-    };
-    try {
-        if (id) {
-            data.Id = parseInt(id);
-            await apiPatch(TBL.anchos, data);
-            let idx = DATA.anchos.findIndex(a => (a.Id || a.id) == id);
-            if (idx >= 0) Object.assign(DATA.anchos[idx], data);
-        } else {
-            let res = await apiPost(TBL.anchos, [data]);
-            data.Id = res[0].Id;
-            DATA.anchos.push(data);
-        }
-        closeModalAncho();
-        loadConfig();
-    } catch (e) { console.error(e); alert('Error al guardar: ' + e.message); }
-}
-async function deleteAncho(id, anchoSol) {
-    if (!confirm('¿Seguro que querés eliminar el ancho hasta: ' + anchoSol + ' ?')) return;
-    try {
-        await apiDelete(TBL.anchos, id);
-        DATA.anchos = DATA.anchos.filter(a => (a.Id || a.id) != id);
-        loadConfig();
-    } catch (e) { console.error(e); alert('Error al eliminar: ' + e.message); }
-}
+// Anchos PVC CRUD → js/modules/config/anchos.js
 
 async function updatePropiedadesSelect() {
     await loadPropiedadesSelect();
@@ -1123,51 +847,7 @@ function updateZonaFromProp(propId) {
     }
 }
 
-async function autoDetectarZonaProp() {
-    let direccion = document.getElementById('np-prop-direccion')?.value;
-    let locSelect = document.getElementById('np-prop-localidad');
-    let localidad = locSelect?.value;
-    let autoBtn = document.getElementById('btn-autozona-prop');
-    console.log('autoDetectarZonaProp → DIR:', direccion, 'LOC:', localidad, 'LOC_IDX:', locSelect?.selectedIndex, 'LOC_OPTS:', locSelect?.options?.length);
-    if (!direccion || !localidad) {
-        alert(!direccion ? 'Completá la dirección primero.' : 'Seleccioná la localidad primero.');
-        return;
-    }
-    let zonaSelect = document.getElementById('prop-zona');
-    if (localidad !== 'Santa Fe') {
-        let zone = DATA.zonas.find(z => z.Nombre === localidad);
-        if (zone && zonaSelect) {
-            zonaSelect.value = zone.Id || zone.id;
-            alert(`Zona detectada: ${zone.Nombre}`);
-        } else {
-            alert('No se encontró una zona exacta automáticamente para esta localidad.');
-        }
-        return;
-    }
-
-    if (autoBtn) { autoBtn.textContent = '⏳ Detectando...'; autoBtn.disabled = true; }
-    let coords = await geocodificarDireccion(direccion, "Santa Fe");
-    if (!coords) {
-        // Fallback para Santa Fe: asignar SF - Centro/Sur por defecto
-        let fallbackZone = DATA.zonas.find(z => z.Nombre === 'Zona Centro');
-        if (fallbackZone && zonaSelect) {
-            zonaSelect.value = fallbackZone.Id || fallbackZone.id;
-            alert('No se encontró la dirección exacta. Se asignó Zona Centro por defecto. Podés cambiarla manualmente.');
-        } else {
-            alert('No se pudo geocodificar la dirección. Seleccioná la zona manualmente.');
-        }
-        if (autoBtn) { autoBtn.textContent = '📍 Auto-detectar zona'; autoBtn.disabled = false; }
-        return;
-    }
-    let autoZona = asignarZonaAutomatica(coords.lat, coords.lon);
-    if (autoZona && zonaSelect) {
-        zonaSelect.value = autoZona.Id || autoZona.id;
-        alert(`Zona detectada: ${autoZona.Nombre}`);
-    } else {
-        alert('No se encontró una zona cercana.');
-    }
-    if (autoBtn) { autoBtn.textContent = '📍 Auto-detectar zona'; autoBtn.disabled = false; }
-}
+// autoDetectarZonaProp → js/modules/geo.js
 
 async function openNewCliente(clientData = null) {
     // Avoid event leakage or invalid payload masking as an object.
@@ -2922,159 +2602,17 @@ window.addEventListener('mouseup', function (event) {
     }
 });
 
-// --- CHATBOT CARGAR CLIENTE ---
-let chatSessionId = null;
-
-// Solo para mantener compatibilidad con _saveChatbotData por ahora
-let chatState = { data: {}, props: [] };
-
-function openChatbot() {
-    chatSessionId = 'session_' + Date.now();
-    document.getElementById('modal-chatbot').style.display = 'flex';
-    document.getElementById('chat-messages').innerHTML = '';
-    showChatInput();
-    appendChatMessage('bot', '¡Hola! Soy el asistente de Persiana Total. Decime, ¿qué cliente o propiedad querés cargar?');
-}
-
-function closeChatbot() {
-    document.getElementById('modal-chatbot').style.display = 'none';
-    document.getElementById('chat-messages').innerHTML = '';
-    chatSessionId = null;
-}
-
-function appendChatMessage(sender, text) {
-    let msgDiv = document.createElement('div');
-    msgDiv.style.maxWidth = '85%';
-    msgDiv.style.padding = '10px 14px';
-    msgDiv.style.borderRadius = '12px';
-    msgDiv.style.fontSize = '14px';
-    msgDiv.style.lineHeight = '1.4';
-    
-    if (sender === 'bot') {
-        msgDiv.style.alignSelf = 'flex-start';
-        msgDiv.style.background = '#f3f4f6';
-        msgDiv.style.color = '#1f2937';
-        msgDiv.style.borderTopLeftRadius = '4px';
-        
-        let htmlText = text.replace(/\\n/g, '<br>').replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        msgDiv.innerHTML = htmlText;
-    } else {
-        msgDiv.style.alignSelf = 'flex-end';
-        msgDiv.style.background = 'var(--grad1)';
-        msgDiv.style.color = 'white';
-        msgDiv.style.borderTopRightRadius = '4px';
-        msgDiv.innerText = text;
-    }
-    
-    let msgs = document.getElementById('chat-messages');
-    msgs.appendChild(msgDiv);
-    setTimeout(() => msgs.scrollTop = msgs.scrollHeight, 50);
-    return msgDiv;
-}
-
-function showChatInput() {
-    document.getElementById('chat-input-area').style.display = 'flex';
-    let optsArea = document.getElementById('chat-options-area');
-    if (optsArea) optsArea.style.display = 'none';
-    let input = document.getElementById('chat-input');
-    input.value = '';
-    setTimeout(() => input.focus(), 100);
-}
-
-async function submitChatInput() {
-    let input = document.getElementById('chat-input');
-    let text = input.value;
-    if (!text.trim()) return;
-    
-    input.value = '';
-    appendChatMessage('user', text);
-    
-    let typingDiv = appendChatMessage('bot', 'Escribiendo...');
-    
-    try {
-        let res = await fetch('https://n8n.srv1323649.hstgr.cloud/webhook/chat-app', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: text, sessionId: chatSessionId })
-        });
-        
-        if (typingDiv && typingDiv.parentNode) {
-            typingDiv.parentNode.removeChild(typingDiv);
-        }
-        
-        if (res.ok) {
-            let data = await res.json();
-            if (data && data.response) {
-                appendChatMessage('bot', data.response);
-            } else {
-                appendChatMessage('bot', 'Error: Respuesta inesperada del agente.\n' + JSON.stringify(data));
-            }
-        } else {
-            appendChatMessage('bot', 'Error al procesar el mensaje del agente.');
-        }
-    } catch (e) {
-        console.error(e);
-        if (typingDiv && typingDiv.parentNode) {
-            typingDiv.parentNode.removeChild(typingDiv);
-        }
-        appendChatMessage('bot', 'Error de conexión con el servidor.');
-    }
-}
-
-async function _saveChatbotData() {
-    showChatOptions([]);
-    appendChatMessage('bot', '⏳ Guardando...');
-    try {
-        let nClient = await apiPost(TBL.clientes, chatState.data);
-        let nId = nClient && (nClient.Id || nClient.id || (Array.isArray(nClient) && nClient[0] && (nClient[0].Id || nClient[0].id)));
-        
-        if (nId) {
-            chatState.nId = nId;
-            CLIENT_MAP[nId] = { Nombre: chatState.data.Nombre, Telefono: chatState.data.Telefono };
-            for(let i=0; i<chatState.props.length; i++) {
-                let p = Object.assign({}, chatState.props[i]);
-                p.Clientes_id = parseInt(nId);
-                if(p.Zona_id) p.Zona_id = parseInt(p.Zona_id);
-                delete p.Principal; // Asegura que las propiedades sean creadas con la estructura apropiada
-                p.Principal = chatState.props[i].Principal ? true : false;
-                let cProp = await apiPost(TBL.propiedades, p);
-                
-                // Agregarlo a mano para que el presupuesto lo vea sin recargar 1000 items
-                let pObj = Array.isArray(cProp) ? cProp[0] : (cProp || p);
-                if (!pObj.Clientes) pObj.Clientes = [{Id: parseInt(nId)}];
-                DATA.propiedades.push(pObj);
-            }
-            
-            // Recargar datos en memoria
-            if (DATA._loaded.clientes) { DATA.clientes = await apiGet(TBL.clientes); if(typeof renderClientes === 'function') renderClientes(); }
-            if (DATA._loaded.propiedades) { DATA.propiedades = await apiGetAll(TBL.propiedades); if(typeof renderPropiedades === 'function') renderPropiedades(); }
-            
-            appendChatMessage('bot', `¡Listo! <b>${chatState.data.Nombre}</b> fue cargado con ${chatState.props.length} propiedade(s). Ya podés hacerle un presupuesto.`);
-            showChatOptions([
-                {label:'📋 Hacer presupuesto', value:'presupuesto'},
-                {label:'❌ Cerrar', value:'cerrar'}
-            ]);
-        } else {
-            appendChatMessage('bot', '❌ Error: No se pudo obtener el ID del cliente generado.');
-            showChatInput();
-        }
-    } catch (e) {
-        console.error(e);
-        appendChatMessage('bot', '❌ Ocurrió un error al intentar guardar los datos.');
-        showChatInput();
-    }
-}
+// Chatbot completo → js/modules/chatbot.js
 
 // ============================================================
-// Exponer TODAS las funciones en window para onclick del HTML
-// (Este bloque se irá reduciendo a medida que migremos módulos)
+// Exponer funciones que AÚN están en app.js (Fase 4-5 las migrarán)
+// Las funciones de Fase 3 (dashboard, geo, chatbot, config) ya están
+// expuestas en window desde main.js.
 // ============================================================
-window.loadDashboard = loadDashboard;
 window.loadPresupuestos = loadPresupuestos;
 window.loadPrecios = loadPrecios;
 window.renderClientes = renderClientes;
 window.renderPropiedades = renderPropiedades;
-window.loadConfig = loadConfig;
 window.renderClientDatalist = renderClientDatalist;
 window.searchClientsAPI = searchClientsAPI;
 window.setupClientSearch = setupClientSearch;
@@ -3094,27 +2632,11 @@ window.filterCli = filterCli;
 window.filterPresupuestos = filterPresupuestos;
 window.showClientDetail = showClientDetail;
 window.viewCliente = viewCliente;
-window.loadConfigEmpresa = loadConfigEmpresa;
-window.saveConfigEmpresa = saveConfigEmpresa;
-window.openModalZona = openModalZona;
-window.closeModalZona = closeModalZona;
-window.saveZona = saveZona;
-window.deleteZona = deleteZona;
-window.geocodificarDireccion = geocodificarDireccion;
-window.asignarZonaAutomatica = asignarZonaAutomatica;
-window.autoDetectarZonaProp = autoDetectarZonaProp;
-window.openModalPago = openModalPago;
-window.closeModalPago = closeModalPago;
-window.savePago = savePago;
-window.deletePago = deletePago;
-window.openModalAncho = openModalAncho;
-window.closeModalAncho = closeModalAncho;
-window.saveAncho = saveAncho;
-window.deleteAncho = deleteAncho;
 window.updatePropiedadesSelect = updatePropiedadesSelect;
 window.loadPropiedadesSelect = loadPropiedadesSelect;
 window.updateZonaFromProp = updateZonaFromProp;
 window.openNewCliente = openNewCliente;
+window.closeModalCliente = closeModalCliente;
 window.saveCliente = saveCliente;
 window.deleteCliente = deleteCliente;
 window.openNewPropiedad = openNewPropiedad;
@@ -3145,7 +2667,4 @@ window.viewPresupuesto = viewPresupuesto;
 window.changeStatus = changeStatus;
 window.duplicatePresupuesto = duplicatePresupuesto;
 window.deletePresupuesto = deletePresupuesto;
-window.openChatbot = openChatbot;
-window.closeChatbot = closeChatbot;
-window.submitChatInput = submitChatInput;
 

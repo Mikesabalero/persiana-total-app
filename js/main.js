@@ -98,8 +98,51 @@ window.DATA = DATA;
 window.CLIENT_MAP = CLIENT_MAP;
 window.PAGING = PAGING;
 
+// ============================================================
+// MÓDULOS — Fase 3
+// ============================================================
+
+// --- Módulo: Dashboard ---
+import { loadDashboard } from './modules/dashboard.js';
+window.loadDashboard = loadDashboard;
+
+// --- Módulo: Geo ---
+import { geocodificarDireccion, asignarZonaAutomatica, autoDetectarZonaProp } from './modules/geo.js';
+window.geocodificarDireccion = geocodificarDireccion;
+window.asignarZonaAutomatica = asignarZonaAutomatica;
+window.autoDetectarZonaProp = autoDetectarZonaProp;
+
+// --- Módulo: Chatbot ---
+import { openChatbot, closeChatbot, submitChatInput, showChatOptions } from './modules/chatbot.js';
+window.openChatbot = openChatbot;
+window.closeChatbot = closeChatbot;
+window.submitChatInput = submitChatInput;
+window.showChatOptions = showChatOptions;
+
+// --- Módulo: Config (principal + sub-módulos) ---
+import { loadConfig } from './modules/config/config-main.js';
+import { loadConfigEmpresa, saveConfigEmpresa } from './modules/config/empresa.js';
+import { openModalZona, closeModalZona, saveZona, deleteZona } from './modules/config/zonas.js';
+import { openModalPago, closeModalPago, savePago, deletePago } from './modules/config/formas-pago.js';
+import { openModalAncho, closeModalAncho, saveAncho, deleteAncho } from './modules/config/anchos.js';
+window.loadConfig = loadConfig;
+window.loadConfigEmpresa = loadConfigEmpresa;
+window.saveConfigEmpresa = saveConfigEmpresa;
+window.openModalZona = openModalZona;
+window.closeModalZona = closeModalZona;
+window.saveZona = saveZona;
+window.deleteZona = deleteZona;
+window.openModalPago = openModalPago;
+window.closeModalPago = closeModalPago;
+window.savePago = savePago;
+window.deletePago = deletePago;
+window.openModalAncho = openModalAncho;
+window.closeModalAncho = closeModalAncho;
+window.saveAncho = saveAncho;
+window.deleteAncho = deleteAncho;
+
 // --- Iniciar autenticación ---
 // initAuth recibe initApp como callback para evitar dependencia circular
 initAuth(initApp);
 
-console.log('[main.js] Módulos core cargados correctamente (Fase 2)');
+console.log('[main.js] Módulos core + Fase 3 cargados correctamente');
