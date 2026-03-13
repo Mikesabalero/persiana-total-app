@@ -89,18 +89,16 @@ export function updateZonaFromProp(propId) {
 
 // --- Abrir formulario de presupuesto ---
 export async function openNewPres(presData = null) { window._manualVisitas = false;
-    // Asegurar datos de presupuestos cargados para editar
-    await ensureData('presupuestos');
-    // Cargar clientes si no están (lazy loading puede dejarlos vacíos)
-    if (!DATA.clientes || DATA.clientes.length === 0) {
-        DATA.clientes = await apiGet(TBL.clientes);
-        DATA._loaded.clientes = true;
-    }
-    // Cargar componentes si no están (necesarios para addCompRowWithData)
-    if (!DATA.componentes || DATA.componentes.length === 0) {
-        DATA.componentes = await apiGet(TBL.componentes);
-        DATA._loaded.precios = true;
-    }
+    // Cargar TODOS los datos necesarios en PARALELO para máxima velocidad
+    await Promise.all([
+        ensureData('presupuestos'),
+        (!DATA.clientes || DATA.clientes.length === 0)
+            ? apiGet(TBL.clientes).then(c => { DATA.clientes = c; DATA._loaded.clientes = true; })
+            : Promise.resolve(),
+        (!DATA.componentes || DATA.componentes.length === 0)
+            ? apiGet(TBL.componentes).then(c => { DATA.componentes = c; DATA._loaded.precios = true; })
+            : Promise.resolve()
+    ]);
     // Actualizar datalist de clientes
     window.renderClientDatalist();
     setEditPresId(presData ? (presData.Id || presData.id) : null);
