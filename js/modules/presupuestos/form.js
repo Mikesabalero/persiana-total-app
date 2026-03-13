@@ -147,11 +147,9 @@ export async function openNewPres(presData = null) { window._manualVisitas = fal
     // IMPORTANTE: await para que las propiedades se carguen ANTES de bloquear campos
     await loadPropiedadesSelect(presData);
 
-    // Inicializar búsqueda de clientes ANTES de bloquear campos
-    window.setupClientSearch("np-pres-cliente-search", "np-cliente");
-
     if (presData) {
-        // Restaurar valores explícitamente después de setupClientSearch
+        // MODO EDICIÓN: No inicializar setupClientSearch — el cliente NO se puede cambiar.
+        // Forzar valores originales y bloquear campos.
         if (editClienteId) cs.value = editClienteId;
         if (searchInput) searchInput.value = cleanLabel(presData._clienteData?.Nombre || '');
 
@@ -161,9 +159,17 @@ export async function openNewPres(presData = null) { window._manualVisitas = fal
 
         // Bloquear Cliente y Propiedad — no se puede cambiar en edición
         cs.disabled = true;
-        if (searchInput) searchInput.disabled = true;
+        if (searchInput) {
+            searchInput.disabled = true;
+            searchInput.style.pointerEvents = 'none';
+        }
         document.getElementById('np-propiedad').disabled = true;
         document.getElementById('np-zona').disabled = true;
+        // Ocultar el botón ▼ del buscador si existe (creado por setupClientSearch anterior)
+        let oldDropdownBtn = searchInput?.parentElement?.querySelector('button');
+        if (oldDropdownBtn) oldDropdownBtn.style.display = 'none';
+        let oldDropdown = document.getElementById('np-pres-cliente-search-dropdown');
+        if (oldDropdown) oldDropdown.style.display = 'none';
 
         // Guardar IDs originales como data-attributes para que save.js los lea de forma segura
         let modalEl2 = document.querySelector('#modal-pres .modal');
@@ -174,11 +180,16 @@ export async function openNewPres(presData = null) { window._manualVisitas = fal
             modalEl2.setAttribute('data-original-zona', zs.value || '');
         }
     } else {
+        // MODO NUEVO: inicializar búsqueda de clientes
+        window.setupClientSearch("np-pres-cliente-search", "np-cliente");
         document.getElementById('np-pago').value = '';
         document.getElementById('np-canal').value = 'Manual';
         document.getElementById('np-factura').value = 'con_iva';
         cs.disabled = false;
-        if (searchInput) searchInput.disabled = false;
+        if (searchInput) {
+            searchInput.disabled = false;
+            searchInput.style.pointerEvents = '';
+        }
         document.getElementById('np-propiedad').disabled = false;
         document.getElementById('np-zona').disabled = false;
     }
