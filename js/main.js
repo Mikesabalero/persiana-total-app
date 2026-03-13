@@ -41,7 +41,7 @@ window.loadClientMap = loadClientMap;
 import { fmt, cleanLabel, badgeHtml, resolveLink, resolveName,
          renderPagination, _showPageSpinner,
          closeModal, closeDetail, closeVerPres, closeVerCliente,
-         closeModalCliente, closeModalEditComp, showConfigTab } from './core/ui.js';
+         closeModalEditComp, showConfigTab } from './core/ui.js';
 window.fmt = fmt;
 window.cleanLabel = cleanLabel;
 window.badgeHtml = badgeHtml;
@@ -53,7 +53,6 @@ window.closeModal = closeModal;
 window.closeDetail = closeDetail;
 window.closeVerPres = closeVerPres;
 window.closeVerCliente = closeVerCliente;
-window.closeModalCliente = closeModalCliente;
 window.closeModalEditComp = closeModalEditComp;
 window.showConfigTab = showConfigTab;
 
@@ -141,8 +140,60 @@ window.closeModalAncho = closeModalAncho;
 window.saveAncho = saveAncho;
 window.deleteAncho = deleteAncho;
 
+// ============================================================
+// MÓDULOS — Fase 4: Módulos de datos
+// ============================================================
+
+// --- Módulo: Clientes ---
+import { renderClientes, renderClientDatalist, searchClientsAPI, setupClientSearch,
+         syncClientSelect, filterCli, filterSelectOptions, showClientDetail,
+         openNewCliente, closeModalCliente, saveCliente, deleteCliente } from './modules/clientes/clientes.js';
+import { viewCliente } from './modules/clientes/detail.js';
+window.renderClientes = renderClientes;
+window.renderClientDatalist = renderClientDatalist;
+window.searchClientsAPI = searchClientsAPI;
+window.setupClientSearch = setupClientSearch;
+window.syncClientSelect = syncClientSelect;
+window.filterCli = filterCli;
+window.filterSelectOptions = filterSelectOptions;
+window.showClientDetail = showClientDetail;
+window.openNewCliente = openNewCliente;
+window.closeModalCliente = closeModalCliente;
+window.saveCliente = saveCliente;
+window.deleteCliente = deleteCliente;
+window.viewCliente = viewCliente;
+
+// --- Módulo: Propiedades ---
+import { renderPropiedades, filterPropiedades, openNewPropiedad,
+         closeModalPropiedad, savePropiedad, deletePropiedad } from './modules/propiedades/propiedades.js';
+window.renderPropiedades = renderPropiedades;
+window.filterPropiedades = filterPropiedades;
+window.openNewPropiedad = openNewPropiedad;
+window.closeModalPropiedad = closeModalPropiedad;
+window.savePropiedad = savePropiedad;
+window.deletePropiedad = deletePropiedad;
+
+// --- Módulo: Precios ---
+import { calcPrecioVentaComp, loadPrecios, updateTcFromPrecios, nuevoComponente,
+         openModalEditComp, saveComponent, deleteComponent,
+         filterComp, sortCompTable, exportCsv } from './modules/precios/precios.js';
+import { aplicarAumento, toggleAumentoModo, loadHistorialPrecios } from './modules/precios/aumentos.js';
+window.calcPrecioVentaComp = calcPrecioVentaComp;
+window.loadPrecios = loadPrecios;
+window.updateTcFromPrecios = updateTcFromPrecios;
+window.nuevoComponente = nuevoComponente;
+window.openModalEditComp = openModalEditComp;
+window.saveComponent = saveComponent;
+window.deleteComponent = deleteComponent;
+window.filterComp = filterComp;
+window.sortCompTable = sortCompTable;
+window.exportCsv = exportCsv;
+window.aplicarAumento = aplicarAumento;
+window.toggleAumentoModo = toggleAumentoModo;
+window.loadHistorialPrecios = loadHistorialPrecios;
+
 // --- Iniciar autenticación ---
 // initAuth recibe initApp como callback para evitar dependencia circular
 initAuth(initApp);
 
-console.log('[main.js] Módulos core + Fase 3 cargados correctamente');
+console.log('[main.js] Módulos core + Fase 3 + Fase 4 cargados correctamente');
