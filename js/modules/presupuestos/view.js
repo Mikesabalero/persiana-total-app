@@ -85,7 +85,7 @@ export async function viewPresupuesto(presId) {
         }
         let uLines = res.lineas.filter(l => l._unidadId == u.Id);
         uLines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
-        let unitTotal = uLines.reduce((acc, l) => acc + (parseFloat(l.Subtotal_ARS) || 0), 0);
+        let unitTotal = uLines.reduce((acc, l) => acc + (parseFloat(l.Subtotal_con_IVA) || 0), 0);
         let measures = u.Ancho_m && u.Alto_m ? ` (${u.Ancho_m}m × ${u.Alto_m}m)` : '';
         let isRepair = u.Tipo_trabajo === 'Reparacion' || u.Tipo_trabajo === 'Service';
         let prodLine = `<strong>Producto:</strong> ${cleanLabel(prodName) || '-'} `;
