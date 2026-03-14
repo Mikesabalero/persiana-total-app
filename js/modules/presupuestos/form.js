@@ -46,10 +46,12 @@ export async function loadPropiedadesSelect(presData) {
         if (pLink) selectedPropId = pLink.Id || pLink.id;
     }
 
+    let propHtml = '';
     props.forEach(p => {
         let sel = (selectedPropId && (p.Id == selectedPropId)) ? 'selected' : (props.length === 1 ? 'selected' : '');
-        ps.innerHTML += '<option value="' + p.Id + '" ' + sel + '>' + cleanLabel(p.Direccion) + ' - ' + cleanLabel(p.Localidad) + '</option>';
+        propHtml += '<option value="' + p.Id + '" ' + sel + '>' + cleanLabel(p.Direccion) + ' - ' + cleanLabel(p.Localidad) + '</option>';
     });
+    ps.innerHTML += propHtml;
     if (props.length === 1 || selectedPropId) {
         let pId = selectedPropId || props[0].Id;
         updateZonaFromProp(pId);
@@ -108,16 +110,16 @@ export async function openNewPres(presData = null) { window._manualVisitas = fal
     let modalEl = document.querySelector('#modal-pres .modal');
     if (modalEl) modalEl.setAttribute('data-db-id', presData ? presData.Id : '');
 
-    // Populate Selects
+    // Populate Selects — construir HTML en string (NO innerHTML += en loop)
     let cs = document.getElementById('np-cliente');
-    cs.innerHTML = '<option value="">Seleccionar cliente...</option>';
     let editClienteId = null;
+    let csHtml = '<option value="">Seleccionar cliente...</option>';
     DATA.clientes.forEach(c => {
         let sel = (presData && presData._clienteData && (presData._clienteData.Id == c.Id)) ? 'selected' : '';
         if (sel) editClienteId = c.Id;
-        cs.innerHTML += '<option value="' + c.Id + '" ' + sel + '>' + cleanLabel(c.Nombre) + ' - ' + (c.Telefono || '') + '</option>';
+        csHtml += '<option value="' + c.Id + '" ' + sel + '>' + cleanLabel(c.Nombre) + ' - ' + (c.Telefono || '') + '</option>';
     });
-    // Forzar el valor explícitamente para evitar que se pierda
+    cs.innerHTML = csHtml;
     if (editClienteId) cs.value = editClienteId;
 
     // Sincronizar buscador de clientes
@@ -128,19 +130,21 @@ export async function openNewPres(presData = null) { window._manualVisitas = fal
 
     let zs = document.getElementById('np-zona');
     zs.disabled = false;
-    zs.innerHTML = '<option value="">Seleccionar zona...</option>';
+    let zsHtml = '<option value="">Seleccionar zona...</option>';
     DATA.zonas.forEach(z => {
         let sel = (presData && presData._zonaData && (presData._zonaData.Id == z.Id)) ? 'selected' : '';
-        zs.innerHTML += '<option value="' + z.Id + '" ' + sel + '>' + cleanLabel(z.Nombre) + '</option>';
+        zsHtml += '<option value="' + z.Id + '" ' + sel + '>' + cleanLabel(z.Nombre) + '</option>';
     });
+    zs.innerHTML = zsHtml;
 
     let ps = document.getElementById('np-pago');
-    ps.innerHTML = '<option value="">Seleccionar...</option>';
     let pagoNombre = presData ? presData._pagoNombre : null;
+    let psHtml = '<option value="">Seleccionar...</option>';
     DATA.formas_pago.forEach(f => {
         let sel = (pagoNombre && f.Nombre == pagoNombre) ? 'selected' : '';
-        ps.innerHTML += '<option value="' + f.Id + '" ' + sel + '>' + cleanLabel(f.Nombre) + '</option>';
+        psHtml += '<option value="' + f.Id + '" ' + sel + '>' + cleanLabel(f.Nombre) + '</option>';
     });
+    ps.innerHTML = psHtml;
 
     // IMPORTANTE: await para que las propiedades se carguen ANTES de bloquear campos
     await loadPropiedadesSelect(presData);
@@ -389,11 +393,22 @@ export function duplicateUnidad(origN) {
     setLoadingEdit(false);
 }
 
+// --- Cache de opciones de componentes (se genera 1 vez, no en cada fila) ---
+let _compOptsCache = '';
+let _compOptsCacheLen = 0;
+function getCompOpts() {
+    if (_compOptsCacheLen !== DATA.componentes.length) {
+        _compOptsCache = '';
+        DATA.componentes.forEach(c => { _compOptsCache += `<option value="${cleanLabel(c.Nombre)}">`; });
+        _compOptsCacheLen = DATA.componentes.length;
+    }
+    return _compOptsCache;
+}
+
 // --- Agregar fila de componente vacía ---
 export function addCompRow(n) {
     let datalistId = `comp-list-${n}-${Date.now()}`;
-    let compOpts = '';
-    DATA.componentes.forEach(c => { compOpts += `<option value="${cleanLabel(c.Nombre)}">`; });
+    let compOpts = getCompOpts();
     let html = `<td>
         <input list="${datalistId}" class="filter-input" placeholder="Buscar componente..." onchange="compSelected(this, ${n})">
         <datalist id="${datalistId}">${compOpts}</datalist>
@@ -435,8 +450,7 @@ export function addCompRowWithData(n, comp, qty, lineId = null, forcedPrice = nu
     let pFinal = precio * (1 + parseFloat(iva) / 100);
 
     let datalistId = `comp-list-${n}-${Date.now()}`;
-    let compOpts = '';
-    DATA.componentes.forEach(c => { compOpts += `<option value="${cleanLabel(c.Nombre)}">`; });
+    let compOpts = getCompOpts();
     let tbody = document.getElementById('comps-u-' + n);
     let row = document.createElement('tr');
     if (lineId) row.setAttribute('data-db-id', lineId);
