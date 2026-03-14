@@ -2,7 +2,7 @@
 // save.js — Guardar presupuesto (crear/editar)
 // ============================================================
 
-import { DATA, editPresId } from '../../core/state.js';
+import { DATA, PAGING, editPresId } from '../../core/state.js';
 import { TBL } from '../../core/config.js';
 import { apiGet, apiPost, apiPatch, apiDelete, apiLink } from '../../core/api.js';
 import { fmt, cleanLabel, closeModal } from '../../core/ui.js';
@@ -10,34 +10,39 @@ import { reloadAllData, ensureData, showPage } from '../../core/router.js';
 
 export async function savePres() {
     // En modo edición, los selects de cliente/propiedad/zona están disabled.
-    // Leer primero de data-attributes originales (guardados por form.js), con fallback al .value del select.
+    // Los disabled elements MANTIENEN su .value en JS, pero usamos data-attributes como fallback seguro.
     let modalEl = document.querySelector('#modal-pres .modal');
     let clienteId = document.getElementById('np-cliente').value
         || (modalEl ? modalEl.getAttribute('data-original-cliente') : '');
+    let propId = document.getElementById('np-propiedad').value
+        || (modalEl ? modalEl.getAttribute('data-original-propiedad') : '');
     let zonaId = document.getElementById('np-zona').value
         || (modalEl ? modalEl.getAttribute('data-original-zona') : '');
+
     if (!clienteId || !zonaId) { alert('Completar Cliente y Zona'); return; }
     let tc = DATA.tc.Dolar_oficial || 1150;
 
     let presId = editPresId;
     let num = '';
 
+    try {
+
     if (editPresId) {
         let oldP = DATA.presupuestos.find(p => p.Id == editPresId);
-        num = oldP.Numero;
+        num = oldP ? oldP.Numero : '';
         await apiPatch(TBL.presupuestos, {
             Id: editPresId,
             Canal: document.getElementById('np-canal').value,
             Facturacion: document.getElementById('np-factura').value
         });
         // En edición, cliente/propiedad/zona no cambian pero re-linkear para consistencia
-        await apiLink(TBL.presupuestos, 'canpten8owymbde', editPresId, [{ Id: parseInt(clienteId) }]);
-        await apiLink(TBL.presupuestos, 'cr3s0ox51qopwl4', editPresId, [{ Id: parseInt(zonaId) }]);
+        await Promise.all([
+            apiLink(TBL.presupuestos, 'canpten8owymbde', editPresId, [{ Id: parseInt(clienteId) }]),
+            apiLink(TBL.presupuestos, 'cr3s0ox51qopwl4', editPresId, [{ Id: parseInt(zonaId) }]),
+            propId ? apiLink(TBL.presupuestos, 'cpf764utp1w7yj0', editPresId, [{ Id: parseInt(propId) }]) : Promise.resolve()
+        ]);
         let pagoId = document.getElementById('np-pago').value;
         if (pagoId) await apiLink(TBL.presupuestos, 'cr9l2n9wiubrcra', editPresId, [{ Id: parseInt(pagoId) }]);
-        let propId = document.getElementById('np-propiedad').value
-            || (modalEl ? modalEl.getAttribute('data-original-propiedad') : '');
-        if (propId) await apiLink(TBL.presupuestos, 'cpf764utp1w7yj0', editPresId, [{ Id: parseInt(propId) }]);
     } else {
         let year = new Date().getFullYear();
         num = year + '-' + (String(DATA.presupuestos.length + 1).padStart(4, '0'));
@@ -48,13 +53,11 @@ export async function savePres() {
         let canal = document.getElementById('np-canal').value;
         let facturacion = document.getElementById('np-factura').value;
 
+        // NO incluir campos de link en el POST body — NocoDB v2 requiere
+        // que los links se creen exclusivamente via /links/ endpoint
         let presData = {
             Numero: num,
             TC_usado: tc,
-            Clientes: client ? [{ Id: parseInt(client) }] : null,
-            Propiedades: prop ? [{ Id: parseInt(prop) }] : null,
-            Zonas: zona ? [{ Id: parseInt(zona) }] : null,
-            Formas_pago: pago ? [{ Id: parseInt(pago) }] : null,
             Canal: canal,
             Facturacion: facturacion,
             Estado: 'Borrador',
@@ -63,15 +66,20 @@ export async function savePres() {
             Costo_traslado: parseFloat(document.getElementById('traslado-visitas')?.dataset.val) || 0,
             Visitas_traslado: parseInt(document.getElementById('traslado-visitas')?.value) || 0
         };
+        console.log('[savePres] Creando presupuesto:', presData);
         let pres = await apiPost(TBL.presupuestos, presData);
+        console.log('[savePres] Respuesta apiPost:', pres);
         presId = pres.Id || pres.id;
         if (!presId) { alert('Error creando presupuesto'); return; }
 
-        // Asegurar links mediante apiLink después del POST
-        if (client) await apiLink(TBL.presupuestos, 'canpten8owymbde', presId, [{ Id: parseInt(client) }]);
-        if (prop) await apiLink(TBL.presupuestos, 'cpf764utp1w7yj0', presId, [{ Id: parseInt(prop) }]);
-        if (zona) await apiLink(TBL.presupuestos, 'cr3s0ox51qopwl4', presId, [{ Id: parseInt(zona) }]);
-        if (pago) await apiLink(TBL.presupuestos, 'cr9l2n9wiubrcra', presId, [{ Id: parseInt(pago) }]);
+        // Crear links por separado, en paralelo para velocidad
+        let linkPromises = [];
+        if (client) linkPromises.push(apiLink(TBL.presupuestos, 'canpten8owymbde', presId, [{ Id: parseInt(client) }]));
+        if (prop) linkPromises.push(apiLink(TBL.presupuestos, 'cpf764utp1w7yj0', presId, [{ Id: parseInt(prop) }]));
+        if (zona) linkPromises.push(apiLink(TBL.presupuestos, 'cr3s0ox51qopwl4', presId, [{ Id: parseInt(zona) }]));
+        if (pago) linkPromises.push(apiLink(TBL.presupuestos, 'cr9l2n9wiubrcra', presId, [{ Id: parseInt(pago) }]));
+        await Promise.all(linkPromises);
+        console.log('[savePres] Links creados OK');
     }
 
     let subtotalNeto = 0, totalIva21 = 0, totalIva105 = 0;
@@ -139,7 +147,6 @@ export async function savePres() {
 
         for (let r of rows) {
             orden++;
-            // Se ignora el data-db-id de la fila para forzar la creación como nueva línea
             let input = r.querySelector('input.filter-input');
             let compName = input ? input.value : '';
             let compId = DATA.componentes.find(c => cleanLabel(c.Nombre) === compName)?.Id || null;
@@ -177,9 +184,11 @@ export async function savePres() {
             let linea = await apiPost(TBL.lineas, lineaData);
             let lineaId = linea.Id || linea.id;
             if (lineaId) {
-                await apiLink(TBL.lineas, 'c4hnodnss6zlr32', lineaId, [{ Id: presId }]);
-                if (compId) await apiLink(TBL.lineas, 'czka6po5myr5wu6', lineaId, [{ Id: parseInt(compId) }]);
-                if (uId) await apiLink(TBL.lineas, 'cn9406tc3q1jmw0', lineaId, [{ Id: uId }]);
+                // Links de línea en paralelo
+                let lineLinks = [apiLink(TBL.lineas, 'c4hnodnss6zlr32', lineaId, [{ Id: presId }])];
+                if (compId) lineLinks.push(apiLink(TBL.lineas, 'czka6po5myr5wu6', lineaId, [{ Id: parseInt(compId) }]));
+                if (uId) lineLinks.push(apiLink(TBL.lineas, 'cn9406tc3q1jmw0', lineaId, [{ Id: uId }]));
+                await Promise.all(lineLinks);
             }
 
             subtotalNeto += sub;
@@ -222,9 +231,18 @@ export async function savePres() {
         Total_sin_factura: sinFact
     });
 
+    // Resetear paginación a página 1 para que el nuevo presupuesto sea visible
+    PAGING.presupuestos.page = 1;
+
+    closeModal();
     await reloadAllData();
     await ensureData('presupuestos');
-    showPage('presupuestos', document.querySelectorAll('.nav-item')[1]);
-    closeModal();
+    await showPage('presupuestos', document.querySelectorAll('.nav-item')[1]);
+    console.log('[savePres] Presupuesto guardado OK, ID:', presId);
     if (confirm('Presupuesto ' + num + ' guardado. ¿Ver ahora?')) window.viewPresupuesto(presId);
+
+    } catch (e) {
+        console.error('[savePres] ERROR:', e);
+        alert('Error al guardar presupuesto: ' + e.message);
+    }
 }
