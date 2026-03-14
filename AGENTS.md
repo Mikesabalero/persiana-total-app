@@ -45,7 +45,7 @@ App web para gestión de presupuestos de persianas, cortinas y automatizaciones.
 
 ---
 
-# Estado de la refactorización ES6 (actualizado 2026-03-14)
+# Estado de la refactorización ES6 (actualizado 2026-03-14, sesion 2)
 
 > Branch: `claude/awesome-kilby`
 > Worktree: `.claude/worktrees/awesome-kilby`
@@ -201,6 +201,42 @@ index.html tiene dos scripts module: main.js primero, app.js segundo. Si se elim
 
 ### 6. Tabla prod_comp
 `Producto_Componentes` (ID: `mmjzqw7v4que9q3`) se carga en `ensureData('presupuestos')` y se almacena en `DATA.prod_comp`. Es usada por `components-engine.js` para el lookup dinamico Producto -> Componentes.
+
+---
+
+## Commits de esta sesion (branch claude/awesome-kilby, pusheados a origin)
+
+```
+b783aa7 refactor: Fase 4 completa - extraer módulos de datos (clientes, propiedades, precios)
+63fe545 refactor: Fase 5 - extraer módulos de presupuestos + motor dinámico BOM
+39e0f3e fix: unificar cálculo de Precio unidad entre vista web y PDF
+f5e2258 fix(presupuestos): preserve client/property selection in edit mode
+73b2168 fix(presupuestos): fully block client change in edit mode
+1d3649d perf(presupuestos): parallelize data loading in openNewPres
+b26712c perf(presupuestos): eliminate DOM thrashing in modal open
+6248e28 fix(presupuestos): fix save not showing in list + edit field safety
+d9889ab docs: actualizar AGENTS.md con estado completo de refactorización
+```
+
+### Resumen de lo hecho en esta sesion
+
+1. **Fase 4 completada**: Extraccion de modulos clientes, propiedades, precios y aumentos
+2. **Fase 5 completada**: Extraccion completa de presupuestos en 6 modulos (list, form, save, view, pdf, components-engine)
+3. **PROD_COMP_MAP eliminado**: Reemplazado por lookup dinamico a `DATA.prod_comp` (tabla Producto_Componentes de NocoDB)
+4. **app.js reducido de ~1628 a 31 lineas** (solo modal overlay listeners)
+5. **4 bugs criticos corregidos post-testeo**:
+   - Cliente se deselecciona al editar presupuesto
+   - Presupuesto nuevo no aparece en lista despues de guardar
+   - Modal de presupuesto extremadamente lento al abrir
+   - Propiedad/Zona editables cuando deberian estar bloqueados en edicion
+6. **Optimizaciones de rendimiento**: Promise.all para cargas paralelas, cache de datalist, eliminacion de innerHTML += en loops
+
+### Archivos que requieren atencion del usuario (testeo pendiente)
+
+- `js/modules/presupuestos/save.js` — El usuario reporto que "no se guarda". Se corrigio removiendo link fields del POST body y reseteando paginacion. **Necesita re-testeo**.
+- `js/modules/presupuestos/form.js` — Cliente/propiedad bloqueados en edicion. **Necesita re-testeo**.
+- `js/modules/presupuestos/components-engine.js` — Logica matematica de auto-carga de componentes. **Usuario pidio pausar la verificacion**.
+- `js/modules/presupuestos/pdf.js` — Inconsistencia precio unitario web vs PDF. **Se aplico fix pero no fue re-testeado**.
 
 ---
 
