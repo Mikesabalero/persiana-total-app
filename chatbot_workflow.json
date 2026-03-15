@@ -31,7 +31,7 @@
         "promptType": "define",
         "text": "={{ $json.body.message }}",
         "options": {
-          "systemMessage": "Sos un asistente de Persiana Total para gestionar clientes y propiedades.\n\nACCIONES DISPONIBLES:\n- Buscar cliente por telefono o nombre\n- Crear cliente nuevo\n- Actualizar datos de un cliente existente\n- Agregar propiedad a un cliente existente\n- Eliminar un cliente (SIEMPRE pedir confirmacion antes)\n- Eliminar una propiedad (SIEMPRE pedir confirmacion antes)\n- Buscar propiedades de un cliente\n- Listar zonas disponibles\n\nFLUJO CARGAR CLIENTE:\n1. Saluda y pedi el telefono o nombre del cliente\n2. Normaliza el telefono y busca en la base de datos\n3. Si existe: mostra los datos y pregunta que quiere hacer (actualizar datos, agregar propiedad, eliminar, o nada)\n4. Si no existe: preguntar nombre, y los demas datos opcionales paso a paso\n5. Despues de cargar el cliente, preguntar si quiere agregar una propiedad\n6. Para la propiedad: pedir direccion, localidad, tipo, zona (mostrar zonas disponibles)\n7. Al final confirmar todo y guardar\n\nFLUJO ELIMINAR:\n- Para eliminar cliente: buscar primero, mostrar datos, pedir confirmacion explicita (\"estas seguro?\"), recien ahi borrar\n- Para eliminar propiedad: buscar propiedades del cliente, mostrar lista, pedir cual borrar y confirmar\n- NUNCA borrar sin confirmacion del usuario\n\nREGLAS:\n- Siempre normaliza el telefono antes de buscar\n- Si el usuario escribe todo junto, parsea los datos sin preguntar de nuevo\n- Si dice 'no', 'no tengo' o 'saltar', avanza al siguiente campo\n- Si dice 'corregir' o 'volver', volve al paso anterior\n- Se conciso y amigable, usa espanol argentino\n- Los campos obligatorios son: Nombre y Telefono\n- La primera propiedad siempre es Principal=true\n- Al agregar propiedad a cliente existente, usa el Id del cliente como Clientes_id"
+          "systemMessage": "Sos un asistente de Persiana Total para cargar clientes y propiedades.\n\nFLUJO:\n1. Saluda y pedi el telefono del cliente\n2. Normaliza el telefono y busca en la base de datos\n3. Si existe: mostra los datos y pregunta que quiere hacer (actualizar datos, agregar propiedad, o nada)\n4. Si no existe: preguntar nombre, y los demas datos opcionales paso a paso\n5. Despues de cargar el cliente, preguntar si quiere agregar una propiedad\n6. Para la propiedad: pedir direccion, localidad, tipo, zona\n7. Al final confirmar todo y guardar\n\nREGLAS:\n- Siempre normaliza el telefono antes de buscar\n- Si el usuario escribe todo junto, parsea los datos sin preguntar de nuevo\n- Si dice 'no', 'no tengo' o 'saltar', avanza al siguiente campo\n- Si dice 'corregir' o 'volver', volve al paso anterior\n- Se conciso y amigable, usa espanol argentino\n- Los campos obligatorios son: Nombre y Telefono\n- La primera propiedad siempre es Principal=true"
         }
       },
       "id": "3",
@@ -221,42 +221,6 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.1,
       "position": [ 950, -200 ]
-    },
-    {
-      "parameters": {
-        "name": "eliminar_cliente",
-        "description": "Elimina un cliente por su Id. SOLO usar despues de que el usuario confirme explicitamente. Pasa 'id' como parametro con el Id numerico del cliente.",
-        "code": "const id = $input.first().json.query?.id || $input.first().json.id;\nif (!id) return [{json: {error: 'Falta el id del cliente'}}];\nconst res = await fetch('https://nocodb.srv1323649.hstgr.cloud/api/v2/tables/mwby85581fhjy27/records', {\n  method: 'DELETE',\n  headers: {'Content-Type': 'application/json', 'xc-token': 'dZMS2te8v6cf47Jlmlnk3S3ft9LT_QO8bjNdOcZZ'},\n  body: JSON.stringify({Id: parseInt(id)})\n});\nconst data = await res.json();\nreturn [{json: {success: true, deleted_id: id, response: data}}];"
-      },
-      "id": "13",
-      "name": "Eliminar Cliente",
-      "type": "n8n-nodes-base.codeTool",
-      "typeVersion": 1,
-      "position": [ 1050, -200 ]
-    },
-    {
-      "parameters": {
-        "name": "eliminar_propiedad",
-        "description": "Elimina una propiedad por su Id. SOLO usar despues de que el usuario confirme explicitamente. Pasa 'id' como parametro con el Id numerico de la propiedad.",
-        "code": "const id = $input.first().json.query?.id || $input.first().json.id;\nif (!id) return [{json: {error: 'Falta el id de la propiedad'}}];\nconst res = await fetch('https://nocodb.srv1323649.hstgr.cloud/api/v2/tables/m0dwlr7ccoim1kf/records', {\n  method: 'DELETE',\n  headers: {'Content-Type': 'application/json', 'xc-token': 'dZMS2te8v6cf47Jlmlnk3S3ft9LT_QO8bjNdOcZZ'},\n  body: JSON.stringify({Id: parseInt(id)})\n});\nconst data = await res.json();\nreturn [{json: {success: true, deleted_id: id, response: data}}];"
-      },
-      "id": "14",
-      "name": "Eliminar Propiedad",
-      "type": "n8n-nodes-base.codeTool",
-      "typeVersion": 1,
-      "position": [ 1150, -200 ]
-    },
-    {
-      "parameters": {
-        "name": "buscar_propiedades_cliente",
-        "description": "Busca todas las propiedades de un cliente por su Id. Pasa 'cliente_id' como parametro con el Id numerico del cliente.",
-        "code": "const clienteId = $input.first().json.query?.cliente_id || $input.first().json.cliente_id;\nif (!clienteId) return [{json: {error: 'Falta el cliente_id'}}];\nconst res = await fetch('https://nocodb.srv1323649.hstgr.cloud/api/v2/tables/m0dwlr7ccoim1kf/records?where=(Clientes_id,eq,' + clienteId + ')', {\n  headers: {'xc-token': 'dZMS2te8v6cf47Jlmlnk3S3ft9LT_QO8bjNdOcZZ'}\n});\nconst data = await res.json();\nreturn [{json: data}];"
-      },
-      "id": "15",
-      "name": "Buscar Propiedades Cliente",
-      "type": "n8n-nodes-base.codeTool",
-      "typeVersion": 1,
-      "position": [ 1250, -200 ]
     }
   ],
   "connections": {
@@ -371,39 +335,6 @@
       ]
     },
     "Listar Zonas": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Eliminar Cliente": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Eliminar Propiedad": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Buscar Propiedades Cliente": {
       "ai_tool": [
         [
           {
