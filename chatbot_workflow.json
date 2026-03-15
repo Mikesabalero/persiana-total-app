@@ -224,77 +224,38 @@
     },
     {
       "parameters": {
-        "method": "DELETE",
-        "url": "=https://nocodb.srv1323649.hstgr.cloud/api/v2/tables/mwby85581fhjy27/records",
-        "authentication": "headerAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({Id: parseInt($json.query?.id || $json.id)}) }}",
         "name": "eliminar_cliente",
-        "description": "Elimina un cliente por su Id. SOLO usar despues de que el usuario confirme explicitamente. Pasa 'id' como parametro con el Id numerico del cliente."
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "YOUR_NOCODB_CREDENTIAL_ID",
-          "name": "Header Auth account"
-        }
+        "description": "Elimina un cliente por su Id. SOLO usar despues de que el usuario confirme explicitamente. Pasa 'id' como parametro con el Id numerico del cliente.",
+        "code": "const id = $input.first().json.query?.id || $input.first().json.id;\nif (!id) return [{json: {error: 'Falta el id del cliente'}}];\nconst res = await fetch('https://nocodb.srv1323649.hstgr.cloud/api/v2/tables/mwby85581fhjy27/records', {\n  method: 'DELETE',\n  headers: {'Content-Type': 'application/json', 'xc-token': 'dZMS2te8v6cf47Jlmlnk3S3ft9LT_QO8bjNdOcZZ'},\n  body: JSON.stringify({Id: parseInt(id)})\n});\nconst data = await res.json();\nreturn [{json: {success: true, deleted_id: id, response: data}}];"
       },
       "id": "13",
       "name": "Eliminar Cliente",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.codeTool",
+      "typeVersion": 1,
       "position": [ 1050, -200 ]
     },
     {
       "parameters": {
-        "method": "DELETE",
-        "url": "=https://nocodb.srv1323649.hstgr.cloud/api/v2/tables/m0dwlr7ccoim1kf/records",
-        "authentication": "headerAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({Id: parseInt($json.query?.id || $json.id)}) }}",
         "name": "eliminar_propiedad",
-        "description": "Elimina una propiedad por su Id. SOLO usar despues de que el usuario confirme explicitamente. Pasa 'id' como parametro con el Id numerico de la propiedad."
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "YOUR_NOCODB_CREDENTIAL_ID",
-          "name": "Header Auth account"
-        }
+        "description": "Elimina una propiedad por su Id. SOLO usar despues de que el usuario confirme explicitamente. Pasa 'id' como parametro con el Id numerico de la propiedad.",
+        "code": "const id = $input.first().json.query?.id || $input.first().json.id;\nif (!id) return [{json: {error: 'Falta el id de la propiedad'}}];\nconst res = await fetch('https://nocodb.srv1323649.hstgr.cloud/api/v2/tables/m0dwlr7ccoim1kf/records', {\n  method: 'DELETE',\n  headers: {'Content-Type': 'application/json', 'xc-token': 'dZMS2te8v6cf47Jlmlnk3S3ft9LT_QO8bjNdOcZZ'},\n  body: JSON.stringify({Id: parseInt(id)})\n});\nconst data = await res.json();\nreturn [{json: {success: true, deleted_id: id, response: data}}];"
       },
       "id": "14",
       "name": "Eliminar Propiedad",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.codeTool",
+      "typeVersion": 1,
       "position": [ 1150, -200 ]
     },
     {
       "parameters": {
-        "method": "GET",
-        "url": "https://nocodb.srv1323649.hstgr.cloud/api/v2/tables/m0dwlr7ccoim1kf/records",
-        "authentication": "headerAuth",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "where",
-              "value": "(Clientes_id,eq,{{ $json.query.cliente_id || $json.cliente_id }})"
-            }
-          ]
-        },
         "name": "buscar_propiedades_cliente",
-        "description": "Busca todas las propiedades de un cliente por su Id. Pasa 'cliente_id' como parametro con el Id numerico del cliente."
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "YOUR_NOCODB_CREDENTIAL_ID",
-          "name": "Header Auth account"
-        }
+        "description": "Busca todas las propiedades de un cliente por su Id. Pasa 'cliente_id' como parametro con el Id numerico del cliente.",
+        "code": "const clienteId = $input.first().json.query?.cliente_id || $input.first().json.cliente_id;\nif (!clienteId) return [{json: {error: 'Falta el cliente_id'}}];\nconst res = await fetch('https://nocodb.srv1323649.hstgr.cloud/api/v2/tables/m0dwlr7ccoim1kf/records?where=(Clientes_id,eq,' + clienteId + ')', {\n  headers: {'xc-token': 'dZMS2te8v6cf47Jlmlnk3S3ft9LT_QO8bjNdOcZZ'}\n});\nconst data = await res.json();\nreturn [{json: data}];"
       },
       "id": "15",
       "name": "Buscar Propiedades Cliente",
-      "type": "n8n-nodes-base.httpRequestTool",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.codeTool",
+      "typeVersion": 1,
       "position": [ 1250, -200 ]
     }
   ],
