@@ -966,8 +966,8 @@ async function renderClientes() {
     tb.innerHTML = '';
     
     for (let c of DATA.clientes) {
-        // Obtenemos pres count asincronamente pero rápido usando limit=1
-        let r = await fetch(API + '/api/v2/tables/' + TBL.presupuestos + '/links/canpten8owymbde/records/' + (c.Id || c.id) + '?limit=1', { headers: H }).catch(()=>null);
+        // Obtenemos pres count desde la tabla Clientes, columna link Presupuestos
+        let r = await fetch(API + '/api/v2/tables/' + TBL.clientes + '/links/cvw59bxrea7akhr/records/' + (c.Id || c.id) + '?limit=1', { headers: H }).catch(()=>null);
         let presCount = 0;
         if (r && r.ok) { let d = await r.json(); presCount = d.pageInfo?.totalRows || 0; }
 
