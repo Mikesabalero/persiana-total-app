@@ -965,11 +965,27 @@ async function renderClientes() {
     if(!tb) return;
     tb.innerHTML = '';
     
+    // Contar presupuestos por cliente
+    // Usamos cache para no recalcular en cada render
+    if (!DATA._presCountMap) {
+        DATA._presCountMap = {};
+        let allPres = await apiGetAll(TBL.presupuestos);
+        for (let p of allPres) {
+            let pId = p.Id || p.id;
+            if (!pId || !p.Cliente) continue;
+            try {
+                let links = await apiGetLinks(TBL.presupuestos, 'canpten8owymbde', pId);
+                if (links.length > 0) {
+                    let cId = links[0].Id;
+                    DATA._presCountMap[cId] = (DATA._presCountMap[cId] || 0) + 1;
+                }
+            } catch(e) {}
+        }
+    }
+    let presCountMap = DATA._presCountMap;
+
     for (let c of DATA.clientes) {
-        // Obtenemos pres count desde la tabla Clientes, columna link Presupuestos
-        let r = await fetch(API + '/api/v2/tables/' + TBL.clientes + '/links/cvw59bxrea7akhr/records/' + (c.Id || c.id) + '?limit=1', { headers: H }).catch(()=>null);
-        let presCount = 0;
-        if (r && r.ok) { let d = await r.json(); presCount = d.pageInfo?.totalRows || 0; }
+        let presCount = presCountMap[c.Id] || presCountMap[c.id] || 0;
 
         tb.innerHTML += `<tr>
             <td><strong>${cleanLabel(c.Nombre)}</strong></td>
@@ -2865,6 +2881,7 @@ async function savePres() {
         Total_sin_factura: sinFact 
     });
 
+    DATA._presCountMap = null; // Invalidar cache de conteo
     await reloadAllData();
     await ensureData('presupuestos');
     showPage('presupuestos', document.querySelectorAll('.nav-item')[1]);
