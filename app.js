@@ -1888,11 +1888,11 @@ async function openNewPres(presData = null) { window._manualVisitas = false;
         document.getElementById('np-pago').value = resolveLink(presData, 'Formas_pago')?.Id || '';
         document.getElementById('np-canal').value = presData.Canal || 'Manual';
         document.getElementById('np-factura').value = presData.Facturacion || 'con_iva';
-        document.getElementById('np-cliente').disabled = true;
+        document.getElementById('np-cliente').disabled = false;
         let searchInput = document.getElementById('np-pres-cliente-search');
-        if (searchInput) searchInput.disabled = true;
-        document.getElementById('np-propiedad').disabled = true;
-        document.getElementById('np-zona').disabled = true;
+        if (searchInput) searchInput.disabled = false;
+        document.getElementById('np-propiedad').disabled = false;
+        document.getElementById('np-zona').disabled = false;
     } else {
         document.getElementById('np-pago').value = '';
         document.getElementById('np-canal').value = 'Manual';
