@@ -2538,6 +2538,9 @@ function recalcUnidad(n) {
         t += sub;
     });
 
+    let cantidadUnit = parseInt(document.getElementById('u-' + n + '-cantidad')?.value) || 1;
+    t *= cantidadUnit;
+
     let instPctInput = document.getElementById('inst-pct-u-' + n);
     let instMontoSpan = document.getElementById('inst-monto-u-' + n);
     if (instPctInput) {
@@ -2546,9 +2549,6 @@ function recalcUnidad(n) {
         if (instMontoSpan) instMontoSpan.textContent = fmt(instMonto);
         t += instMonto;
     }
-
-    let cantidadUnit = parseInt(document.getElementById('u-' + n + '-cantidad')?.value) || 1;
-    t *= cantidadUnit;
 
     document.getElementById('sub-u-' + n).textContent = fmt(t);
     recalcTotal();
@@ -2813,9 +2813,22 @@ async function savePres() {
         }
 
         let cantidadUnit = parseInt(document.getElementById('u-' + n + '-cantidad')?.value) || 1;
-        subtotalNeto += unitSubNeto * cantidadUnit;
-        totalIva21 += unitIva21 * cantidadUnit;
-        totalIva105 += unitIva105 * cantidadUnit;
+        let totalUnitNeto = unitSubNeto * cantidadUnit;
+        let totalUnitIva21 = unitIva21 * cantidadUnit;
+        let totalUnitIva105 = unitIva105 * cantidadUnit;
+
+        // Instalación se calcula sobre el total multiplicado (neto)
+        let instPct = parseFloat(document.getElementById('inst-pct-u-' + n)?.value) || 0;
+        if (instPct > 0) {
+            let instNeto = totalUnitNeto * (instPct / 100);
+            let instIva = instNeto * 0.21;
+            totalUnitNeto += instNeto;
+            totalUnitIva21 += instIva;
+        }
+
+        subtotalNeto += totalUnitNeto;
+        totalIva21 += totalUnitIva21;
+        totalIva105 += totalUnitIva105;
     }
 
     if (editPresId) {
@@ -3053,16 +3066,17 @@ async function generarPDF(presId) {
                 html += `<li style="margin-bottom: 4px;">${cleanLabel(l.Descripcion_pdf)}</li>`;
             }
 
-            if (!isRepair && u.Pct_instalacion > 0) {
-                html += `<li style="margin-bottom: 4px;">Instalación (${u.Pct_instalacion}%): ${fmt(u.Monto_instalacion || 0)}</li>`;
-                unitTotal += parseFloat(u.Monto_instalacion) || 0;
-            }
-
             let unitTotalBase = unitTotal;
             if (cantidadU > 1) unitTotal = unitTotalBase * cantidadU;
+
+            if (!isRepair && u.Pct_instalacion > 0) {
+                let instMonto = unitTotal * (u.Pct_instalacion / 100);
+                html += `<li style="margin-bottom: 4px;">Instalación (${u.Pct_instalacion}%): ${fmt(instMonto)}</li>`;
+                unitTotal += instMonto;
+            }
             sumUnitTotals += unitTotal;
             let precioLabel = cantidadU > 1
-                ? `Precio unidad: ${fmt(unitTotalBase)} (x${cantidadU} = ${fmt(unitTotal)})`
+                ? `Precio unitario: ${fmt(unitTotalBase)} — Total (x${cantidadU} + inst.): ${fmt(unitTotal)}`
                 : `Precio unidad: ${fmt(unitTotal)}`;
             html += `
                     </ul>
@@ -3263,15 +3277,17 @@ async function viewPresupuesto(presId) {
             html += `<li style="margin-bottom:2px">${cleanLabel(l.Descripcion_pdf)} (${l.Cantidad}) — ${fmt(linePrice)}</li>`;
         });
 
-        if (!isRepair && u.Pct_instalacion > 0) {
-            html += `<li style="margin-bottom:2px">Instalación (${u.Pct_instalacion}%): ${fmt(u.Monto_instalacion || 0)}</li>`;
-            unitTotal += parseFloat(u.Monto_instalacion) || 0;
-        }
-
         let unitTotalBase = unitTotal;
         if (cantidadV > 1) unitTotal = unitTotalBase * cantidadV;
+
+        if (!isRepair && u.Pct_instalacion > 0) {
+            let instMonto = unitTotal * (u.Pct_instalacion / 100);
+            html += `<li style="margin-bottom:2px">Instalación (${u.Pct_instalacion}%): ${fmt(instMonto)}</li>`;
+            unitTotal += instMonto;
+        }
+
         let precioLabel = cantidadV > 1
-            ? `Precio unidad: ${fmt(unitTotalBase)} (x${cantidadV} = ${fmt(unitTotal)})`
+            ? `Precio unitario: ${fmt(unitTotalBase)} — Total (x${cantidadV} + inst.): ${fmt(unitTotal)}`
             : `Precio unidad: ${fmt(unitTotal)}`;
         html += `</ul><div style="text-align:right; margin-top:10px; font-size:1.1em;"><strong>${precioLabel}</strong></div></div>`;
     });
