@@ -3071,12 +3071,12 @@ async function generarPDF(presId) {
 
             if (!isRepair && u.Pct_instalacion > 0) {
                 let instMonto = unitTotal * (u.Pct_instalacion / 100);
-                html += `<li style="margin-bottom: 4px;">Instalación (${u.Pct_instalacion}%): ${fmt(instMonto)}</li>`;
+                html += `<li style="margin-bottom: 4px;">Instalación: ${fmt(instMonto)}</li>`;
                 unitTotal += instMonto;
             }
             sumUnitTotals += unitTotal;
             let precioLabel = cantidadU > 1
-                ? `Precio unitario: ${fmt(unitTotalBase)} — Total (x${cantidadU} + inst.): ${fmt(unitTotal)}`
+                ? `Precio unitario: ${fmt(unitTotalBase)} — Total (x${cantidadU} U + instalación): ${fmt(unitTotal)}`
                 : `Precio unidad: ${fmt(unitTotal)}`;
             html += `
                     </ul>
@@ -3282,12 +3282,12 @@ async function viewPresupuesto(presId) {
 
         if (!isRepair && u.Pct_instalacion > 0) {
             let instMonto = unitTotal * (u.Pct_instalacion / 100);
-            html += `<li style="margin-bottom:2px">Instalación (${u.Pct_instalacion}%): ${fmt(instMonto)}</li>`;
+            html += `<li style="margin-bottom:2px">Instalación: ${fmt(instMonto)}</li>`;
             unitTotal += instMonto;
         }
 
         let precioLabel = cantidadV > 1
-            ? `Precio unitario: ${fmt(unitTotalBase)} — Total (x${cantidadV} + inst.): ${fmt(unitTotal)}`
+            ? `Precio unitario: ${fmt(unitTotalBase)} — Total (x${cantidadV} U + instalación): ${fmt(unitTotal)}`
             : `Precio unidad: ${fmt(unitTotal)}`;
         html += `</ul><div style="text-align:right; margin-top:10px; font-size:1.1em;"><strong>${precioLabel}</strong></div></div>`;
     });
