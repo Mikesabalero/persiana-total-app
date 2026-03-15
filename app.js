@@ -1991,6 +1991,7 @@ function addUnidadUI(n, uData) {
     let showRep = (tipo == 'Reparacion' || tipo == 'Service') ? 'display:block' : 'display:none';
 
     let instPct = uData && uData.Pct_instalacion !== undefined ? parseFloat(uData.Pct_instalacion) : (INSTALACION_PCT[tipo] ?? 8);
+    let cantidad = uData ? (parseInt(uData.Cantidad) || 1) : 1;
 
     let html = '<div class="unidad-card" id="unidad-' + n + '" data-db-id="' + uId + '"><div class="unidad-header"><h3>Unidad ' + n + '</h3><div style="display:flex;gap:8px;align-items:center"><span class="unidad-subtotal" id="sub-u-' + n + '">$0</span><button class="btn-remove" onclick="duplicateUnidad(' + n + ')" title="Duplicar unidad">📋</button><button class="btn-remove" onclick="removeUnidad(' + n + ')" title="Eliminar">🗑</button></div></div>';
     html += '<div class="form-row" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;"><div class="form-group"><label>Ambiente</label><input id="u-' + n + '-nombre" placeholder="Ej: Dormitorio principal" value="' + nombre + '"></div>';
@@ -2014,8 +2015,9 @@ function addUnidadUI(n, uData) {
         }
     }
 
-    html += '<div class="form-row" style="grid-template-columns:1fr 1fr 2fr"><div class="form-group"><label>Ancho (m)</label><input type="number" id="u-' + n + '-ancho" step="0.01" oninput="autoLoadComponents(' + n + ')" value="' + ancho + '"></div>';
-    html += '<div class="form-group"><label>Alto (m)</label><input type="number" id="u-' + n + '-alto" step="0.01" oninput="autoLoadComponents(' + n + ')" value="' + alto + '"></div><div></div></div>';
+    html += '<div class="form-row" style="grid-template-columns:1fr 1fr 1fr 1fr"><div class="form-group"><label>Ancho (m)</label><input type="number" id="u-' + n + '-ancho" step="0.01" oninput="autoLoadComponents(' + n + ')" value="' + ancho + '"></div>';
+    html += '<div class="form-group"><label>Alto (m)</label><input type="number" id="u-' + n + '-alto" step="0.01" oninput="autoLoadComponents(' + n + ')" value="' + alto + '"></div>';
+    html += '<div class="form-group"><label>Cantidad</label><input type="number" id="u-' + n + '-cantidad" min="1" step="1" value="' + cantidad + '" oninput="recalcUnidad(' + n + ')" style="width:70px"></div><div></div></div>';
     html += '<table class="comp-table"><thead><tr><th>Componente</th><th>Cant.</th><th class="hide-margin">Costo</th><th class="hide-margin">Moneda</th><th class="hide-margin">Margen%</th><th>Precio Unit.</th><th>Subtotal</th><th>IVA%</th><th></th></tr></thead><tbody id="comps-u-' + n + '"></tbody></table>';
     
     html += '<div class="instalacion-row" id="inst-u-' + n + '" style="display:flex; gap:12px; align-items:center; margin:8px 0; padding:8px; background:#f0fdf4; border-radius:6px; border:1px solid #bbf7d0;">';
@@ -2057,6 +2059,8 @@ function duplicateUnidad(origN) {
     
     let oldInstPct = document.getElementById('inst-pct-u-' + origN)?.value || 0;
     if(document.getElementById('inst-pct-u-' + newN)) document.getElementById('inst-pct-u-' + newN).value = oldInstPct;
+    let oldCantidad = document.getElementById('u-' + origN + '-cantidad')?.value || 1;
+    if(document.getElementById('u-' + newN + '-cantidad')) document.getElementById('u-' + newN + '-cantidad').value = oldCantidad;
 
     let cat = getCategoria(oldProd);
     let hideAccion = (cat === 'Seguridad') ? 'none' : 'block';
@@ -2517,6 +2521,9 @@ function recalcUnidad(n) {
         t += instMonto;
     }
 
+    let cantidadUnit = parseInt(document.getElementById('u-' + n + '-cantidad')?.value) || 1;
+    t *= cantidadUnit;
+
     document.getElementById('sub-u-' + n).textContent = fmt(t);
     recalcTotal();
 }
@@ -2690,6 +2697,7 @@ async function savePres() {
             Accionamiento: document.getElementById('u-' + n + '-accion')?.value || 'motor',
             Pct_instalacion: parseFloat(document.getElementById('inst-pct-u-' + n)?.value) || 0,
             Monto_instalacion: parseFloat(document.getElementById('inst-monto-u-' + n)?.textContent.replace('$', '').replace(/\./g, '').replace(',', '.')) || 0,
+            Cantidad: parseInt(document.getElementById('u-' + n + '-cantidad')?.value) || 1,
             Orden: parseInt(n)
         };
         let ancho = uData.Ancho_m || 0;
@@ -2726,6 +2734,7 @@ async function savePres() {
 
         let rows = document.querySelectorAll('#comps-u-' + n + ' tr');
         let orden = 0;
+        let unitSubNeto = 0, unitIva21 = 0, unitIva105 = 0;
 
         for (let r of rows) {
             orden++;
@@ -2772,10 +2781,15 @@ async function savePres() {
                 if (uId) await apiLink(TBL.lineas, 'cn9406tc3q1jmw0', lineaId, [{ Id: uId }]);
             }
             
-            subtotalNeto += sub;
-            if (iva === '10.5') totalIva105 += montoIva;
-            else totalIva21 += montoIva;
+            unitSubNeto += sub;
+            if (iva === '10.5') unitIva105 += montoIva;
+            else unitIva21 += montoIva;
         }
+
+        let cantidadUnit = parseInt(document.getElementById('u-' + n + '-cantidad')?.value) || 1;
+        subtotalNeto += unitSubNeto * cantidadUnit;
+        totalIva21 += unitIva21 * cantidadUnit;
+        totalIva105 += unitIva105 * cantidadUnit;
     }
 
     if (editPresId) {
@@ -2985,11 +2999,13 @@ async function generarPDF(presId) {
 
             let unitTotal = uLines.reduce((acc, l) => acc + (parseFloat(l.Subtotal_con_IVA) || 0), 0);
             let measures = (u.Ancho_m && u.Alto_m) ? ` (${u.Ancho_m}m x ${u.Alto_m}m)` : '';
+            let cantidadU = parseInt(u.Cantidad) || 1;
+            let cantLabel = cantidadU > 1 ? ` x${cantidadU}` : '';
 
             html += `
                 <div style="margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; page-break-inside: avoid;">
                     <div style="background: #f3f4f6; padding: 8px; border-radius: 4px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-weight: bold; font-size: 1.1em; color: #1f2937;">${cleanLabel(u.Nombre)} - ${cleanLabel(u.Ubicacion) || ''}${measures}</span>
+                        <span style="font-weight: bold; font-size: 1.1em; color: #1f2937;">${cleanLabel(u.Nombre)} - ${cleanLabel(u.Ubicacion) || ''}${measures}${cantLabel}</span>
                         <span style="color: #4b5563; font-weight: normal;">${cleanLabel(u.Tipo_trabajo) || ''}</span>
                     </div>
                     <ul style="margin: 5px 0; padding-left: 25px; font-size: 0.9em; color: #374151; list-style-type: disc;">
@@ -3016,11 +3032,16 @@ async function generarPDF(presId) {
                 unitTotal += parseFloat(u.Monto_instalacion) || 0;
             }
 
+            let unitTotalBase = unitTotal;
+            if (cantidadU > 1) unitTotal = unitTotalBase * cantidadU;
             sumUnitTotals += unitTotal;
+            let precioLabel = cantidadU > 1
+                ? `Precio unidad: ${fmt(unitTotalBase)} (x${cantidadU} = ${fmt(unitTotal)})`
+                : `Precio unidad: ${fmt(unitTotal)}`;
             html += `
                     </ul>
                     <div style="text-align: right; margin-top: 8px; font-size: 1.1em; font-weight: bold; color: #111;">
-                        Precio unidad: ${fmt(unitTotal)}
+                        ${precioLabel}
                     </div>
                 </div>
             `;
@@ -3195,6 +3216,8 @@ async function viewPresupuesto(presId) {
         uLines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
         let unitTotal = uLines.reduce((acc, l) => acc + (parseFloat(useConIva ? l.Subtotal_con_IVA : l.Subtotal_ARS) || 0), 0);
         let measures = u.Ancho_m && u.Alto_m ? ` (${u.Ancho_m}m × ${u.Alto_m}m)` : '';
+        let cantidadV = parseInt(u.Cantidad) || 1;
+        let cantLabelV = cantidadV > 1 ? ` x${cantidadV}` : '';
         let isRepair = u.Tipo_trabajo === 'Reparacion' || u.Tipo_trabajo === 'Service';
         let prodLine = `<strong>Producto:</strong> ${cleanLabel(prodName) || '-'} `;
         if (isRepair) {
@@ -3203,7 +3226,7 @@ async function viewPresupuesto(presId) {
         }
         html += `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:12px">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #e5e7eb; padding-bottom:4px">
-                <h4 style="margin:0;color:var(--grad1)">${cleanLabel(u.Nombre)} - ${cleanLabel(u.Ubicacion) || ''}${measures}</h4>
+                <h4 style="margin:0;color:var(--grad1)">${cleanLabel(u.Nombre)} - ${cleanLabel(u.Ubicacion) || ''}${measures}${cantLabelV}</h4>
                 <span style="font-size:0.9em; color:#6b7280; font-weight:bold">${cleanLabel(u.Tipo_trabajo) || ''}</span>
             </div>
             <div style="font-size:0.9em;color:#6b7280;margin-bottom:8px">${prodLine}</div>
@@ -3219,7 +3242,12 @@ async function viewPresupuesto(presId) {
             unitTotal += parseFloat(u.Monto_instalacion) || 0;
         }
 
-        html += `</ul><div style="text-align:right; margin-top:10px; font-size:1.1em;"><strong>Precio unidad: ${fmt(unitTotal)}</strong></div></div>`;
+        let unitTotalBase = unitTotal;
+        if (cantidadV > 1) unitTotal = unitTotalBase * cantidadV;
+        let precioLabel = cantidadV > 1
+            ? `Precio unidad: ${fmt(unitTotalBase)} (x${cantidadV} = ${fmt(unitTotal)})`
+            : `Precio unidad: ${fmt(unitTotal)}`;
+        html += `</ul><div style="text-align:right; margin-top:10px; font-size:1.1em;"><strong>${precioLabel}</strong></div></div>`;
     });
     document.getElementById('vp-contenido').innerHTML = html;
 
@@ -3278,7 +3306,7 @@ async function duplicatePresupuesto(presId) {
     if (pagoObj) await apiLink(TBL.presupuestos, 'cr9l2n9wiubrcra', newId, [{ Id: pagoObj.Id }]);
 
     for (let u of res.unidades) {
-        let uData = { Nombre: u.Nombre, Ubicacion: u.Ubicacion, Tipo_trabajo: u.Tipo_trabajo, Ancho_m: u.Ancho_m, Alto_m: u.Alto_m, M2_calculados: u.M2_calculados, Orden: u.Orden };
+        let uData = { Nombre: u.Nombre, Ubicacion: u.Ubicacion, Tipo_trabajo: u.Tipo_trabajo, Ancho_m: u.Ancho_m, Alto_m: u.Alto_m, M2_calculados: u.M2_calculados, Orden: u.Orden, Cantidad: u.Cantidad || 1 };
         let newU = await apiPost(TBL.unidades, uData);
         let newUId = newU.Id || newU.id;
         await apiLink(TBL.unidades, 'cm5xv0vmlne7r6u', newUId, [{ Id: newId }]);
