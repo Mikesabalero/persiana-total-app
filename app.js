@@ -3177,6 +3177,13 @@ async function viewPresupuesto(presId) {
     document.getElementById('vp-estado').innerHTML = badgeHtml(pres.Estado);
     document.getElementById('vp-pago').textContent = cleanLabel(pago);
 
+    let billingMode = pres.Facturacion;
+    if (!billingMode) {
+        let allRepair = res.unidades.every(u => u.Tipo_trabajo === 'Reparacion' || u.Tipo_trabajo === 'Service');
+        billingMode = allRepair ? 'sin_iva' : 'con_iva';
+    }
+    let useConIva = billingMode === 'con_iva';
+
     let html = '';
     res.unidades.forEach(u => {
         let prodName = u._productoNombre || '';
@@ -3186,7 +3193,7 @@ async function viewPresupuesto(presId) {
         }
         let uLines = res.lineas.filter(l => l._unidadId == u.Id);
         uLines.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
-        let unitTotal = uLines.reduce((acc, l) => acc + (parseFloat(l.Subtotal_ARS) || 0), 0);
+        let unitTotal = uLines.reduce((acc, l) => acc + (parseFloat(useConIva ? l.Subtotal_con_IVA : l.Subtotal_ARS) || 0), 0);
         let measures = u.Ancho_m && u.Alto_m ? ` (${u.Ancho_m}m × ${u.Alto_m}m)` : '';
         let isRepair = u.Tipo_trabajo === 'Reparacion' || u.Tipo_trabajo === 'Service';
         let prodLine = `<strong>Producto:</strong> ${cleanLabel(prodName) || '-'} `;
@@ -3203,9 +3210,10 @@ async function viewPresupuesto(presId) {
             <ul style="margin: 0; padding-left: 20px; font-size: 0.9em; color: #374151; list-style-type: disc;">`;
         if (isRepair) html += `<li style="margin-bottom:2px">Incluye mano de obra</li>`;
         uLines.forEach(l => {
-            html += `<li style="margin-bottom:2px">${cleanLabel(l.Descripcion_pdf)} (${l.Cantidad}) — ${fmt(l.Subtotal_ARS)}</li>`;
+            let linePrice = useConIva ? l.Subtotal_con_IVA : l.Subtotal_ARS;
+            html += `<li style="margin-bottom:2px">${cleanLabel(l.Descripcion_pdf)} (${l.Cantidad}) — ${fmt(linePrice)}</li>`;
         });
-        
+
         if (!isRepair && u.Pct_instalacion > 0) {
             html += `<li style="margin-bottom:2px">Instalación (${u.Pct_instalacion}%): ${fmt(u.Monto_instalacion || 0)}</li>`;
             unitTotal += parseFloat(u.Monto_instalacion) || 0;
@@ -3214,12 +3222,6 @@ async function viewPresupuesto(presId) {
         html += `</ul><div style="text-align:right; margin-top:10px; font-size:1.1em;"><strong>Precio unidad: ${fmt(unitTotal)}</strong></div></div>`;
     });
     document.getElementById('vp-contenido').innerHTML = html;
-
-    let billingMode = pres.Facturacion;
-    if (!billingMode) {
-        let allRepair = res.unidades.every(u => u.Tipo_trabajo === 'Reparacion' || u.Tipo_trabajo === 'Service');
-        billingMode = allRepair ? 'sin_iva' : 'con_iva';
-    }
 
     document.getElementById('vp-subtotal').textContent = fmt(pres.Subtotal_neto);
     
