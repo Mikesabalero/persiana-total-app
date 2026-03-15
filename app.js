@@ -3520,6 +3520,19 @@ async function submitChatInput() {
             let data = await res.json();
             if (data && data.response) {
                 appendChatMessage('bot', data.response);
+                // Si n8n creó/actualizó un cliente, refrescar datos locales
+                if (data.action === 'client_created' || data.action === 'property_created' ||
+                    data.response.includes('fue cargado') || data.response.includes('cliente creado') ||
+                    data.response.includes('propiedad cargada') || data.response.includes('¡Listo!')) {
+                    DATA._presCountMap = null;
+                    if (DATA._loaded.clientes) { DATA.clientes = await apiGet(TBL.clientes); }
+                    if (DATA._loaded.propiedades) { DATA.propiedades = await apiGetAll(TBL.propiedades); }
+                    await loadClientMap();
+                    showChatOptions([
+                        {label:'📋 Hacer presupuesto', value:'presupuesto'},
+                        {label:'❌ Cerrar', value:'cerrar'}
+                    ]);
+                }
             } else {
                 appendChatMessage('bot', 'Error: Respuesta inesperada del agente.\n' + JSON.stringify(data));
             }
@@ -3533,6 +3546,46 @@ async function submitChatInput() {
         }
         appendChatMessage('bot', 'Error de conexión con el servidor.');
     }
+}
+
+function showChatOptions(options) {
+    let optsArea = document.getElementById('chat-options-area');
+    if (!optsArea) return;
+    document.getElementById('chat-input-area').style.display = 'none';
+    optsArea.innerHTML = '';
+    if (!options || options.length === 0) { optsArea.style.display = 'none'; return; }
+    optsArea.style.display = 'flex';
+    optsArea.style.gap = '8px';
+    optsArea.style.padding = '10px';
+    optsArea.style.flexWrap = 'wrap';
+    optsArea.style.justifyContent = 'center';
+    options.forEach(opt => {
+        let btn = document.createElement('button');
+        btn.textContent = opt.label;
+        btn.style.cssText = 'padding:8px 16px;border:1px solid var(--grad1);background:white;color:var(--grad1);border-radius:20px;cursor:pointer;font-size:0.9em;font-weight:500;transition:all 0.2s;';
+        btn.onmouseover = () => { btn.style.background = 'var(--grad1)'; btn.style.color = 'white'; };
+        btn.onmouseout = () => { btn.style.background = 'white'; btn.style.color = 'var(--grad1)'; };
+        btn.onclick = () => {
+            if (opt.value === 'cerrar') { closeChatbot(); return; }
+            if (opt.value === 'presupuesto') {
+                closeChatbot();
+                openNewPres();
+                // Preseleccionar el cliente recién creado
+                if (chatState.nId) {
+                    let cs = document.getElementById('np-cliente');
+                    if (cs) cs.value = chatState.nId;
+                    updatePropiedadesSelect();
+                }
+                return;
+            }
+            // Para cualquier otro valor, enviarlo como mensaje
+            appendChatMessage('user', opt.label);
+            showChatInput();
+            document.getElementById('chat-input').value = opt.value;
+            submitChatInput();
+        };
+        optsArea.appendChild(btn);
+    });
 }
 
 async function _saveChatbotData() {
