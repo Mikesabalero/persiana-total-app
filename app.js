@@ -1888,11 +1888,20 @@ async function openNewPres(presData = null) { window._manualVisitas = false;
         document.getElementById('np-pago').value = resolveLink(presData, 'Formas_pago')?.Id || '';
         document.getElementById('np-canal').value = presData.Canal || 'Manual';
         document.getElementById('np-factura').value = presData.Facturacion || 'con_iva';
-        document.getElementById('np-cliente').disabled = true;
+        // Bloquear cliente: reemplazar input+dropdown por texto plano
         let searchInput = document.getElementById('np-pres-cliente-search');
-        if (searchInput) searchInput.disabled = true;
+        let clienteName = (presData._clienteData) ? cleanLabel(presData._clienteData.Nombre) : resolveName(presData, 'Clientes', DATA.clientes);
+        if (searchInput) {
+            let parent = searchInput.parentElement;
+            parent.innerHTML = '<div style="padding:8px 12px;background:#f3f4f6;border:1px solid var(--border);border-radius:6px;color:#374151;font-weight:500;">' + clienteName + '</div>';
+        }
+        document.getElementById('np-cliente').style.display = 'none';
         document.getElementById('np-propiedad').disabled = true;
+        document.getElementById('np-propiedad').style.pointerEvents = 'none';
+        document.getElementById('np-propiedad').style.opacity = '0.7';
         document.getElementById('np-zona').disabled = true;
+        document.getElementById('np-zona').style.pointerEvents = 'none';
+        document.getElementById('np-zona').style.opacity = '0.7';
     } else {
         document.getElementById('np-pago').value = '';
         document.getElementById('np-canal').value = 'Manual';
@@ -1906,7 +1915,7 @@ async function openNewPres(presData = null) { window._manualVisitas = false;
 
     document.getElementById('np-unidades').innerHTML = '';
     recalcTraslado();
-    setupClientSearch("np-pres-cliente-search", "np-cliente");
+    if (!presData) setupClientSearch("np-pres-cliente-search", "np-cliente");
     
     // Si era edicion, restauramos manuales que recalcTraslado piso (si los hubiese):
     if (presData && presData.Costo_traslado) {
