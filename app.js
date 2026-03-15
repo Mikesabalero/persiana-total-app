@@ -1888,14 +1888,19 @@ async function openNewPres(presData = null) { window._manualVisitas = false;
         document.getElementById('np-pago').value = resolveLink(presData, 'Formas_pago')?.Id || '';
         document.getElementById('np-canal').value = presData.Canal || 'Manual';
         document.getElementById('np-factura').value = presData.Facturacion || 'con_iva';
-        // Bloquear cliente: reemplazar input+dropdown por texto plano
+        // Bloquear cliente: readonly + ocultar dropdown
         let searchInput = document.getElementById('np-pres-cliente-search');
-        let clienteName = (presData._clienteData) ? cleanLabel(presData._clienteData.Nombre) : resolveName(presData, 'Clientes', DATA.clientes);
         if (searchInput) {
-            let parent = searchInput.parentElement;
-            parent.innerHTML = '<div style="padding:8px 12px;background:#f3f4f6;border:1px solid var(--border);border-radius:6px;color:#374151;font-weight:500;">' + clienteName + '</div>';
+            searchInput.readOnly = true;
+            searchInput.style.pointerEvents = 'none';
+            searchInput.style.opacity = '0.7';
+            searchInput.style.background = '#f3f4f6';
+            // Ocultar botón dropdown si existe
+            let dropdownBtn = searchInput.parentElement.querySelector('button');
+            if (dropdownBtn) dropdownBtn.style.display = 'none';
+            let dropdownDiv = document.getElementById('np-pres-cliente-search-dropdown');
+            if (dropdownDiv) dropdownDiv.style.display = 'none';
         }
-        document.getElementById('np-cliente').style.display = 'none';
         document.getElementById('np-propiedad').disabled = true;
         document.getElementById('np-propiedad').style.pointerEvents = 'none';
         document.getElementById('np-propiedad').style.opacity = '0.7';
@@ -1908,9 +1913,21 @@ async function openNewPres(presData = null) { window._manualVisitas = false;
         document.getElementById('np-factura').value = 'con_iva';
         document.getElementById('np-cliente').disabled = false;
         let searchInput = document.getElementById('np-pres-cliente-search');
-        if (searchInput) searchInput.disabled = false;
+        if (searchInput) {
+            searchInput.disabled = false;
+            searchInput.readOnly = false;
+            searchInput.style.pointerEvents = '';
+            searchInput.style.opacity = '';
+            searchInput.style.background = '';
+            let dropdownBtn = searchInput.parentElement.querySelector('button');
+            if (dropdownBtn) dropdownBtn.style.display = '';
+        }
         document.getElementById('np-propiedad').disabled = false;
+        document.getElementById('np-propiedad').style.pointerEvents = '';
+        document.getElementById('np-propiedad').style.opacity = '';
         document.getElementById('np-zona').disabled = false;
+        document.getElementById('np-zona').style.pointerEvents = '';
+        document.getElementById('np-zona').style.opacity = '';
     }
 
     document.getElementById('np-unidades').innerHTML = '';
