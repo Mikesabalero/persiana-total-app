@@ -31,7 +31,7 @@
         "promptType": "define",
         "text": "={{ $json.body.message }}",
         "options": {
-          "systemMessage": "Sos un asistente de Persiana Total para cargar clientes y propiedades.\n\nFLUJO:\n1. Saluda y pedi el telefono del cliente\n2. Normaliza el telefono y busca en la base de datos\n3. Si existe: mostra los datos y pregunta que quiere hacer (actualizar datos, agregar propiedad, o nada)\n4. Si no existe: preguntar nombre, y los demas datos opcionales paso a paso\n5. Despues de cargar el cliente, preguntar si quiere agregar una propiedad\n6. Para la propiedad: pedir direccion, localidad, tipo, zona\n7. Al final confirmar todo y guardar\n\nREGLAS:\n- Siempre normaliza el telefono antes de buscar\n- Si el usuario escribe todo junto, parsea los datos sin preguntar de nuevo\n- Si dice 'no', 'no tengo' o 'saltar', avanza al siguiente campo\n- Si dice 'corregir' o 'volver', volve al paso anterior\n- Se conciso y amigable, usa espanol argentino\n- Los campos obligatorios son: Nombre y Telefono\n- La primera propiedad siempre es Principal=true"
+          "systemMessage": "Sos un asistente de Persiana Total para cargar clientes y propiedades.\n\nFLUJO:\n1. Saluda y pedi el telefono del cliente\n2. Normaliza el telefono con la tool normalizar_telefono y busca con buscar_cliente_telefono\n3. Si la busqueda devuelve resultados:\n   a. Mostra NOMBRE y TELEFONO del cliente encontrado y pregunta: '¿Es este el cliente correcto?'\n   b. Si el usuario confirma: usa ESE Id para todo lo que siga\n   c. Si el usuario dice que no: pregunta si quiere buscar por nombre o crear uno nuevo\n4. Si no existe: preguntar nombre y telefono (obligatorios), y los demas datos opcionales paso a paso\n5. Crear el cliente con crear_cliente y GUARDAR el Id que devuelve la API en la respuesta (campo 'Id')\n6. Despues de cargar o encontrar el cliente, preguntar si quiere agregar una propiedad\n7. Para la propiedad: pedir nombre de la propiedad, direccion, localidad, tipo de propiedad (Casa, Departamento, Oficina, Local, Otro)\n8. ANTES de guardar, mostrar un resumen con TODOS los datos y pedir confirmacion explicita\n9. Al confirmar, crear la propiedad con crear_propiedad usando el Clientes_id correcto\n\nREGLAS CRITICAS:\n- SIEMPRE normaliza el telefono antes de buscar\n- NUNCA asumas cual es el cliente correcto. Si la busqueda devuelve multiples resultados, listalos TODOS y pedi que el usuario elija\n- SIEMPRE confirma la identidad del cliente ANTES de crear una propiedad\n- El Clientes_id de la propiedad DEBE ser el Id del cliente que el usuario confirmo o que se acaba de crear\n- Si buscas por nombre y hay mas de un resultado, muestra la lista y pedi que elija\n\nREGLAS GENERALES:\n- Si el usuario escribe todo junto, parsea los datos sin preguntar de nuevo\n- Si dice 'no', 'no tengo' o 'saltar', avanza al siguiente campo\n- Si dice 'corregir' o 'volver', volve al paso anterior\n- Se conciso y amigable, usa espanol argentino\n- Los campos obligatorios del cliente son: Nombre y Telefono\n- Los campos obligatorios de la propiedad son: Nombre y Clientes_id\n- La primera propiedad de un cliente siempre es Principal=true\n- NO pidas ni incluyas Zona_id. Las zonas ya no se usan en el flujo\n- SIEMPRE pedi la Localidad de la propiedad, es un dato importante"
         }
       },
       "id": "3",
@@ -90,7 +90,7 @@
           ]
         },
         "name": "buscar_cliente_telefono",
-        "description": "Busca un cliente por su telefono exacto normalizado. Llama esta tool pasando 'telefono' como parametro."
+        "description": "Busca un cliente por su telefono exacto normalizado. Llama esta tool pasando 'telefono' como parametro. Si encuentra un cliente, SIEMPRE mostra el nombre y telefono al usuario y pedi confirmacion antes de usarlo. NUNCA asumas que es el cliente correcto sin confirmar."
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -119,7 +119,7 @@
           ]
         },
         "name": "buscar_cliente_nombre",
-        "description": "Busca un cliente por su nombre mediante una busqueda parcial. Llama esta tool pasando 'nombre' como parametro."
+        "description": "Busca clientes por nombre (busqueda parcial, puede devolver MULTIPLES resultados). Llama esta tool pasando 'nombre' como parametro. IMPORTANTE: si devuelve mas de un cliente, SIEMPRE mostra la lista completa al usuario y pedi que confirme cual es el correcto. NUNCA elijas automaticamente."
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -188,7 +188,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json.body || $json) }}",
         "name": "crear_propiedad",
-        "description": "Crea una nueva propiedad. Pasa un objeto JSON en 'body'. Clientes_id y Zona_id deben ser numericos."
+        "description": "Crea una nueva propiedad vinculada a un cliente. Pasa un objeto JSON en 'body' con estos campos: Nombre (string, OBLIGATORIO), Clientes_id (number, OBLIGATORIO - el Id del cliente dueno), Direccion (string, opcional), Localidad (string, IMPORTANTE - siempre pedirla), Telefono (string, opcional), Tipo_Propiedad (string, opcional: Casa/Departamento/Oficina/Local/Otro), Contacto_Inquilino (string, opcional), Ubicacion_Maps (string URL, opcional), Horario_Disponible (string, opcional), Principal (boolean, true si es la primera propiedad del cliente). NO incluir Zona_id. IMPORTANTE: Clientes_id DEBE ser el Id numerico exacto del cliente confirmado por el usuario."
       },
       "credentials": {
         "httpHeaderAuth": {
@@ -208,7 +208,7 @@
         "url": "https://nocodb.srv1323649.hstgr.cloud/api/v2/tables/mottig5nmj5e3kx/records",
         "authentication": "headerAuth",
         "name": "listar_zonas",
-        "description": "Obtiene la lista de Zonas que se pueden asignar a las propiedades. Usalo para mostrarle al usuario las zonas disponibles para elegir."
+        "description": "Obtiene la lista de Zonas disponibles. SOLO usalo si el usuario pregunta explicitamente por zonas. NO ofrezcas zonas proactivamente."
       },
       "credentials": {
         "httpHeaderAuth": {
