@@ -2853,13 +2853,15 @@ async function savePres() {
             let compName = input ? input.value : '';
             let compId = DATA.componentes.find(c => cleanLabel(c.Nombre) === compName)?.Id || null;
             let costo = parseFloat(r.querySelector('.c-costo')?.textContent) || 0;
+            let pctArmado = parseFloat(r.querySelector('.c-costo')?.dataset.armado) || 0;
             let moneda = r.querySelector('.c-moneda')?.textContent || 'ARS';
             let iva = (r.querySelector('.c-iva')?.textContent || '21').replace(/%/g, '').trim();
             let inputs = r.querySelectorAll('input[type="number"]');
             let qty = parseFloat(inputs[0]?.value) || 1;
             let margen = parseFloat(inputs[1]?.value) || 0;
             let costoArs = moneda === 'USD' ? costo * tc : costo;
-            let precioUnit = costoArs * (1 + margen / 100);
+            let costoBase = costoArs * (1 + pctArmado / 100);
+            let precioUnit = costoBase * (1 + margen / 100);
             let sub = precioUnit * qty;
             let montoIva = iva === '10.5' ? sub * 0.105 : sub * 0.21;
 
@@ -2872,7 +2874,7 @@ async function savePres() {
                 Moneda_costo_orig: moneda,
                 Costo_unit_orig: costo,
                 TC_aplicado: moneda === 'USD' ? tc : null,
-                Costo_unit_ARS: costoArs,
+                Costo_unit_ARS: costoBase,
                 Margen_pct: margen,
                 Precio_unit_ARS: precioUnit,
                 Subtotal_ARS: sub,
