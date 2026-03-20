@@ -149,26 +149,10 @@ function applyRolePermissions(role) {
     }
 }
 
-const API = '';  // Las llamadas van a /api/... en el mismo origen; nginx las redirige al proxy
+const API = 'https://nocodb.srv1323649.hstgr.cloud';
+const TOKEN = 'dZMS2te8v6cf47Jlmlnk3S3ft9LT_QO8bjNdOcZZ';
 const BASE = 'pru2fsphj43juyr';
-const H = { 'Content-Type': 'application/json' };
-
-// Interceptor de fetch: agrega el token Firebase en cada llamada a la API
-(function() {
-    const _origFetch = window.fetch;
-    window.fetch = async function(url, opts) {
-        opts = opts || {};
-        if (typeof url === 'string' && url.startsWith('/api/')) {
-            if (currentUser) {
-                try {
-                    const token = await currentUser.getIdToken();
-                    opts.headers = Object.assign({}, opts.headers, { 'Authorization': 'Bearer ' + token });
-                } catch (_) { /* si falla getIdToken el proxy rechazará con 401 */ }
-            }
-        }
-        return _origFetch.call(this, url, opts);
-    };
-})();
+const H = { 'xc-token': TOKEN, 'Content-Type': 'application/json' };
 const TBL = { clientes: 'mwby85581fhjy27', propiedades: 'm0dwlr7ccoim1kf', historial: 'mimh9lp8bkew4t0', categorias: 'mulo5ve82d9ex7q', productos: 'mdr6mo695g0qz6d', componentes: 'mgh9e1zivvhpg26', prod_comp: 'mmjzqw7v4que9q3', tc: 'mhj9fovlmv9036x', zonas: 'mottig5nmj5e3kx', presupuestos: 'mn1yyjyovvoyxme', lineas: 'mv1e9trh23j0q3o', servicios: 'mz8qrki3hz4y7iv', formas_pago: 'm2t4fnjie88gfo0', unidades: 'mix059xkpsz15um', anchos: 'mayai71j546g3as', historial_aumentos: 'myumlbp9hemi3cu' };
 let DATA = { clientes: [], propiedades: [], zonas: [], componentes: [], productos: [], prod_comp: [], presupuestos: [], lineas: [], unidades: [], formas_pago: [], tc: null, anchos: [], _loaded: { clientes: false, precios: false, presupuestos: false, presupuestos_deps: false, propiedades: false, config: false } };
 let CLIENT_MAP = {};
