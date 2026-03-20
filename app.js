@@ -2646,26 +2646,19 @@ function recalcTraslado() {
         recalcTotal();
         return;
     }
-    // Si es Centro (Id=1), traslado = 0
-    if (zona.Id == 1 || zona.id == 1) {
-        if (zLabel) zLabel.textContent = cleanLabel(zona.Nombre);
-        if (tViatico) tViatico.textContent = '$0';
-        if (tTransporte) tTransporte.textContent = '$0';
-        tVis.value = 0;
-        tVis.disabled = true;
-        if (tTotal) tTotal.textContent = '$0';
-        tVis.dataset.val = 0;
-        recalcTotal();
-        return;
-    }
     tVis.disabled = false;
-    let viatico = zona.Costo_viatico || 0;
-    let transporte = zona.Costo_transporte || 0;
+    // Calcular distancia desde taller a centro de zona
+    let distKm = 0;
+    if (zona.Lat_centro && zona.Lon_centro) {
+        distKm = _haversineKm(TALLER_LAT, TALLER_LON, zona.Lat_centro, zona.Lon_centro);
+    }
+    if (zona.Radio_km && distKm <= zona.Radio_km) { distKm = 0; }
+    let costoPorViaje = Math.round(distKm * TARIFA_KM);
     let visitas = parseInt(tVis.value) || 0;
-    let costo = (viatico + transporte) * visitas;
-    if (zLabel) zLabel.textContent = cleanLabel(zona.Nombre);
-    if (tViatico) tViatico.textContent = fmt(viatico);
-    if (tTransporte) tTransporte.textContent = fmt(transporte);
+    let costo = costoPorViaje * visitas;
+    if (zLabel) zLabel.textContent = cleanLabel(zona.Nombre) + ' (' + distKm.toFixed(1) + ' km)';
+    if (tViatico) tViatico.textContent = fmt(costoPorViaje) + '/viaje';
+    if (tTransporte) tTransporte.textContent = distKm.toFixed(1) + ' km × ' + fmt(TARIFA_KM);
     if (tTotal) tTotal.textContent = fmt(costo);
     tVis.disabled = false;
     tVis.dataset.val = costo;
@@ -2697,8 +2690,10 @@ function recalcTotal() {
             let zId = document.getElementById('np-zona')?.value;
             let zona = DATA.zonas.find(z => String(z.Id) === String(zId));
             if (zona) {
-                let costo = (zona.Costo_viatico || 0) + (zona.Costo_transporte || 0);
-                let traslTotal = costo * maxVisitas;
+                let distKm = (zona.Lat_centro && zona.Lon_centro) ? _haversineKm(TALLER_LAT, TALLER_LON, zona.Lat_centro, zona.Lon_centro) : 0;
+                if (zona.Radio_km && distKm <= zona.Radio_km) { distKm = 0; }
+                let costoPorViaje = Math.round(distKm * TARIFA_KM);
+                let traslTotal = costoPorViaje * maxVisitas;
                 document.getElementById('traslado-total').textContent = fmt(traslTotal);
                 tVis.dataset.val = traslTotal;
             }
