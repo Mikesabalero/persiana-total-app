@@ -1,0 +1,10 @@
+{
+  "name": "persiana-proxy",
+  "version": "1.0.0",
+  "description": "Proxy seguro entre frontend y NocoDB",
+  "main": "proxy.js",
+  "scripts": {
+    "start": "node proxy.js"
+  },
+  "dependencies": {}
+}
