@@ -420,8 +420,8 @@ async function initApp() {
     console.time('initApp');
     // Fase 1: Solo datos esenciales para dashboard
     let cliPaged = await apiGetPaged(TBL.clientes, 1, '');
-    let presPaged = await apiGetPaged(TBL.presupuestos, 1, '&sort=-Fecha');
-    
+    let presPaged = await apiGetPaged(TBL.presupuestos, 1, '&sort=-Id');
+
     PAGING.clientes.total = cliPaged.total;
     PAGING.presupuestos.total = presPaged.total;
     DATA.presupuestos = presPaged.list;
@@ -443,7 +443,7 @@ async function initApp() {
 async function reloadAllData() {
     // Recarga todo para dashboard y limpia lazy variables
     let cliPaged = await apiGetPaged(TBL.clientes, 1, '');
-    let presPaged = await apiGetPaged(TBL.presupuestos, 1, '&sort=-Fecha');
+    let presPaged = await apiGetPaged(TBL.presupuestos, 1, '&sort=-Id');
     PAGING.clientes.total = cliPaged.total;
     PAGING.presupuestos.total = presPaged.total;
     DATA.presupuestos = presPaged.list;
@@ -621,7 +621,7 @@ async function loadPresupuestos() {
     if(search) parts.push(`(Numero,like,%${search}%)~or(Numero,eq,${search})`); // Assuming searching by numero mainly
     if(estado) parts.push(`(Estado,eq,${estado})`);
     
-    let extra = '&sort=-Fecha';
+    let extra = '&sort=-Id';
     if (parts.length > 0) {
         extra += `&where=(${parts.join('~and')})`;
     }
