@@ -2721,7 +2721,13 @@ function recalcTotal() {
     // Aunque en backend totalizamos aparte. Para NP modal, el np-total es todo mas IVA, el traslado lo sumaremos aca:
     document.getElementById('np-total').textContent = fmt(total + valTraslado);
 }
+let _savingPres = false;
 async function savePres() {
+    if (_savingPres) return;
+    _savingPres = true;
+    try { await _savePresInner(); } finally { _savingPres = false; }
+}
+async function _savePresInner() {
     let clienteId = document.getElementById('np-cliente').value;
     let zonaId = document.getElementById('np-zona').value;
     if (!clienteId || !zonaId) { alert('Completar Cliente y Zona'); return; }
@@ -2746,7 +2752,7 @@ async function savePres() {
         if (propId) await apiLink(TBL.presupuestos, 'cpf764utp1w7yj0', editPresId, [{ Id: parseInt(propId) }]);
     } else {
         let year = new Date().getFullYear();
-        num = year + '-' + (String(DATA.presupuestos.length + 1).padStart(4, '0'));
+        num = year + '-' + (String(PAGING.presupuestos.total + 1).padStart(4, '0'));
         let client = document.getElementById('np-cliente').value;
         let prop = document.getElementById('np-propiedad').value;
         let zona = document.getElementById('np-zona').value;
@@ -3424,7 +3430,7 @@ async function duplicatePresupuesto(presId) {
     if (!oldP) return;
     let res = await fetchBudgetDeepData(presId);
     let year = new Date().getFullYear();
-    let num = year + '-' + (String(DATA.presupuestos.length + 1).padStart(4, '0'));
+    let num = year + '-' + (String(PAGING.presupuestos.total + 1).padStart(4, '0'));
     let tc = DATA.tc.Dolar_oficial || 1150;
     let presData = { Numero: num, Fecha: new Date().toISOString().split('T')[0], Estado: 'Borrador', TC_usado: tc, Canal: oldP.Canal, Quiere_factura: oldP.Quiere_factura, Incluye_instalacion: true };
     let newPres = await apiPost(TBL.presupuestos, presData);
