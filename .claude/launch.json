@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Proxy (NocoDB)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["proxy.js"],
+      "port": 3001
+    },
+    {
+      "name": "Frontend estático",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["http-server", ".", "-p", "3000", "--cors"],
+      "port": 3000
+    }
+  ]
+}
