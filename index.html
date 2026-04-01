@@ -670,10 +670,6 @@
             <form id="form-propiedad" onsubmit="event.preventDefault(); savePropiedad();">
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Nombre *</label>
-                        <input type="text" id="np-prop-nombre" required placeholder="Ej: Casa Particular">
-                    </div>
-                    <div class="form-group">
                         <label>Cliente *</label>
                         <input type="text" id="np-prop-cliente-search" placeholder="Cargando clientes..."
                             list="client-datalist" onchange="syncClientSelect(this, 'np-prop-cliente')"
@@ -693,13 +689,7 @@
                         </select>
                     </div>
                 </div>
-                <div class="form-group">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <label style="margin:0">Zona asignada</label>
-                        <button type="button" id="btn-autozona-prop" class="btn btn-sm btn-secondary" onclick="autoDetectarZonaProp()" style="font-size:0.75em; padding:2px 8px;">📍 Auto-detectar zona</button>
-                    </div>
-                    <select id="prop-zona"></select>
-                </div>
+                <input type="hidden" id="prop-zona">
                 <div class="form-row">
                     <div class="form-group">
                         <label>Teléfono</label>

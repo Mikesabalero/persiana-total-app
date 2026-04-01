@@ -1721,7 +1721,6 @@ async function openNewPropiedad(propData = null, preselectedClientId = null, for
     let si = document.getElementById('np-prop-cliente-search');
     if (si) si.disabled = forceDisabled;
 
-    document.getElementById('np-prop-nombre').value = propData ? propData.Nombre : '';
     document.getElementById('np-prop-direccion').value = propData ? propData.Direccion || '' : '';
     document.getElementById('np-prop-telefono').value = propData ? propData.Telefono || '' : '';
     document.getElementById('np-prop-tipo').value = propData ? (propData.Tipo_Propiedad || propData.Tipo_Propiedad_ || 'Casa') : 'Casa';
@@ -1745,13 +1744,17 @@ async function openNewPropiedad(propData = null, preselectedClientId = null, for
     });
     sloc.innerHTML += `<option value="Otra" ${(propData && propData.Localidad === 'Otra') ? 'selected' : ''}>Otra</option>`;
 
-    // Poblar select de Zona asignada
+    // Asignar zona automáticamente desde localidad (hidden input)
     let pz = document.getElementById('prop-zona');
-    pz.innerHTML = '<option value="">Seleccionar zona...</option>';
-    DATA.zonas.forEach(z => {
-        if (z.Activo === false || z.Activo === 'false' || z.Activo === 0) return;
-        let sel = (propData && propData.Zona_id == (z.Id || z.id)) ? 'selected' : '';
-        pz.innerHTML += `<option value="${z.Id || z.id}" ${sel}>${cleanLabel(z.Nombre)}</option>`;
+    if (propData && propData.Zona_id) {
+        pz.value = propData.Zona_id;
+    } else {
+        let zone = DATA.zonas.find(z => z.Nombre === sloc.value);
+        pz.value = zone ? (zone.Id || zone.id) : '';
+    }
+    sloc.addEventListener('change', function() {
+        let zone = DATA.zonas.find(z => z.Nombre === this.value);
+        document.getElementById('prop-zona').value = zone ? (zone.Id || zone.id) : '';
     });
 
     // Sincronizar buscador de clientes
@@ -1800,7 +1803,7 @@ async function savePropiedad() {
     if (!id && clientProps.length === 0) isPrincipal = true;
 
     let data = {
-        Nombre: document.getElementById('np-prop-nombre').value,
+        Nombre: document.getElementById('np-prop-direccion').value,
         Direccion: document.getElementById('np-prop-direccion').value,
         Localidad: document.getElementById('np-prop-localidad').value,
         Telefono: document.getElementById('np-prop-telefono').value,
@@ -1812,8 +1815,6 @@ async function savePropiedad() {
         Clientes_id: parseInt(cliId),
         Zona_id: parseInt(document.getElementById('prop-zona').value) || null
     };
-
-    if (!data.Nombre) { alert('El nombre es obligatorio'); return; }
 
     try {
         let savedRes;
