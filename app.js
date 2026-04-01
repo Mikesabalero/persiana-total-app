@@ -3467,10 +3467,7 @@ async function deletePresupuesto(presId) {
 
     try {
         // Encontrar unidades y sus líneas asociadas
-        let units = DATA.unidades.filter(u => {
-            let link = resolveLink(u, 'Presupuestos');
-            return link && (link.Id == presId || link.id == presId);
-        });
+        let units = await apiGetLinks(TBL.presupuestos, 'cm5xv0vmlne7r6u', presId);
 
         for (let u of units) {
             let lines = DATA.lineas.filter(l => {

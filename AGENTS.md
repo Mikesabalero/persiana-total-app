@@ -63,3 +63,4 @@ App web para gestión de presupuestos de persianas, cortinas y automatizaciones.
 
 ## Fixes aplicados
 - **2026-04-01 — Fix unidades múltiples en fetchBudgetDeepData**: Se reemplazó el patrón `apiGet(TBL.unidades)` + `resolveLink(u, 'Presupuestos')` por `apiGetLinks(TBL.presupuestos, 'cm5xv0vmlne7r6u', presId)` para obtener las unidades directamente via link. El patrón anterior fallaba porque NocoDB v2 no garantiza que el campo inline de link esté poblado en todos los registros. También se aumentó el limit de apiGetLinks de 10 a 100.
+- **2026-04-01 — Fix delete presupuesto (unidades huérfanas)**: En `deletePresupuesto`, se reemplazó `DATA.unidades.filter(u => resolveLink(u, 'Presupuestos'))` por `apiGetLinks(TBL.presupuestos, 'cm5xv0vmlne7r6u', presId)` para encontrar las unidades a borrar. El patrón anterior podía dejar unidades y líneas huérfanas en la base.
