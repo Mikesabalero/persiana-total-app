@@ -2731,7 +2731,7 @@ async function savePres() {
 async function _savePresInner() {
     let clienteId = document.getElementById('np-cliente').value;
     let zonaId = document.getElementById('np-zona').value;
-    if (!clienteId || !zonaId) { alert('Completar Cliente y Zona'); return; }
+    if (!editPresId && (!clienteId || !zonaId)) { alert('Completar Cliente y Zona'); return; }
     let tc = DATA.tc.Dolar_oficial || 1150;
 
     let presId = editPresId;
@@ -2778,6 +2778,7 @@ async function _savePresInner() {
         };
         let pres = await apiPost(TBL.presupuestos, presData);
         presId = pres.Id || pres.id;
+        PAGING.presupuestos.total++;
         if (!presId) { alert('Error creando presupuesto'); return; }
 
         // Asegurar links mediante apiLink después del POST

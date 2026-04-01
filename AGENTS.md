@@ -49,3 +49,7 @@ App web para gestión de presupuestos de persianas, cortinas y automatizaciones.
 - Precios se muestran ya calculados en ARS con margen incluido
 - El campo Margen_default se toma de NocoDB, no se edita en la app
 - No pedir al usuario que ingrese Nombre ni Zona en el formulario de propiedad — ambos se asignan automáticamente
+
+## Bugs corregidos (2026-04-01)
+- _savePresInner: validación de Cliente/Zona se saltea en modo edición (editPresId existe) porque los selects están deshabilitados
+- _savePresInner: después de crear presupuesto se incrementa PAGING.presupuestos.total para evitar números duplicados sin recargar
