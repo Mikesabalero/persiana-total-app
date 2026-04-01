@@ -49,3 +49,17 @@ App web para gestión de presupuestos de persianas, cortinas y automatizaciones.
 - Precios se muestran ya calculados en ARS con margen incluido
 - El campo Margen_default se toma de NocoDB, no se edita en la app
 - No pedir al usuario que ingrese Nombre ni Zona en el formulario de propiedad — ambos se asignan automáticamente
+
+## Column IDs de relaciones (NocoDB v2)
+- `canpten8owymbde` — Presupuestos ↔ Clientes
+- `cr3s0ox51qopwl4` — Presupuestos ↔ Zonas
+- `cpf764utp1w7yj0` — Presupuestos ↔ Propiedades
+- `cr9l2n9wiubrcra` — Presupuestos ↔ Formas_Pago
+- `cm5xv0vmlne7r6u` — Presupuestos ↔ Presupuesto_Unidades (funciona en ambas direcciones)
+- `co1b5kwpl8d2rya` — Presupuesto_Unidades ↔ Productos
+- `c4hnodnss6zlr32` — Presupuesto_Lineas ↔ Presupuestos
+- `czka6po5myr5wu6` — Presupuesto_Lineas ↔ Componentes
+- `cn9406tc3q1jmw0` — Presupuesto_Lineas ↔ Presupuesto_Unidades
+
+## Fixes aplicados
+- **2026-04-01 — Fix unidades múltiples en fetchBudgetDeepData**: Se reemplazó el patrón `apiGet(TBL.unidades)` + `resolveLink(u, 'Presupuestos')` por `apiGetLinks(TBL.presupuestos, 'cm5xv0vmlne7r6u', presId)` para obtener las unidades directamente via link. El patrón anterior fallaba porque NocoDB v2 no garantiza que el campo inline de link esté poblado en todos los registros. También se aumentó el limit de apiGetLinks de 10 a 100.
