@@ -3275,11 +3275,12 @@ async function fetchBudgetDeepData(presId) {
         let propFull = DATA.propiedades.find(pr => pr.Id == propLink[0].Id);
         propDir = propFull ? (propFull.Direccion || '-') + ' - ' + (propFull.Localidad || '-') : propLink[0].Nombre || '-';
     }
+    DATA.unidades = await apiGet(TBL.unidades);
     DATA.lineas = await apiGet(TBL.lineas);
     let presUnidades = [];
-    let uLinks = await apiGetLinks(TBL.presupuestos, 'cm5xv0vmlne7r6u', presId);
-    for (let uStub of uLinks) {
-        let u = DATA.unidades.find(x => x.Id == uStub.Id) || uStub;
+    for (let u of DATA.unidades) {
+        let pLink = resolveLink(u, 'Presupuestos');
+        if (pLink && (pLink.Id == presId || pLink.id == presId)) {
         let prodLinks = await apiGetLinks(TBL.unidades, 'co1b5kwpl8d2rya', u.Id);
         if (prodLinks.length > 0) {
             u._productoId = prodLinks[0].Id;
@@ -3293,6 +3294,7 @@ async function fetchBudgetDeepData(presId) {
             }
         }
         presUnidades.push(u);
+        }
     }
     presUnidades.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
     let presLineas = [];
