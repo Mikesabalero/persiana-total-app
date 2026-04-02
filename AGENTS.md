@@ -44,6 +44,15 @@ App web para gestión de presupuestos de persianas, cortinas y automatizaciones.
 - La zona se asigna automáticamente al elegir Localidad: busca en DATA.zonas la zona cuyo Nombre coincida con la localidad elegida y guarda su Id en el hidden input
 - Zona_id se persiste en NocoDB al guardar la propiedad
 
+## Cambios de esquema NocoDB
+
+### 2026-04-02 — Eliminación de Presupuestos_id en Propiedades
+- **Problema:** Al crear un presupuesto nuevo para una propiedad que ya tenía uno, NocoDB borraba el presupuesto anterior por cascade delete (restricción HasOne inversa).
+- **Causa:** La tabla Propiedades tenía un campo `Presupuestos_id` (ForeignKey, columna ID `ce6dgh4sodvmo3b`) y su columna virtual `Presupuestos` (LinkToAnotherRecord, columna ID `c9pkiok73yxowj5`).
+- **Solución:** Se eliminó la columna `Presupuestos` (LinkToAnotherRecord) via `DELETE /api/v1/db/meta/columns/c9pkiok73yxowj5`. NocoDB también eliminó automáticamente la FK `Presupuestos_id`.
+- **Impacto en app.js:** Ninguno. La app solo usa el link Presupuestos→Propiedades (column ID `cpf764utp1w7yj0` en tabla Presupuestos), que permanece intacto.
+- **Verificación:** Los registros de Propiedades ya no incluyen los campos `Presupuestos_id` ni `Presupuestos`.
+
 ## Reglas
 - NO mostrar costos, márgenes, moneda ni IVA compra/venta al usuario final (están ocultos con clase hide-margin)
 - Precios se muestran ya calculados en ARS con margen incluido
