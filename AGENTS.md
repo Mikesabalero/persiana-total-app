@@ -58,3 +58,23 @@ App web para gestión de presupuestos de persianas, cortinas y automatizaciones.
 - Precios se muestran ya calculados en ARS con margen incluido
 - El campo Margen_default se toma de NocoDB, no se edita en la app
 - No pedir al usuario que ingrese Nombre ni Zona en el formulario de propiedad — ambos se asignan automáticamente
+
+## Column IDs de relaciones (NocoDB v2)
+- `canpten8owymbde` — Presupuestos ↔ Clientes
+- `cr3s0ox51qopwl4` — Presupuestos ↔ Zonas
+- `cpf764utp1w7yj0` — Presupuestos ↔ Propiedades
+- `cr9l2n9wiubrcra` — Presupuestos ↔ Formas_Pago
+- `cm5xv0vmlne7r6u` — Presupuestos ↔ Presupuesto_Unidades (funciona en ambas direcciones)
+- `co1b5kwpl8d2rya` — Presupuesto_Unidades ↔ Productos
+- `c4hnodnss6zlr32` — Presupuesto_Lineas ↔ Presupuestos
+- `czka6po5myr5wu6` — Presupuesto_Lineas ↔ Componentes
+- `cn9406tc3q1jmw0` — Presupuesto_Lineas ↔ Presupuesto_Unidades
+
+## Fixes aplicados
+- **2026-04-02 — Revert fetchBudgetDeepData a resolveLink**: Se revirtió el patrón `apiGetLinks(TBL.presupuestos, 'cm5xv0vmlne7r6u', presId)` de vuelta a `apiGet(TBL.unidades)` + `resolveLink(u, 'Presupuestos')`. El apiGetLinks devolvía HTTP 400 porque NocoDB no permite usar ese column ID desde el lado de presupuestos → cero unidades mostradas en Ver/PDF. El campo `Presupuestos` sí está poblado en cada unidad, por lo que resolveLink funciona correctamente.
+- **2026-04-01 — Fix delete presupuesto (unidades huérfanas)**: En `deletePresupuesto`, se reemplazó `DATA.unidades.filter(u => resolveLink(u, 'Presupuestos'))` por `apiGetLinks(TBL.presupuestos, 'cm5xv0vmlne7r6u', presId)` para encontrar las unidades a borrar. El patrón anterior podía dejar unidades y líneas huérfanas en la base.
+- **2026-04-02 — Fix líneas no visibles por limit global**: En `fetchBudgetDeepData`, se reemplazó `apiGet(TBL.lineas)` (traía todas las líneas con limit=200 hardcodeado) por `apiGet(TBL.lineas, '&where=(Presupuestos_id,eq,${presId})')` para traer solo las líneas del presupuesto consultado. Las líneas de presupuestos nuevos no aparecían en Ver ni PDF porque la tabla superó los 200 registros.
+
+## Bugs corregidos (2026-04-01)
+- _savePresInner: validación de Cliente/Zona se saltea en modo edición (editPresId existe) porque los selects están deshabilitados
+- _savePresInner: después de crear presupuesto se incrementa PAGING.presupuestos.total para evitar números duplicados sin recargar
