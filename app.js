@@ -3276,7 +3276,7 @@ async function fetchBudgetDeepData(presId) {
         propDir = propFull ? (propFull.Direccion || '-') + ' - ' + (propFull.Localidad || '-') : propLink[0].Nombre || '-';
     }
     DATA.unidades = await apiGet(TBL.unidades);
-    DATA.lineas = await apiGet(TBL.lineas);
+    DATA.lineas = await apiGet(TBL.lineas, `&where=(Presupuestos_id,eq,${presId})`);
     let presUnidades = [];
     for (let u of DATA.unidades) {
         let pLink = resolveLink(u, 'Presupuestos');

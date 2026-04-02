@@ -64,6 +64,7 @@ App web para gestión de presupuestos de persianas, cortinas y automatizaciones.
 ## Fixes aplicados
 - **2026-04-02 — Revert fetchBudgetDeepData a resolveLink**: Se revirtió el patrón `apiGetLinks(TBL.presupuestos, 'cm5xv0vmlne7r6u', presId)` de vuelta a `apiGet(TBL.unidades)` + `resolveLink(u, 'Presupuestos')`. El apiGetLinks devolvía HTTP 400 porque NocoDB no permite usar ese column ID desde el lado de presupuestos → cero unidades mostradas en Ver/PDF. El campo `Presupuestos` sí está poblado en cada unidad, por lo que resolveLink funciona correctamente.
 - **2026-04-01 — Fix delete presupuesto (unidades huérfanas)**: En `deletePresupuesto`, se reemplazó `DATA.unidades.filter(u => resolveLink(u, 'Presupuestos'))` por `apiGetLinks(TBL.presupuestos, 'cm5xv0vmlne7r6u', presId)` para encontrar las unidades a borrar. El patrón anterior podía dejar unidades y líneas huérfanas en la base.
+- **2026-04-02 — Fix líneas no visibles por limit global**: En `fetchBudgetDeepData`, se reemplazó `apiGet(TBL.lineas)` (traía todas las líneas con limit=200 hardcodeado) por `apiGet(TBL.lineas, '&where=(Presupuestos_id,eq,${presId})')` para traer solo las líneas del presupuesto consultado. Las líneas de presupuestos nuevos no aparecían en Ver ni PDF porque la tabla superó los 200 registros.
 
 ## Bugs corregidos (2026-04-01)
 - _savePresInner: validación de Cliente/Zona se saltea en modo edición (editPresId existe) porque los selects están deshabilitados
