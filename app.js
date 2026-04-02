@@ -353,7 +353,7 @@ let editPresId = null;
 
 async function apiGet(tid, params = '') { let r = await fetch(API + '/api/v2/tables/' + tid + '/records?limit=200' + params, { headers: H }); if (!r.ok) return []; let d = await r.json(); return d.list || []; }
 async function apiGetAll(tid, params = '') { let all = []; let offset = 0; let limit = 200; while (true) { let r = await fetch(API + '/api/v2/tables/' + tid + '/records?limit=' + limit + '&offset=' + offset + params, { headers: H }); if (!r.ok) break; let d = await r.json(); let list = d.list || []; all = all.concat(list); if (list.length < limit) break; offset += limit; } return all; }
-async function apiGetLinks(tid, colId, rowId) { let r = await fetch(API + '/api/v2/tables/' + tid + '/links/' + colId + '/records/' + rowId + '?limit=100', { headers: H }); if (!r.ok) return []; let d = await r.json(); return d.list || []; }
+async function apiGetLinks(tid, colId, rowId) { let r = await fetch(API + '/api/v2/tables/' + tid + '/links/' + colId + '/records/' + rowId + '?limit=10', { headers: H }); if (!r.ok) return []; let d = await r.json(); return d.list || []; }
 async function apiPost(tid, body) { let r = await fetch(API + '/api/v2/tables/' + tid + '/records', { method: 'POST', headers: H, body: JSON.stringify(body) }); return r.json(); }
 async function apiPatch(tid, body) { let r = await fetch(API + '/api/v2/tables/' + tid + '/records', { method: 'PATCH', headers: H, body: JSON.stringify(body) }); return r.json(); }
 async function apiDelete(tid, id) { let r = await fetch(API + '/api/v2/tables/' + tid + '/records', { method: 'DELETE', headers: H, body: JSON.stringify({ Id: id }) }); return r.json(); }
@@ -2731,7 +2731,7 @@ async function savePres() {
 async function _savePresInner() {
     let clienteId = document.getElementById('np-cliente').value;
     let zonaId = document.getElementById('np-zona').value;
-    if (!editPresId && (!clienteId || !zonaId)) { alert('Completar Cliente y Zona'); return; }
+    if (!clienteId || !zonaId) { alert('Completar Cliente y Zona'); return; }
     let tc = DATA.tc.Dolar_oficial || 1150;
 
     let presId = editPresId;
@@ -2778,7 +2778,6 @@ async function _savePresInner() {
         };
         let pres = await apiPost(TBL.presupuestos, presData);
         presId = pres.Id || pres.id;
-        PAGING.presupuestos.total++;
         if (!presId) { alert('Error creando presupuesto'); return; }
 
         // Asegurar links mediante apiLink después del POST
@@ -3275,24 +3274,26 @@ async function fetchBudgetDeepData(presId) {
         let propFull = DATA.propiedades.find(pr => pr.Id == propLink[0].Id);
         propDir = propFull ? (propFull.Direccion || '-') + ' - ' + (propFull.Localidad || '-') : propLink[0].Nombre || '-';
     }
+    DATA.unidades = await apiGet(TBL.unidades);
     DATA.lineas = await apiGet(TBL.lineas);
     let presUnidades = [];
-    let uLinks = await apiGetLinks(TBL.presupuestos, 'cm5xv0vmlne7r6u', presId);
-    for (let uStub of uLinks) {
-        let u = DATA.unidades.find(x => x.Id == uStub.Id) || uStub;
-        let prodLinks = await apiGetLinks(TBL.unidades, 'co1b5kwpl8d2rya', u.Id);
-        if (prodLinks.length > 0) {
-            u._productoId = prodLinks[0].Id;
-            u._productoNombre = prodLinks[0].Nombre || prodLinks[0].Title || '';
-        } else {
-            let prodLink = resolveLink(u, 'Producto_base');
-            if (prodLink) { u._productoId = prodLink.Id || prodLink.id; u._productoNombre = prodLink.Nombre || prodLink.Title || ''; }
-            else if (u.Producto_base && typeof u.Producto_base === 'number') {
-                let prod = DATA.productos.find(p => p.Id == u.Producto_base);
-                if (prod) { u._productoId = prod.Id; u._productoNombre = prod.Nombre || ''; }
+    for (let u of DATA.unidades) {
+        let pLink = resolveLink(u, 'Presupuestos');
+        if (pLink && (pLink.Id == presId || pLink.id == presId)) {
+            let prodLinks = await apiGetLinks(TBL.unidades, 'co1b5kwpl8d2rya', u.Id);
+            if (prodLinks.length > 0) {
+                u._productoId = prodLinks[0].Id;
+                u._productoNombre = prodLinks[0].Nombre || prodLinks[0].Title || '';
+            } else {
+                let prodLink = resolveLink(u, 'Producto_base');
+                if (prodLink) { u._productoId = prodLink.Id || prodLink.id; u._productoNombre = prodLink.Nombre || prodLink.Title || ''; }
+                else if (u.Producto_base && typeof u.Producto_base === 'number') {
+                    let prod = DATA.productos.find(p => p.Id == u.Producto_base);
+                    if (prod) { u._productoId = prod.Id; u._productoNombre = prod.Nombre || ''; }
+                }
             }
+            presUnidades.push(u);
         }
-        presUnidades.push(u);
     }
     presUnidades.sort((a, b) => (a.Orden || 0) - (b.Orden || 0));
     let presLineas = [];
@@ -3468,7 +3469,10 @@ async function deletePresupuesto(presId) {
 
     try {
         // Encontrar unidades y sus líneas asociadas
-        let units = await apiGetLinks(TBL.presupuestos, 'cm5xv0vmlne7r6u', presId);
+        let units = DATA.unidades.filter(u => {
+            let link = resolveLink(u, 'Presupuestos');
+            return link && (link.Id == presId || link.id == presId);
+        });
 
         for (let u of units) {
             let lines = DATA.lineas.filter(l => {

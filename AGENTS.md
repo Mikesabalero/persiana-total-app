@@ -44,27 +44,17 @@ App web para gestión de presupuestos de persianas, cortinas y automatizaciones.
 - La zona se asigna automáticamente al elegir Localidad: busca en DATA.zonas la zona cuyo Nombre coincida con la localidad elegida y guarda su Id en el hidden input
 - Zona_id se persiste en NocoDB al guardar la propiedad
 
+## Cambios de esquema NocoDB
+
+### 2026-04-02 — Eliminación de Presupuestos_id en Propiedades
+- **Problema:** Al crear un presupuesto nuevo para una propiedad que ya tenía uno, NocoDB borraba el presupuesto anterior por cascade delete (restricción HasOne inversa).
+- **Causa:** La tabla Propiedades tenía un campo `Presupuestos_id` (ForeignKey, columna ID `ce6dgh4sodvmo3b`) y su columna virtual `Presupuestos` (LinkToAnotherRecord, columna ID `c9pkiok73yxowj5`).
+- **Solución:** Se eliminó la columna `Presupuestos` (LinkToAnotherRecord) via `DELETE /api/v1/db/meta/columns/c9pkiok73yxowj5`. NocoDB también eliminó automáticamente la FK `Presupuestos_id`.
+- **Impacto en app.js:** Ninguno. La app solo usa el link Presupuestos→Propiedades (column ID `cpf764utp1w7yj0` en tabla Presupuestos), que permanece intacto.
+- **Verificación:** Los registros de Propiedades ya no incluyen los campos `Presupuestos_id` ni `Presupuestos`.
+
 ## Reglas
 - NO mostrar costos, márgenes, moneda ni IVA compra/venta al usuario final (están ocultos con clase hide-margin)
 - Precios se muestran ya calculados en ARS con margen incluido
 - El campo Margen_default se toma de NocoDB, no se edita en la app
 - No pedir al usuario que ingrese Nombre ni Zona en el formulario de propiedad — ambos se asignan automáticamente
-
-## Column IDs de relaciones (NocoDB v2)
-- `canpten8owymbde` — Presupuestos ↔ Clientes
-- `cr3s0ox51qopwl4` — Presupuestos ↔ Zonas
-- `cpf764utp1w7yj0` — Presupuestos ↔ Propiedades
-- `cr9l2n9wiubrcra` — Presupuestos ↔ Formas_Pago
-- `cm5xv0vmlne7r6u` — Presupuestos ↔ Presupuesto_Unidades (funciona en ambas direcciones)
-- `co1b5kwpl8d2rya` — Presupuesto_Unidades ↔ Productos
-- `c4hnodnss6zlr32` — Presupuesto_Lineas ↔ Presupuestos
-- `czka6po5myr5wu6` — Presupuesto_Lineas ↔ Componentes
-- `cn9406tc3q1jmw0` — Presupuesto_Lineas ↔ Presupuesto_Unidades
-
-## Fixes aplicados
-- **2026-04-01 — Fix unidades múltiples en fetchBudgetDeepData**: Se reemplazó el patrón `apiGet(TBL.unidades)` + `resolveLink(u, 'Presupuestos')` por `apiGetLinks(TBL.presupuestos, 'cm5xv0vmlne7r6u', presId)` para obtener las unidades directamente via link. El patrón anterior fallaba porque NocoDB v2 no garantiza que el campo inline de link esté poblado en todos los registros. También se aumentó el limit de apiGetLinks de 10 a 100.
-- **2026-04-01 — Fix delete presupuesto (unidades huérfanas)**: En `deletePresupuesto`, se reemplazó `DATA.unidades.filter(u => resolveLink(u, 'Presupuestos'))` por `apiGetLinks(TBL.presupuestos, 'cm5xv0vmlne7r6u', presId)` para encontrar las unidades a borrar. El patrón anterior podía dejar unidades y líneas huérfanas en la base.
-
-## Bugs corregidos (2026-04-01)
-- _savePresInner: validación de Cliente/Zona se saltea en modo edición (editPresId existe) porque los selects están deshabilitados
-- _savePresInner: después de crear presupuesto se incrementa PAGING.presupuestos.total para evitar números duplicados sin recargar
