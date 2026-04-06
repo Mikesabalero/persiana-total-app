@@ -10,7 +10,12 @@
       "Bash(curl -v -H \"xc-token: dZMS2te8v6cf47Jlmlnk3S3ft9LT_QO8bjNdOcZZ\" \"http://93.127.212.235:32770/api/v2/tables/mottig5nmj5e3kx/records?limit=50\")",
       "Bash(curl -s --max-time 10 -H \"xc-token: dZMS2te8v6cf47Jlmlnk3S3ft9LT_QO8bjNdOcZZ\" \"http://93.127.212.235:3000/api/v2/tables/mottig5nmj5e3kx/records?limit=50\")",
       "Bash(curl -s --max-time 10 -w \"\\\\nHTTP_CODE:%{http_code}\\\\n\" -H \"xc-token: dZMS2te8v6cf47Jlmlnk3S3ft9LT_QO8bjNdOcZZ\" \"http://93.127.212.235:3000/api/v2/tables/mottig5nmj5e3kx/records?limit=50\")",
-      "Bash(curl -s --max-time 10 -w \"\\\\nHTTP_CODE:%{http_code}\\\\n\" \"http://93.127.212.235:3000/\")"
+      "Bash(curl -s --max-time 10 -w \"\\\\nHTTP_CODE:%{http_code}\\\\n\" \"http://93.127.212.235:3000/\")",
+      "WebSearch",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
