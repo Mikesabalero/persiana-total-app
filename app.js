@@ -396,24 +396,37 @@ const REPAIR_LABELS = {
 
 // cleanLabel ya definida arriba (línea 159)
 async function _resolvePresupuestoLinks() {
-    await Promise.all(DATA.presupuestos.map(async p => {
-        try {
-            const [cl, zl, pl] = await Promise.all([
-                apiGetLinks(TBL.presupuestos, 'canpten8owymbde', p.Id),
-                apiGetLinks(TBL.presupuestos, 'cr3s0ox51qopwl4', p.Id),
-                apiGetLinks(TBL.presupuestos, 'cpf764utp1w7yj0', p.Id)
-            ]);
-            if (cl.length > 0) { p._clienteNombre = cl[0].Nombre || cl[0].Title || '-'; p._clienteId = cl[0].Id; }
-            else { p._clienteNombre = '-'; p._clienteId = null; }
-            if (zl.length > 0) { p._zonaNombre = zl[0].Nombre || zl[0].Title || '-'; p._zonaId = zl[0].Id; }
-            else { p._zonaNombre = '-'; p._zonaId = null; }
-            if (pl.length > 0) {
-                p._propiedadId = pl[0].Id;
-                let propFull = DATA.propiedades.find(pr => pr.Id == pl[0].Id);
-                p._propiedadDir = propFull ? (propFull.Direccion || '-') + ' - ' + (propFull.Localidad || '-') : (pl[0].Nombre || '-');
-            } else { p._propiedadDir = '-'; p._propiedadId = null; }
-        } catch (e) { p._clienteNombre = '-'; p._clienteId = null; p._zonaNombre = '-'; p._zonaId = null; p._propiedadDir = '-'; p._propiedadId = null; }
-    }));
+    // Asegurar que propiedades estén en memoria para lookup local
+    if (!DATA.propiedades || DATA.propiedades.length === 0) {
+        DATA.propiedades = await apiGetAll(TBL.propiedades);
+    }
+    // 0 requests HTTP — todo se resuelve con datos en memoria
+    for (let p of DATA.presupuestos) {
+        // Cliente: buscar en CLIENT_MAP por Cliente_id
+        if (p.Cliente_id) {
+            let cm = CLIENT_MAP[p.Cliente_id];
+            p._clienteNombre = cm ? cm.Nombre || '-' : '-';
+            p._clienteId = p.Cliente_id;
+        } else {
+            p._clienteNombre = '-'; p._clienteId = null;
+        }
+        // Zona: buscar en DATA.zonas por Zona_id
+        if (p.Zona_id) {
+            let z = DATA.zonas.find(z => z.Id == p.Zona_id);
+            p._zonaNombre = z ? z.Nombre || '-' : '-';
+            p._zonaId = p.Zona_id;
+        } else {
+            p._zonaNombre = '-'; p._zonaId = null;
+        }
+        // Propiedad: buscar en DATA.propiedades por Propiedad_id
+        if (p.Propiedad_id) {
+            let prop = DATA.propiedades.find(pr => pr.Id == p.Propiedad_id);
+            p._propiedadDir = prop ? (prop.Direccion || '-') + ' - ' + (prop.Localidad || '-') : '-';
+            p._propiedadId = p.Propiedad_id;
+        } else {
+            p._propiedadDir = '-'; p._propiedadId = null;
+        }
+    }
 }
 
 async function initApp() {
@@ -2740,16 +2753,21 @@ async function _savePresInner() {
     if (editPresId) {
         let oldP = DATA.presupuestos.find(p => p.Id == editPresId);
         num = oldP.Numero;
+        let propId = document.getElementById('np-propiedad').value;
+        // Guardar _id fields + campos editables
         await apiPatch(TBL.presupuestos, {
             Id: editPresId,
             Canal: document.getElementById('np-canal').value,
-            Facturacion: document.getElementById('np-factura').value
+            Facturacion: document.getElementById('np-factura').value,
+            Cliente_id: parseInt(clienteId) || null,
+            Zona_id: parseInt(zonaId) || null,
+            Propiedad_id: parseInt(propId) || null
         });
+        // apiLink para compatibilidad con NocoDB UI
         await apiLink(TBL.presupuestos, 'canpten8owymbde', editPresId, [{ Id: parseInt(clienteId) }]);
         await apiLink(TBL.presupuestos, 'cr3s0ox51qopwl4', editPresId, [{ Id: parseInt(zonaId) }]);
         let pagoId = document.getElementById('np-pago').value;
         if (pagoId) await apiLink(TBL.presupuestos, 'cr9l2n9wiubrcra', editPresId, [{ Id: parseInt(pagoId) }]);
-        let propId = document.getElementById('np-propiedad').value;
         if (propId) await apiLink(TBL.presupuestos, 'cpf764utp1w7yj0', editPresId, [{ Id: parseInt(propId) }]);
     } else {
         let year = new Date().getFullYear();
@@ -2764,10 +2782,10 @@ async function _savePresInner() {
         let presData = {
             Numero: num,
             TC_usado: tc,
-            Clientes: client ? [{ Id: parseInt(client) }] : null,
-            Propiedades: prop ? [{ Id: parseInt(prop) }] : null,
-            Zonas: zona ? [{ Id: parseInt(zona) }] : null,
-            Formas_pago: pago ? [{ Id: parseInt(pago) }] : null,
+            // _id fields como fuente de verdad (Number simples)
+            Cliente_id: client ? parseInt(client) : null,
+            Zona_id: zona ? parseInt(zona) : null,
+            Propiedad_id: prop ? parseInt(prop) : null,
             Canal: canal,
             Facturacion: facturacion,
             Estado: 'Borrador',
@@ -2781,7 +2799,7 @@ async function _savePresInner() {
         PAGING.presupuestos.total++;
         if (!presId) { alert('Error creando presupuesto'); return; }
 
-        // Asegurar links mediante apiLink después del POST
+        // apiLink para compatibilidad con NocoDB UI
         if (client) await apiLink(TBL.presupuestos, 'canpten8owymbde', presId, [{ Id: parseInt(client) }]);
         if (prop) await apiLink(TBL.presupuestos, 'cpf764utp1w7yj0', presId, [{ Id: parseInt(prop) }]);
         if (zona) await apiLink(TBL.presupuestos, 'cr3s0ox51qopwl4', presId, [{ Id: parseInt(zona) }]);
@@ -3261,20 +3279,44 @@ async function generarPDF(presId) {
 }
 
 async function fetchBudgetDeepData(presId) {
-    let client = {}, zona = {}, pago = '-';
-    let clLinks = await apiGetLinks(TBL.presupuestos, 'canpten8owymbde', presId);
-    if (clLinks.length > 0) client = clLinks[0];
-    let zoneLinks = await apiGetLinks(TBL.presupuestos, 'cr3s0ox51qopwl4', presId);
-    if (zoneLinks.length > 0) zona = zoneLinks[0];
+    let pres = DATA.presupuestos.find(p => p.Id == presId);
+
+    // Cliente: lookup local por Cliente_id (0 HTTP requests)
+    let client = {};
+    if (pres && pres.Cliente_id) {
+        let cm = CLIENT_MAP[pres.Cliente_id];
+        if (cm) {
+            client = { Id: pres.Cliente_id, Nombre: cm.Nombre, Telefono: cm.Telefono };
+        } else {
+            client = { Id: pres.Cliente_id, Nombre: '-' };
+        }
+    }
+
+    // Zona: lookup local por Zona_id (0 HTTP requests)
+    let zona = {};
+    if (pres && pres.Zona_id) {
+        let z = DATA.zonas.find(z => z.Id == pres.Zona_id);
+        if (z) zona = z;
+        else zona = { Id: pres.Zona_id, Nombre: '-' };
+    }
+
+    // Forma de pago: este link ManyToMany sí funciona bien, se mantiene apiGetLinks
+    let pago = '-';
     let payLinks = await apiGetLinks(TBL.presupuestos, 'cr9l2n9wiubrcra', presId);
     if (payLinks.length > 0) pago = payLinks[0].Nombre || payLinks[0].Title || 'A convenir';
     if (!pago || pago === '-') pago = 'A convenir';
-    let propLink = await apiGetLinks(TBL.presupuestos, 'cpf764utp1w7yj0', presId);
+
+    // Propiedad: lookup local por Propiedad_id (0 HTTP requests)
     let propDir = '-';
-    if (propLink.length > 0) {
-        let propFull = DATA.propiedades.find(pr => pr.Id == propLink[0].Id);
-        propDir = propFull ? (propFull.Direccion || '-') + ' - ' + (propFull.Localidad || '-') : propLink[0].Nombre || '-';
+    if (pres && pres.Propiedad_id) {
+        if (!DATA.propiedades || DATA.propiedades.length === 0) {
+            DATA.propiedades = await apiGetAll(TBL.propiedades);
+        }
+        let propFull = DATA.propiedades.find(pr => pr.Id == pres.Propiedad_id);
+        propDir = propFull ? (propFull.Direccion || '-') + ' - ' + (propFull.Localidad || '-') : '-';
     }
+
+    // Unidades y líneas: se mantiene el patrón actual (apiGet + resolveLink)
     DATA.unidades = await apiGet(TBL.unidades);
     DATA.lineas = await apiGet(TBL.lineas, `&where=(Presupuestos_id,eq,${presId})`);
     let presUnidades = [];
@@ -3434,11 +3476,22 @@ async function duplicatePresupuesto(presId) {
     let year = new Date().getFullYear();
     let num = year + '-' + (String(PAGING.presupuestos.total + 1).padStart(4, '0'));
     let tc = DATA.tc.Dolar_oficial || 1150;
-    let presData = { Numero: num, Fecha: new Date().toISOString().split('T')[0], Estado: 'Borrador', TC_usado: tc, Canal: oldP.Canal, Quiere_factura: oldP.Quiere_factura, Incluye_instalacion: true };
+    let presData = {
+        Numero: num, Fecha: new Date().toISOString().split('T')[0], Estado: 'Borrador', TC_usado: tc,
+        Canal: oldP.Canal, Quiere_factura: oldP.Quiere_factura, Facturacion: oldP.Facturacion, Incluye_instalacion: true,
+        // _id fields copiados del original (fuente de verdad)
+        Cliente_id: oldP.Cliente_id || null,
+        Zona_id: oldP.Zona_id || null,
+        Propiedad_id: oldP.Propiedad_id || null,
+        Costo_traslado: oldP.Costo_traslado || 0,
+        Visitas_traslado: oldP.Visitas_traslado || 0
+    };
     let newPres = await apiPost(TBL.presupuestos, presData);
     let newId = newPres.Id || newPres.id;
-    if (res.client.Id) await apiLink(TBL.presupuestos, 'canpten8owymbde', newId, [{ Id: res.client.Id }]);
-    if (res.zona.Id) await apiLink(TBL.presupuestos, 'cr3s0ox51qopwl4', newId, [{ Id: res.zona.Id }]);
+    // apiLink para compatibilidad con NocoDB UI
+    if (oldP.Cliente_id) await apiLink(TBL.presupuestos, 'canpten8owymbde', newId, [{ Id: oldP.Cliente_id }]);
+    if (oldP.Zona_id) await apiLink(TBL.presupuestos, 'cr3s0ox51qopwl4', newId, [{ Id: oldP.Zona_id }]);
+    if (oldP.Propiedad_id) await apiLink(TBL.presupuestos, 'cpf764utp1w7yj0', newId, [{ Id: oldP.Propiedad_id }]);
     let pagoObj = DATA.formas_pago.find(f => f.Nombre === res.pago);
     if (pagoObj) await apiLink(TBL.presupuestos, 'cr9l2n9wiubrcra', newId, [{ Id: pagoObj.Id }]);
 
