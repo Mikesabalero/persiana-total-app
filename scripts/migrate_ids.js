@@ -13,7 +13,7 @@
  * existir en la tabla Presupuestos de NocoDB (tipo Number).
  */
 
-const API = 'http://93.127.212.235:32770';
+const API = 'http://127.0.0.1:32770';
 const TOKEN = 'dZMS2te8v6cf47Jlmlnk3S3ft9LT_QO8bjNdOcZZ';
 const H = { 'Content-Type': 'application/json', 'xc-token': TOKEN };
 
