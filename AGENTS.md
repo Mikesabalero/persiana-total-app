@@ -46,6 +46,13 @@ App web para gestión de presupuestos de persianas, cortinas y automatizaciones.
 
 ## Cambios de esquema NocoDB
 
+### 2026-04-06 — Campos _id simples en Presupuestos (refactor v2)
+- **Problema de raíz:** Los links HasMany de NocoDB (Presupuestos→Clientes, →Zonas, →Propiedades) almacenan el FK en la tabla hija. Vincular un cliente a un presupuesto nuevo desvinculaba al anterior. Además, `_resolvePresupuestoLinks()` hacía 60+ HTTP requests por página.
+- **Solución:** Se agregaron campos Number simples `Cliente_id`, `Zona_id`, `Propiedad_id` en tabla Presupuestos como **fuente de verdad**. Los links LTAR se mantienen para compatibilidad con NocoDB UI pero el frontend ya no los usa para resolver nombres.
+- **Migración:** `scripts/migrate_ids.js` recorrió los 29 presupuestos existentes y pobló los campos _id desde apiGetLinks. 16 migrados, 13 sin datos recuperables.
+- **Funciones reescritas:** `_resolvePresupuestoLinks()` (0 HTTP), `_savePresInner()` (guarda _id + apiLink), `duplicatePresupuesto()` (copia _id), `fetchBudgetDeepData()` (lookup local para cliente/zona/propiedad).
+- **Performance:** initApp pasó de freezear el navegador a cargar en ~2.5s.
+
 ### 2026-04-02 — Eliminación de Presupuestos_id en Propiedades
 - **Problema:** Al crear un presupuesto nuevo para una propiedad que ya tenía uno, NocoDB borraba el presupuesto anterior por cascade delete (restricción HasOne inversa).
 - **Causa:** La tabla Propiedades tenía un campo `Presupuestos_id` (ForeignKey, columna ID `ce6dgh4sodvmo3b`) y su columna virtual `Presupuestos` (LinkToAnotherRecord, columna ID `c9pkiok73yxowj5`).
@@ -58,6 +65,9 @@ App web para gestión de presupuestos de persianas, cortinas y automatizaciones.
 - Precios se muestran ya calculados en ARS con margen incluido
 - El campo Margen_default se toma de NocoDB, no se edita en la app
 - No pedir al usuario que ingrese Nombre ni Zona en el formulario de propiedad — ambos se asignan automáticamente
+- La fuente de verdad para cliente/zona/propiedad en Presupuestos son los campos Number simples (`Cliente_id`, `Zona_id`, `Propiedad_id`), NO los links HasMany LTAR
+- Los apiLink se mantienen solo para compatibilidad con la interfaz web de NocoDB
+- `_resolvePresupuestoLinks()` NO debe hacer HTTP requests — resuelve todo con CLIENT_MAP, DATA.zonas y DATA.propiedades en memoria
 
 ## Column IDs de relaciones (NocoDB v2)
 - `canpten8owymbde` — Presupuestos ↔ Clientes
@@ -71,6 +81,7 @@ App web para gestión de presupuestos de persianas, cortinas y automatizaciones.
 - `cn9406tc3q1jmw0` — Presupuesto_Lineas ↔ Presupuesto_Unidades
 
 ## Fixes aplicados
+- **2026-04-06 — Refactor presupuestos v2**: Reescritura de `_resolvePresupuestoLinks`, `_savePresInner`, `duplicatePresupuesto`, `fetchBudgetDeepData` para usar campos Number simples (`Cliente_id`, `Zona_id`, `Propiedad_id`) en vez de links LTAR. Elimina el bug de desvinculación de clientes y reduce HTTP requests de 60+ a 0 en la lista.
 - **2026-04-02 — Revert fetchBudgetDeepData a resolveLink**: Se revirtió el patrón `apiGetLinks(TBL.presupuestos, 'cm5xv0vmlne7r6u', presId)` de vuelta a `apiGet(TBL.unidades)` + `resolveLink(u, 'Presupuestos')`. El apiGetLinks devolvía HTTP 400 porque NocoDB no permite usar ese column ID desde el lado de presupuestos → cero unidades mostradas en Ver/PDF. El campo `Presupuestos` sí está poblado en cada unidad, por lo que resolveLink funciona correctamente.
 - **2026-04-01 — Fix delete presupuesto (unidades huérfanas)**: En `deletePresupuesto`, se reemplazó `DATA.unidades.filter(u => resolveLink(u, 'Presupuestos'))` por `apiGetLinks(TBL.presupuestos, 'cm5xv0vmlne7r6u', presId)` para encontrar las unidades a borrar. El patrón anterior podía dejar unidades y líneas huérfanas en la base.
 - **2026-04-02 — Fix líneas no visibles por limit global**: En `fetchBudgetDeepData`, se reemplazó `apiGet(TBL.lineas)` (traía todas las líneas con limit=200 hardcodeado) por `apiGet(TBL.lineas, '&where=(Presupuestos_id,eq,${presId})')` para traer solo las líneas del presupuesto consultado. Las líneas de presupuestos nuevos no aparecían en Ver ni PDF porque la tabla superó los 200 registros.
