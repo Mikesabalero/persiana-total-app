@@ -86,6 +86,9 @@ App web para gestión de presupuestos de persianas, cortinas y automatizaciones.
 - **2026-04-01 — Fix delete presupuesto (unidades huérfanas)**: En `deletePresupuesto`, se reemplazó `DATA.unidades.filter(u => resolveLink(u, 'Presupuestos'))` por `apiGetLinks(TBL.presupuestos, 'cm5xv0vmlne7r6u', presId)` para encontrar las unidades a borrar. El patrón anterior podía dejar unidades y líneas huérfanas en la base.
 - **2026-04-02 — Fix líneas no visibles por limit global**: En `fetchBudgetDeepData`, se reemplazó `apiGet(TBL.lineas)` (traía todas las líneas con limit=200 hardcodeado) por `apiGet(TBL.lineas, '&where=(Presupuestos_id,eq,${presId})')` para traer solo las líneas del presupuesto consultado. Las líneas de presupuestos nuevos no aparecían en Ver ni PDF porque la tabla superó los 200 registros.
 
+## Bugs diagnosticados (2026-04-07)
+- **Pintura Chapa precio incorrecto ($905k vs $65k)**: Causa raíz doble. (1) Dos componentes con nombre idéntico "Pintura Chapa" (Id 74 en USD, Id 187 en ARS). `compSelected` usa `DATA.componentes.find()` por nombre, que devuelve siempre el primero (Id 74, USD 368.73), no el que el usuario espera (Id 187, ARS 27000). El TC×costo da $534k base. (2) Bug de fallback `comp.Margen_default || 40`: cuando Margen_default es 0 (valor legítimo), JS lo trata como falsy y lo reemplaza por 40%. Afecta a compSelected (línea ~2607) y addCompRowWithData (línea ~2560). Combinados: 368.73×1450×1.4×1.21 = $905k. Fix: usuario eliminó el duplicado en NocoDB. El bug de código del fallback `|| 40` (debería ser `?? 40`) queda pendiente.
+
 ## Bugs corregidos (2026-04-01)
 - _savePresInner: validación de Cliente/Zona se saltea en modo edición (editPresId existe) porque los selects están deshabilitados
 - _savePresInner: después de crear presupuesto se incrementa PAGING.presupuestos.total para evitar números duplicados sin recargar
