@@ -2357,7 +2357,7 @@ function autoLoadComponents(n) {
             let costoArs = (comp.Moneda_costo === 'USD' ? comp.Costo_unitario * tc : comp.Costo_unitario) || 0;
             let pctArmado = comp.Porcentaje_Armado || comp.Pct_armado || 0;
             let costoBase = costoArs * (1 + pctArmado / 100);
-            let precioUnit = costoBase * (1 + (comp.Margen_default || 40) / 100);
+            let precioUnit = costoBase * (1 + (comp.Margen_default ?? 40) / 100);
             materialPriceTotal += precioUnit * qty;
             return precioUnit * qty;
         }
@@ -2557,7 +2557,7 @@ function addCompRowWithData(n, comp, qty, lineId = null, forcedPrice = null) {
     let costo = comp.Costo_unitario || 0;
     let moneda = comp.Moneda_costo || 'ARS';
     let pctArmado = comp.Porcentaje_Armado || comp.Pct_armado || 0;
-    let margen = comp.Margen_default || 40;
+    let margen = comp.Margen_default ?? 40;
     let iva = comp.Alicuota_IVA_venta || comp.Alicuota_IVA_Venta || '21';
     
     let costoArs = moneda === 'USD' ? costo * tc : costo;
@@ -2604,7 +2604,7 @@ function compSelected(input, n) {
     row.querySelector('.c-moneda').textContent = comp.Moneda_costo || 'ARS';
     row.querySelector('.c-iva').textContent = (comp.Alicuota_IVA_venta || comp.Alicuota_IVA_Venta || '21') + '%';
     let margenInput = row.querySelectorAll('input[type="number"]')[1];
-    if (margenInput) margenInput.value = comp.Margen_default || 40;
+    if (margenInput) margenInput.value = comp.Margen_default ?? 40;
     recalcUnidad(n);
 }
 
