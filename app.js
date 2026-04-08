@@ -114,11 +114,13 @@ auth.onAuthStateChanged(function(user) {
         }
         
         if (savedUid && savedRole && !window._appInitialized) {
-            // Sin currentUser no hay token Firebase para el proxy.
-            // Limpiar sesion guardada y mostrar login.
-            localStorage.removeItem('persiana_uid');
-            localStorage.removeItem('persiana_role');
-            localStorage.removeItem('persiana_email');
+            currentRole = savedRole;
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('user-info').textContent = savedEmail + ' (' + savedRole + ')';
+            applyRolePermissions(savedRole);
+            window._appInitialized = true;
+            initApp();
+            return;
         }
         
         currentUser = null;
@@ -136,9 +138,6 @@ function applyRolePermissions(role) {
     
     let tabZonas = document.querySelector('[onclick*="zonas"]');
     if (tabZonas) tabZonas.style.display = (role === 'admin') ? '' : 'none';
-
-    let tabCrm = document.querySelector('[onclick*="crm"]');
-    if (tabCrm) tabCrm.style.display = (role === 'admin') ? '' : 'none';
     
     if (role !== 'admin') {
         document.querySelectorAll('.hide-margin').forEach(el => el.style.display = 'none');
@@ -151,8 +150,6 @@ function applyRolePermissions(role) {
 }
 
 const API = '';  // Mismo origen — nginx redirige /api/ al proxy autenticado
-const WEBHOOK_ORQUESTADOR = 'https://n8n.srv1323649.hstgr.cloud/webhook/f2989923-d6f4-484c-bb96-68acb5f27ae1';
-const WEBHOOK_CHATBOT = 'https://n8n.srv1323649.hstgr.cloud/webhook/chat-app';
 const BASE = 'pru2fsphj43juyr';
 const H = { 'Content-Type': 'application/json' };
 
@@ -173,7 +170,7 @@ const H = { 'Content-Type': 'application/json' };
     };
 })();
 const TBL = { clientes: 'mwby85581fhjy27', propiedades: 'm0dwlr7ccoim1kf', historial: 'mimh9lp8bkew4t0', categorias: 'mulo5ve82d9ex7q', productos: 'mdr6mo695g0qz6d', componentes: 'mgh9e1zivvhpg26', prod_comp: 'mmjzqw7v4que9q3', tc: 'mhj9fovlmv9036x', zonas: 'mottig5nmj5e3kx', presupuestos: 'mn1yyjyovvoyxme', lineas: 'mv1e9trh23j0q3o', servicios: 'mz8qrki3hz4y7iv', formas_pago: 'm2t4fnjie88gfo0', unidades: 'mix059xkpsz15um', anchos: 'mayai71j546g3as', historial_aumentos: 'myumlbp9hemi3cu' };
-let DATA = { clientes: [], propiedades: [], zonas: [], componentes: [], productos: [], prod_comp: [], presupuestos: [], lineas: [], unidades: [], formas_pago: [], tc: null, anchos: [], historial: [], _loaded: { clientes: false, precios: false, presupuestos: false, presupuestos_deps: false, propiedades: false, config: false, crm: false } };
+let DATA = { clientes: [], propiedades: [], zonas: [], componentes: [], productos: [], prod_comp: [], presupuestos: [], lineas: [], unidades: [], formas_pago: [], tc: null, anchos: [], _loaded: { clientes: false, precios: false, presupuestos: false, presupuestos_deps: false, propiedades: false, config: false } };
 let CLIENT_MAP = {};
 async function loadClientMap() {
     CLIENT_MAP = {};
@@ -201,8 +198,7 @@ const PAGE_SIZE = 20;
 let PAGING = {
     clientes: { page: 1, total: 0 },
     presupuestos: { page: 1, total: 0 },
-    propiedades: { page: 1, total: 0 },
-    crm: { page: 1, total: 0 }
+    propiedades: { page: 1, total: 0 }
 };
 
 async function apiGetPaged(tid, page, extraParams = '') {
@@ -299,17 +295,6 @@ async function ensureData(page) {
             console.log('Lazy loaded: Anchos (' + DATA.anchos.length + ')');
         }
     }
-    if (page === 'crm') {
-        if (!DATA._loaded.crm) {
-            DATA.historial = await apiGetAll(TBL.historial);
-            if (Object.keys(CLIENT_MAP).length === 0) await loadClientMap();
-            if (!DATA._loaded.presupuestos) {
-                DATA.presupuestos = await apiGetAll(TBL.presupuestos);
-            }
-            DATA._loaded.crm = true;
-            console.log('Lazy loaded: Historial (' + DATA.historial.length + ')');
-        }
-    }
 }
 
 async function showPage(id, btn) {
@@ -329,7 +314,6 @@ async function showPage(id, btn) {
     if (id === 'precios') loadPrecios();
     if (id === 'clientes') renderClientes();
     if (id === 'propiedades') renderPropiedades();
-    if (id === 'crm') renderCRM();
     if (id === 'config') loadConfig();
 }
 function closeModal() { document.getElementById('modal-pres').classList.remove('show'); }
@@ -338,7 +322,6 @@ function closeVerPres() { document.getElementById('modal-ver-pres').classList.re
 function closeVerCliente() { document.getElementById('modal-ver-cliente').classList.remove('show'); }
 function closeModalCliente() { document.getElementById('modal-cliente').classList.remove('show'); }
 function closeModalEditComp() { document.getElementById('modal-edit-comp').classList.remove('show'); }
-function closeCrmDetail() { document.getElementById('modal-crm-detail').classList.remove('show'); }
 
 function calcPrecioVentaComp() {
     let costo = parseFloat(document.getElementById('ec-costo').value) || 0;
@@ -448,25 +431,9 @@ async function _resolvePresupuestoLinks() {
 
 async function initApp() {
     console.time('initApp');
-    if (!currentUser) {
-        console.error('initApp: no hay usuario Firebase autenticado — abortando');
-        document.getElementById('login-screen').style.display = 'flex';
-        return;
-    }
     // Fase 1: Solo datos esenciales para dashboard
     let cliPaged = await apiGetPaged(TBL.clientes, 1, '');
     let presPaged = await apiGetPaged(TBL.presupuestos, 1, '&sort=-Id');
-
-    // Detectar fallo de autenticación (proxy devuelve 401 -> listas vacías)
-    if (cliPaged.total === 0 && presPaged.total === 0) {
-        let testR = await fetch('/api/v2/tables/' + TBL.clientes + '/records?limit=1', { headers: H });
-        if (testR.status === 401 || testR.status === 502) {
-            console.error('initApp: proxy devolvió ' + testR.status + ' — sesión inválida');
-            alert('Error de autenticación con el servidor. Por favor iniciá sesión de nuevo.');
-            auth.signOut();
-            return;
-        }
-    }
 
     PAGING.clientes.total = cliPaged.total;
     PAGING.presupuestos.total = presPaged.total;
@@ -3592,352 +3559,23 @@ window.addEventListener('mouseup', function (event) {
             else if (event.target.id === 'modal-cliente') closeModalCliente();
             else if (event.target.id === 'modal-propiedad') closeModalPropiedad();
             else if (event.target.id === 'modal-edit-comp') closeModalEditComp();
-            else if (event.target.id === 'modal-crm-detail') closeCrmDetail();
         }
         if (event.target.classList.contains('detail-panel')) closeDetail();
     }
 });
 
-// === MODULO CRM ===
-
-function _buildHistorialByClient() {
-    let map = {};
-    DATA.historial.forEach(h => {
-        let link = resolveLink(h, 'Cliente');
-        let cid = link ? (link.Id || link.id) : (h.Cliente_id || h.Clientes_id);
-        if (!cid) return;
-        if (!map[cid]) map[cid] = [];
-        map[cid].push(h);
-    });
-    return map;
-}
-
-function renderCRM() {
-    let search = (document.getElementById('crm-search')?.value || '').toLowerCase();
-    let tipoFilter = document.getElementById('crm-filter-tipo')?.value || '';
-    let histMap = _buildHistorialByClient();
-
-    // Build client list with metrics
-    let clients = [];
-    let cids = Object.keys(CLIENT_MAP);
-    cids.forEach(id => {
-        let cm = CLIENT_MAP[id];
-        let c = DATA.clientes.find(x => x.Id == id) || { Id: parseInt(id), Nombre: cm.Nombre, Telefono: cm.Telefono, Tipo: '' };
-        let nombre = (c.Nombre || '').toLowerCase();
-        let tel = (c.Telefono || '').toLowerCase();
-        let tipo = c.Tipo || 'Particular';
-
-        if (search && !nombre.includes(search) && !tel.includes(search)) return;
-        if (tipoFilter && tipo !== tipoFilter) return;
-
-        let hist = histMap[id] || [];
-        let presCount = DATA.presupuestos.filter(p => p._clienteId == id || p.Cliente_id == id).length;
-        let lastDate = '';
-        if (hist.length > 0) {
-            hist.sort((a, b) => new Date(b.fecha || b.Fecha || 0) - new Date(a.fecha || a.Fecha || 0));
-            lastDate = hist[0].fecha || hist[0].Fecha || '';
-        }
-        clients.push({ id: parseInt(id), nombre: c.Nombre || '-', telefono: c.Telefono || '-', tipo, histCount: hist.length, presCount, lastDate });
-    });
-
-    // Sort by last interaction desc, then by name
-    clients.sort((a, b) => {
-        if (a.lastDate && b.lastDate) return new Date(b.lastDate) - new Date(a.lastDate);
-        if (a.lastDate) return -1;
-        if (b.lastDate) return 1;
-        return (a.nombre || '').localeCompare(b.nombre || '');
-    });
-
-    // Pagination
-    PAGING.crm.total = clients.length;
-    let start = (PAGING.crm.page - 1) * PAGE_SIZE;
-    let page = clients.slice(start, start + PAGE_SIZE);
-
-    let tb = document.getElementById('crm-table');
-    if (!tb) return;
-    if (page.length === 0) {
-        tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text-light)">No se encontraron clientes</td></tr>';
-        renderPagination('pag-crm', PAGING, 'crm');
-        return;
-    }
-
-    tb.innerHTML = page.map(c => {
-        let lastDateFmt = c.lastDate ? new Date(c.lastDate).toLocaleDateString('es-AR') : '-';
-        let histBadge = c.histCount > 0 ? '<span class="badge badge-enviado">' + c.histCount + '</span>' : '<span style="color:var(--text-light)">0</span>';
-        let presBadge = c.presCount > 0 ? '<span class="badge badge-aprobado">' + c.presCount + '</span>' : '<span style="color:var(--text-light)">0</span>';
-        return `<tr style="cursor:pointer" ondblclick="openCrmDetail(${c.id})">
-            <td><strong>${cleanLabel(c.nombre)}</strong></td>
-            <td>${c.telefono}</td>
-            <td>${cleanLabel(c.tipo)}</td>
-            <td>${lastDateFmt}</td>
-            <td style="text-align:center">${histBadge}</td>
-            <td style="text-align:center">${presBadge}</td>
-            <td>
-                <div style="display:flex;gap:4px">
-                    <button class="btn btn-sm btn-primary" onclick="openCrmDetail(${c.id})">Ver CRM</button>
-                    <button class="btn btn-sm btn-secondary" onclick="openCrmChat(${c.id})">Chat</button>
-                </div>
-            </td>
-        </tr>`;
-    }).join('');
-
-    renderPagination('pag-crm', PAGING, 'crm');
-}
-
-function filterCRM() {
-    PAGING.crm.page = 1;
-    renderCRM();
-}
-
-async function openCrmDetail(clientId) {
-    window._crmDetailClientId = clientId;
-    let c = DATA.clientes.find(x => x.Id == clientId);
-    if (!c && CLIENT_MAP[clientId]) {
-        c = { Id: clientId, Nombre: CLIENT_MAP[clientId].Nombre, Telefono: CLIENT_MAP[clientId].Telefono, Tipo: '' };
-    }
-    if (!c) { alert('Cliente no encontrado'); return; }
-
-    document.getElementById('crm-det-nombre').textContent = cleanLabel(c.Nombre || '-');
-    document.getElementById('crm-det-telefono').textContent = c.Telefono || '-';
-    document.getElementById('crm-det-tipo').textContent = cleanLabel(c.Tipo || 'Particular');
-
-    // Load historial for this client
-    let histMap = _buildHistorialByClient();
-    let clientHist = histMap[clientId] || [];
-    clientHist.sort((a, b) => new Date(b.fecha || b.Fecha || 0) - new Date(a.fecha || a.Fecha || 0));
-
-    // Propiedades
-    let props = DATA.propiedades.filter(p => {
-        let link = resolveLink(p, 'Clientes');
-        return (link && (link.Id == clientId || link.id == clientId)) || (p.Clientes_id == clientId);
-    });
-    if (props.length === 0) {
-        try {
-            let fetched = await apiGet(TBL.propiedades, '&where=(Clientes_id,eq,' + clientId + ')');
-            if (fetched && fetched.length > 0) props = fetched;
-        } catch(e) {}
-    }
-
-    // Presupuestos
-    let clientPres = DATA.presupuestos.filter(p => p._clienteId == clientId || p.Cliente_id == clientId);
-    clientPres.sort((a, b) => new Date(b.Fecha || 0) - new Date(a.Fecha || 0));
-
-    // --- Render Tab: Historial ---
-    let htb = document.getElementById('crm-historial-table');
-    let noHist = document.getElementById('crm-no-historial');
-    if (clientHist.length > 0) {
-        noHist.style.display = 'none';
-        htb.innerHTML = clientHist.map(h => {
-            let fecha = h.fecha || h.Fecha || '-';
-            let intencion = cleanLabel(h.intencion || h.Intencion || '-');
-            let resumen = (h.resumen || h.Resumen || '-');
-            if (resumen.length > 80) resumen = resumen.substring(0, 80) + '...';
-            let resultado = h.resultado || h.Resultado || '-';
-            let producto = h.producto || h.Producto || '';
-            let ancho = h.ancho || h.Ancho || 0;
-            let alto = h.alto || h.Alto || 0;
-            let monto = h.presupuesto_monto || h.Presupuesto_monto || 0;
-            let medidas = (ancho && alto) ? ancho + 'x' + alto + 'm' : '-';
-            let resultBadge = _crmResultadoBadge(resultado);
-            let presBtn = (producto && ancho && alto) ?
-                `<button class="btn btn-sm btn-primary" onclick="crearPresDesdeHistorial(${JSON.stringify(h).replace(/"/g, '&quot;')}, ${clientId})">Crear Pres.</button>` : '';
-            return `<tr>
-                <td>${fecha}</td>
-                <td>${intencion}</td>
-                <td title="${(h.resumen || h.Resumen || '').replace(/"/g, '&quot;')}">${resumen}</td>
-                <td>${resultBadge}</td>
-                <td>${cleanLabel(producto) || '-'}</td>
-                <td>${medidas}</td>
-                <td>${monto ? fmt(monto) : '-'}</td>
-                <td>${presBtn}</td>
-            </tr>`;
-        }).join('');
-    } else {
-        noHist.style.display = 'block';
-        htb.innerHTML = '';
-    }
-
-    // --- Render Tab: Propiedades ---
-    let ptb = document.getElementById('crm-prop-table');
-    let noProp = document.getElementById('crm-no-prop');
-    if (props.length > 0) {
-        noProp.style.display = 'none';
-        ptb.innerHTML = props.map(p => `<tr>
-            <td>${p.Direccion || '-'}</td>
-            <td>${p.Localidad || '-'}</td>
-            <td>${cleanLabel(p.Tipo_Propiedad || p.Tipo || '-')}</td>
-            <td>${p.Principal ? 'Si' : 'No'}</td>
-        </tr>`).join('');
-    } else {
-        noProp.style.display = 'block';
-        ptb.innerHTML = '';
-    }
-
-    // --- Render Tab: Presupuestos ---
-    let prtb = document.getElementById('crm-pres-table');
-    let noPres = document.getElementById('crm-no-pres');
-    if (clientPres.length > 0) {
-        noPres.style.display = 'none';
-        prtb.innerHTML = clientPres.map(p => {
-            let id = p.Id || p.id;
-            let addr = p._propiedadDir || '-';
-            if (addr === '-' && p.Propiedad_id) {
-                let pr = DATA.propiedades.find(x => x.Id == p.Propiedad_id);
-                if (pr) addr = (pr.Direccion || '-') + ' - ' + (pr.Localidad || '');
-            }
-            return `<tr>
-                <td><strong>${p.Numero || '-'}</strong></td>
-                <td>${p.Fecha || '-'}</td>
-                <td>${addr}</td>
-                <td><strong>${fmt(p.Total_con_IVA || p.Total)}</strong></td>
-                <td>${badgeHtml(p.Estado || 'Borrador')}</td>
-                <td><button class="btn btn-sm btn-secondary" onclick="closeCrmDetail(); viewPresupuesto(${id})">Ver</button></td>
-            </tr>`;
-        }).join('');
-    } else {
-        noPres.style.display = 'block';
-        prtb.innerHTML = '';
-    }
-
-    // --- Render Tab: Resumen (timeline) ---
-    renderCrmTimeline(clientHist, clientPres);
-
-    // Show modal, reset to first tab
-    showCrmTab('resumen', document.querySelector('.crm-tab.active') || document.querySelector('.crm-tab'));
-    document.getElementById('modal-crm-detail').classList.add('show');
-}
-
-function showCrmTab(tabName, btn) {
-    document.querySelectorAll('.crm-tab-content').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.crm-tab').forEach(t => t.classList.remove('active'));
-    let tab = document.getElementById('crm-tab-' + tabName);
-    if (tab) tab.classList.add('active');
-    if (btn) btn.classList.add('active');
-}
-
-function renderCrmTimeline(historial, presupuestos) {
-    let events = [];
-
-    historial.forEach(h => {
-        let fecha = h.fecha || h.Fecha || '';
-        events.push({
-            date: fecha,
-            type: 'chat',
-            icon: '💬',
-            title: cleanLabel(h.intencion || h.Intencion || 'Conversacion'),
-            detail: h.resumen || h.Resumen || '',
-            badge: _crmResultadoBadge(h.resultado || h.Resultado || '')
-        });
-    });
-
-    presupuestos.forEach(p => {
-        events.push({
-            date: p.Fecha || '',
-            type: 'presupuesto',
-            icon: '📋',
-            title: 'Presupuesto #' + (p.Numero || p.Id),
-            detail: fmt(p.Total_con_IVA || p.Total) + ' - ' + cleanLabel(p.Estado || 'Borrador'),
-            badge: badgeHtml(p.Estado || 'Borrador')
-        });
-    });
-
-    events.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-
-    let container = document.getElementById('crm-timeline');
-    if (events.length === 0) {
-        container.innerHTML = '<p style="text-align:center;color:var(--text-light);padding:20px">Sin actividad registrada para este cliente.</p>';
-        return;
-    }
-
-    container.innerHTML = events.map(e => {
-        let dateFmt = e.date ? new Date(e.date).toLocaleDateString('es-AR') : '-';
-        let detail = e.detail || '';
-        if (detail.length > 120) detail = detail.substring(0, 120) + '...';
-        return `<div class="crm-timeline-item">
-            <div class="crm-timeline-dot ${e.type}"></div>
-            <div class="crm-timeline-content">
-                <div class="crm-timeline-header">
-                    <span class="crm-timeline-icon">${e.icon}</span>
-                    <strong>${e.title}</strong>
-                    <span class="crm-timeline-date">${dateFmt}</span>
-                </div>
-                <p>${detail}</p>
-                ${e.badge}
-            </div>
-        </div>`;
-    }).join('');
-}
-
-function _crmResultadoBadge(resultado) {
-    let colors = {
-        'presupuesto_enviado': 'enviado',
-        'consulta_resuelta': 'aprobado',
-        'derivado_a_humano': 'vencido',
-        'derivado': 'vencido',
-        'conversacion_abierta': 'borrador',
-        'informacion_dada': 'aprobado',
-        'reclamo': 'rechazado'
-    };
-    let cls = colors[resultado] || 'borrador';
-    return '<span class="badge badge-' + cls + '">' + cleanLabel(resultado || '-') + '</span>';
-}
-
-function crearPresDesdeHistorial(histData, clientId) {
-    closeCrmDetail();
-    openNewPres();
-
-    // Pre-seleccionar cliente
-    setTimeout(() => {
-        let cs = document.getElementById('np-cliente');
-        if (cs) {
-            cs.value = clientId;
-            cs.dispatchEvent(new Event('change'));
-        }
-
-        // Pre-cargar datos del historial en la primera unidad si existen
-        setTimeout(() => {
-            let propSelect = document.getElementById('np-propiedad');
-            if (propSelect) updatePropiedadesSelect();
-        }, 300);
-    }, 200);
-}
-
-function openCrmChat(clientId) {
-    chatSessionId = 'crm_' + (clientId || 'new') + '_' + Date.now();
-    document.getElementById('modal-chatbot').style.display = 'flex';
-    document.getElementById('chat-messages').innerHTML = '';
-    showChatInput();
-
-    if (clientId && CLIENT_MAP[clientId]) {
-        let cm = CLIENT_MAP[clientId];
-        let c = DATA.clientes.find(x => x.Id == clientId);
-        let tel = (c && c.Telefono) || cm.Telefono || '';
-        appendChatMessage('bot', '¡Hola! Estoy listo para ayudarte con <strong>' + cleanLabel(cm.Nombre) + '</strong>. ¿Que necesitas?');
-        // Send context to orchestrator silently
-        fetch(WEBHOOK_ORQUESTADOR, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                sessionId: chatSessionId,
-                chatInput: 'Contexto interno: el cliente es ' + cm.Nombre + ', telefono ' + tel + '. No repitas esta info, espera la consulta del usuario.'
-            })
-        }).catch(() => {});
-    } else {
-        appendChatMessage('bot', '¡Hola! Soy el asistente de Persiana Total. ¿En que te puedo ayudar?');
-    }
-}
-
 // --- CHATBOT CARGAR CLIENTE ---
 let chatSessionId = null;
 
+// Solo para mantener compatibilidad con _saveChatbotData por ahora
 let chatState = { data: {}, props: [] };
 
 function openChatbot() {
-    chatSessionId = 'app_' + Date.now();
+    chatSessionId = 'session_' + Date.now();
     document.getElementById('modal-chatbot').style.display = 'flex';
     document.getElementById('chat-messages').innerHTML = '';
     showChatInput();
-    appendChatMessage('bot', '¡Hola! Soy el asistente de Persiana Total. ¿En que te puedo ayudar?');
+    appendChatMessage('bot', '¡Hola! Soy el asistente de Persiana Total. Decime, ¿qué cliente o propiedad querés cargar?');
 }
 
 function closeChatbot() {
@@ -3996,33 +3634,32 @@ async function submitChatInput() {
     let typingDiv = appendChatMessage('bot', 'Escribiendo...');
     
     try {
-        let webhookUrl = (chatSessionId && chatSessionId.startsWith('crm_')) ? WEBHOOK_ORQUESTADOR : WEBHOOK_CHATBOT;
-        let res = await fetch(webhookUrl, {
+        let res = await fetch('https://n8n.srv1323649.hstgr.cloud/webhook/chat-app', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                sessionId: chatSessionId,
-                chatInput: text
-            })
+            body: JSON.stringify({ message: text, sessionId: chatSessionId })
         });
-
+        
         if (typingDiv && typingDiv.parentNode) {
             typingDiv.parentNode.removeChild(typingDiv);
         }
-
+        
         if (res.ok) {
             let data = await res.json();
-            let botMsg = data.output || data.response || '';
-            if (botMsg) {
-                appendChatMessage('bot', botMsg);
-                // Si el Orquestador grabo datos, refrescar
-                if (botMsg.includes('grabado') || botMsg.includes('registrado') || botMsg.includes('cargado') ||
-                    botMsg.includes('creado') || botMsg.includes('Listo')) {
+            if (data && data.response) {
+                appendChatMessage('bot', data.response);
+                // Si n8n creó/actualizó un cliente, refrescar datos locales
+                if (data.action === 'client_created' || data.action === 'property_created' ||
+                    data.response.includes('fue cargado') || data.response.includes('cliente creado') ||
+                    data.response.includes('propiedad cargada') || data.response.includes('¡Listo!')) {
                     DATA._presCountMap = null;
-                    DATA._loaded.crm = false;
                     if (DATA._loaded.clientes) { DATA.clientes = await apiGet(TBL.clientes); }
                     if (DATA._loaded.propiedades) { DATA.propiedades = await apiGetAll(TBL.propiedades); }
                     await loadClientMap();
+                    showChatOptions([
+                        {label:'📋 Hacer presupuesto', value:'presupuesto'},
+                        {label:'❌ Cerrar', value:'cerrar'}
+                    ]);
                 }
             } else {
                 appendChatMessage('bot', 'Error: Respuesta inesperada del agente.\n' + JSON.stringify(data));
@@ -4035,7 +3672,7 @@ async function submitChatInput() {
         if (typingDiv && typingDiv.parentNode) {
             typingDiv.parentNode.removeChild(typingDiv);
         }
-        appendChatMessage('bot', 'Error de conexion con el servidor.');
+        appendChatMessage('bot', 'Error de conexión con el servidor.');
     }
 }
 
