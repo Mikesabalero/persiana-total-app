@@ -150,6 +150,8 @@ function applyRolePermissions(role) {
 }
 
 const API = '';  // Mismo origen — nginx redirige /api/ al proxy autenticado
+const WEBHOOK_ORQUESTADOR = 'https://n8n.srv1323649.hstgr.cloud/webhook/f2989923-d6f4-484c-bb96-68acb5f27ae1';
+const WEBHOOK_CHATBOT = 'https://n8n.srv1323649.hstgr.cloud/webhook/chat-app';
 const BASE = 'pru2fsphj43juyr';
 const H = { 'Content-Type': 'application/json' };
 
@@ -3634,10 +3636,10 @@ async function submitChatInput() {
     let typingDiv = appendChatMessage('bot', 'Escribiendo...');
     
     try {
-        let res = await fetch('https://n8n.srv1323649.hstgr.cloud/webhook/chat-app', {
+        let res = await fetch(WEBHOOK_CHATBOT, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: text, sessionId: chatSessionId })
+            body: JSON.stringify({ chatInput: text, sessionId: chatSessionId })
         });
         
         if (typingDiv && typingDiv.parentNode) {
