@@ -1,5 +1,32 @@
 # Persiana Total - Contexto del Proyecto
 
+## Reglas de Git — SIEMPRE respetar
+
+### Ramas activas
+| Rama | Propósito |
+|------|-----------|
+| `main` | Producción. Solo código listo y probado. NUNCA desarrollar acá. |
+| `feature/crm` | Módulo CRM en desarrollo. Mergeará a main cuando esté listo. |
+
+### Regla de oro
+- Todo módulo nuevo o feature importante → crear rama `feature/nombre`
+- `main` solo recibe merges de ramas terminadas y probadas
+- Deploy a producción = push a main + git pull en servidor
+
+### Cómo crear un módulo nuevo (para Claude)
+1. `git checkout main && git pull` — asegurarse de partir de main actualizado
+2. `git checkout -b feature/nombre-modulo` — crear rama nueva
+3. Desarrollar y commitear en esa rama libremente
+4. Cuando esté listo y probado: `git checkout main && git merge feature/nombre-modulo && git push`
+5. Avisar al usuario que haga `git pull` en el servidor
+
+### Lo que NO hacer
+- NUNCA commitear features nuevas directamente en `main`
+- NUNCA hacer merge a main sin que el usuario confirme que está listo para producción
+- NUNCA mezclar en un mismo commit cambios de producción con features en desarrollo
+
+---
+
 ## Qué es
 App web para gestión de presupuestos de persianas, cortinas y automatizaciones. Empresa ubicada en Santa Fe, Argentina.
 
