@@ -119,3 +119,11 @@ App web para gestión de presupuestos de persianas, cortinas y automatizaciones.
 ## Bugs corregidos (2026-04-01)
 - _savePresInner: validación de Cliente/Zona se saltea en modo edición (editPresId existe) porque los selects están deshabilitados
 - _savePresInner: después de crear presupuesto se incrementa PAGING.presupuestos.total para evitar números duplicados sin recargar
+
+## Cambios de esquema NocoDB
+
+### 2026-04-13 — Eliminación de Presupuestos_id en Propiedades
+- **Problema:** Al crear un presupuesto nuevo para una propiedad que ya tenía uno, NocoDB borraba el presupuesto anterior (cascade delete por relación HasOne inversa).
+- **Causa:** La tabla Propiedades tenía el campo `Presupuestos_id` (ForeignKey, id `ce6dgh4sodvmo3b`) y columna virtual `Presupuestos` (LinkToAnotherRecord, id `c9pkiok73yxowj5`).
+- **Solución:** DELETE /api/v1/db/meta/columns/c9pkiok73yxowj5 — NocoDB eliminó automáticamente ambas columnas.
+- **Impacto en app.js:** Ninguno. Solo se usa el link Presupuestos→Propiedades (cpf764utp1w7yj0) que permanece intacto.
