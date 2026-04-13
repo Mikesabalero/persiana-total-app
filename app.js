@@ -151,7 +151,7 @@ function applyRolePermissions(role) {
 }
 
 const API = '';  // Mismo origen — nginx redirige /api/ al proxy autenticado
-const WEBHOOK_ORQUESTADOR = 'https://n8n.srv1323649.hstgr.cloud/webhook/f2989923-d6f4-484c-bb96-68acb5f27ae1';
+const WEBHOOK_CRM_ADMIN = 'https://n8n.srv1323649.hstgr.cloud/webhook/0e1dad22-7ced-4472-a1ab-16560ff2ff1f';
 const WEBHOOK_CHATBOT = 'https://n8n.srv1323649.hstgr.cloud/webhook/chat-app';
 const BASE = 'pru2fsphj43juyr';
 const H = { 'Content-Type': 'application/json' };
@@ -3891,7 +3891,7 @@ function openCrmChat(clientId) {
         let tel = (c && c.Telefono) || cm.Telefono || '';
         appendChatMessage('bot', '¡Hola! Estoy listo para ayudarte con <strong>' + cleanLabel(cm.Nombre) + '</strong>. ¿Que necesitas?');
         // Send context to orchestrator silently
-        fetch(WEBHOOK_ORQUESTADOR, {
+        fetch(WEBHOOK_CRM_ADMIN, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -3973,7 +3973,7 @@ async function submitChatInput() {
     let typingDiv = appendChatMessage('bot', 'Escribiendo...');
     
     try {
-        let webhookUrl = (chatSessionId && chatSessionId.startsWith('crm_')) ? WEBHOOK_ORQUESTADOR : WEBHOOK_CHATBOT;
+        let webhookUrl = (chatSessionId && chatSessionId.startsWith('crm_')) ? WEBHOOK_CRM_ADMIN : WEBHOOK_CHATBOT;
         let res = await fetch(webhookUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
