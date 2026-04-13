@@ -2224,16 +2224,16 @@ const INSTALACION_PCT = {
     'Cambio_pano': 8,
     'Cambio_guias': 8,
     'Motorizacion': 8,
-    'Reparacion': 0,
-    'Service': 0,
-    'Otro': 0
+    'Reparacion': 100,
+    'Service': 100,
+    'Presupuesto_libre': 0
 };
 window._manualInstPct = window._manualInstPct || {};
 
 const PESO_M2 = {
     16: 11, 17: 13, 18: 10, 19: 12, 20: 14,
-    21: 4, 22: 7, 24: 3,
-    25: 10, 26: 5, 27: 10, 28: 5, 29: 10
+    21: 4, 22: 7, 23: 4, 24: 3,
+    25: 10, 26: 5, 27: 10, 28: 5, 29: 10, 30: 10
 };
 const TALLER_LAT = -31.6520;
 const TALLER_LON = -60.7254;
@@ -2241,11 +2241,11 @@ const TARIFA_KM = 1500; // $/km ARS
 const PROD_COMP_MAP = {
     16: 33, 17: 34, 18: 35, 19: 36, 20: 37,
     21: 38, 22: 39, 23: 40, 24: 41,
-    25: 42, 26: 43, 27: 44, 28: 45, 29: 46,
+    25: 172, 26: 174, 27: 44, 28: 45, 29: 168, 30: 167,
     31: 48, 32: 49
 };
 const CAT_SEGURIDAD = [16, 17, 18, 19, 20];
-const CAT_EXTERIOR = [21, 22, 23, 24, 25, 26, 27, 28, 29];
+const CAT_EXTERIOR = [21, 22, 23, 24, 25, 26, 27, 28, 29, 30];
 const CAT_INTERIOR = [31, 32];
 
 function getCategoria(prodId) {
@@ -2258,24 +2258,25 @@ function getCategoria(prodId) {
 
 function selectMotor(cat, peso, ancho, m2) {
     if (cat === 'Seguridad') {
-        if (ancho < 6) {
+        if (ancho >= 6) {
+            // Eje 7.5" — umbrales PM
+            if (peso <= 328) return 52; // P800
+            if (peso <= 388) return 53; // P1000
+            if (peso <= 757) return 54; // P1500
+            alert('Motor fuera de rango: peso ' + peso + 'kg excede capacidad P1500 (757kg)');
+            return 54; // P1500 como fallback
+        } else {
+            // Ancho < 6m
             if (m2 <= 12) return 55;   // Tubular 140
             if (peso <= 340) return 50; // Paralelo 600
             if (peso <= 400) return 51; // Paralelo 700
-        } else {
-            // Ancho >= 6m: siempre motores grandes
-            if (peso <= 440) return 52; // Paralelo 800
-            if (peso <= 550) return 53; // Paralelo 1000
-            return 54;                  // Paralelo 1500 (hasta 800kg)
+            alert('Motor fuera de rango: peso ' + peso + 'kg para Seguridad ancho < 6m');
+            return null;
         }
     } else if (cat === 'Exterior') {
+        // Solo tubulares — Exterior nunca supera 200kg
         if (peso <= 115) return 56; // Tubular 60
-        if (peso <= 200) return 55; // Tubular 140
-        if (peso <= 330) return 50; // Paralelo 600
-        if (peso <= 370) return 51; // Paralelo 700
-        if (peso <= 450) return 52; // Paralelo 800
-        if (peso <= 600) return 53; // Paralelo 1000
-        return 54; // Paralelo 1500
+        return 55; // Tubular 140
     } else if (cat === 'Interior') {
         if (peso <= 35) return 144;
         if (peso <= 47) return 145;
@@ -2363,38 +2364,18 @@ function autoLoadComponents(n) {
         }
     }
 
+    // Presupuesto libre / Otro legacy: tabla vacía, early return
+    if (tipoTrabajo === 'Presupuesto_libre' || tipoTrabajo === 'Otro') {
+        tbody.innerHTML = '';
+        recalcUnidad(n);
+        return;
+    }
+
     tbody.innerHTML = '';
 
-    const addCustomLabor = (label, price) => {
-        let moRow = document.createElement('tr');
-        moRow.innerHTML = `
-            <td><input list="none" value="${label}" disabled class="filter-input"></td>
-            <td><input type="number" value="1" step="0.01" style="width:60px" oninput="recalcUnidad(${n})"></td>
-            <td class="c-costo hide-margin">${price.toFixed(2)}</td>
-            <td class="c-moneda hide-margin">ARS</td>
-            <td class="hide-margin"><input type="number" value="0" style="width:60px" oninput="recalcUnidad(${n})"></td>
-            <td class="c-precio">${fmt(price)}</td>
-            <td class="c-subtotal">${fmt(price)}</td>
-            <td class="c-iva">21%</td>
-            <td><button class="btn-remove" onclick="this.closest('tr').remove();recalcUnidad(${n})">✕</button></td>
-        `;
-        tbody.appendChild(moRow);
-    };
-
-    let materialPriceTotal = 0;
     const addCompWithPrice = (id, qty) => {
         let comp = DATA.componentes.find(c => c.Id == id);
-        if (comp) {
-            addCompRowWithData(n, comp, qty);
-            let tc = DATA.tc.Dolar_oficial || 1150;
-            let costoArs = (comp.Moneda_costo === 'USD' ? comp.Costo_unitario * tc : comp.Costo_unitario) || 0;
-            let pctArmado = comp.Porcentaje_Armado || comp.Pct_armado || 0;
-            let costoBase = costoArs * (1 + pctArmado / 100);
-            let precioUnit = costoBase * (1 + (comp.Margen_default ?? 40) / 100);
-            materialPriceTotal += precioUnit * qty;
-            return precioUnit * qty;
-        }
-        return 0;
+        if (comp) addCompRowWithData(n, comp, qty);
     };
 
     if (isRep) {
@@ -2419,7 +2400,6 @@ function autoLoadComponents(n) {
         } else if (tipoRep === 'bobinado_motor') {
             addCompWithPrice(115, 1);
         }
-        addCustomLabor("Mano de obra reparación", Math.max(materialPriceTotal * 0.5, 40000));
         // Viáticos ya no se agregan como componentes. Se manejan globalmente en el bloque de Traslado.
     } else if (isMotor) {
         if (cat === 'Interior') {
@@ -2441,12 +2421,7 @@ function autoLoadComponents(n) {
                 } else {
                     ejeId = 149; // Eje 7.5" Exagonal (motores 800, 1000, 1500)
                 }
-                if (cat === 'Seguridad') {
-                    addCompWithPrice(ejeId, parseFloat(ancho.toFixed(2)));
-                } else {
-                    addCompWithPrice(ejeId, parseFloat(ancho.toFixed(2)));
-                    if (pid === 27 || pid === 29) addCompWithPrice(161, Math.ceil(ancho / 0.4));
-                }
+                addCompWithPrice(ejeId, parseFloat(ancho.toFixed(2)));
             }
             addCompWithPrice(58, 1);
         }
@@ -2456,10 +2431,13 @@ function autoLoadComponents(n) {
             addCompWithPrice(matCompId, m2);
             if (cat === 'Exterior') {
                 addCompWithPrice(155, parseFloat((alto + 0.5).toFixed(2)));
-                if (pid === 27 || pid === 29) addCompWithPrice(161, Math.ceil(ancho / 0.4));
             }
         }
-        addCustomLabor("Mano de obra cambio paño", Math.max(materialPriceTotal * 0.5, 40000));
+        // PVC (21-24) Cambio paño: instalación default 20%
+        if ([21, 22, 23, 24].includes(pid) && !window._manualInstPct[n]) {
+            let pctInput = document.getElementById('inst-pct-u-' + n);
+            if (pctInput) pctInput.value = 20;
+        }
     } else if (isGuias) {
         let effectiveCat = cat || 'Exterior';
         if (effectiveCat === 'Seguridad') {
@@ -2469,7 +2447,6 @@ function autoLoadComponents(n) {
         } else {
             addCompWithPrice(63, parseFloat(alto.toFixed(2)));
         }
-        addCustomLabor("Mano de obra cambio guías", Math.max(materialPriceTotal * 0.5, 40000));
     } else {
         let matCompId = PROD_COMP_MAP[pid];
         if (cat === 'Interior') {
