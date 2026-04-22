@@ -3701,6 +3701,13 @@ async function openCrmDetail(clientId) {
     let clientPres = DATA.presupuestos.filter(p => p._clienteId == clientId || p.Cliente_id == clientId);
     clientPres.sort((a, b) => new Date(b.Fecha || 0) - new Date(a.Fecha || 0));
 
+    // WhatsApp — solo si flag activa
+    let waMsgs = [];
+    if (WHATSAPP_ENABLED) {
+        try { waMsgs = await apiGet(TBL.wa_messages, '&where=(cliente_id,eq,' + clientId + ')&sort=CreatedAt'); }
+        catch(e) { waMsgs = []; }
+    }
+
     // --- Render Tab: Historial ---
     let htb = document.getElementById('crm-historial-table');
     let noHist = document.getElementById('crm-no-historial');
@@ -3781,9 +3788,30 @@ async function openCrmDetail(clientId) {
     // --- Render Tab: Resumen (timeline) ---
     renderCrmTimeline(clientHist, clientPres);
 
+    // --- Render Tab: WhatsApp ---
+    renderWhatsAppTab(waMsgs);
+    let waBtn = document.getElementById('crm-tab-btn-whatsapp');
+    if (waBtn) waBtn.style.display = WHATSAPP_ENABLED ? '' : 'none';
+
     // Show modal, reset to first tab
     showCrmTab('resumen', document.querySelector('.crm-tab.active') || document.querySelector('.crm-tab'));
     document.getElementById('modal-crm-detail').classList.add('show');
+}
+
+function renderWhatsAppTab(msgs) {
+    const box = document.getElementById('crm-wa-list');
+    const empty = document.getElementById('crm-no-wa');
+    if (!box || !empty) return;
+    if (!msgs || msgs.length === 0) { box.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    box.innerHTML = msgs.map(m => {
+        const out = (m.direction === 'out');
+        const txt = String(m.message || '').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+        const when = m.CreatedAt || '';
+        const bg = out ? '#dcf8c6' : '#ffffff';
+        const align = out ? 'flex-end' : 'flex-start';
+        return '<div style="display:flex;justify-content:' + align + ';margin:6px 0"><div style="max-width:70%;padding:8px 12px;border-radius:12px;background:' + bg + ';border:1px solid var(--border)"><div style="white-space:pre-wrap">' + txt + '</div><div style="font-size:0.75em;color:var(--text-light);text-align:right">' + when + '</div></div></div>';
+    }).join('');
 }
 
 function showCrmTab(tabName, btn) {
