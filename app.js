@@ -3159,7 +3159,7 @@ async function generarPDF(presId) {
             }
             let isRepair = u.Tipo_trabajo === 'Reparacion' || u.Tipo_trabajo === 'Service';
 
-            let unitTotal = uLines.reduce((acc, l) => acc + (parseFloat(l.Subtotal_con_IVA) || 0), 0);
+            let unitTotal = uLines.reduce((acc, l) => acc + (parseFloat(billingMode === 'con_iva' ? l.Subtotal_con_IVA : l.Subtotal_ARS) || 0), 0);
             let measures = (u.Ancho_m && u.Alto_m) ? ` (${u.Ancho_m}m x ${u.Alto_m}m)` : '';
             let cantidadU = parseInt(u.Cantidad) || 1;
             let cantLabel = cantidadU > 1 ? ` x${cantidadU}` : '';
