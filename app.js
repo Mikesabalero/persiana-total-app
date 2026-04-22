@@ -3159,7 +3159,7 @@ async function generarPDF(presId) {
             }
             let isRepair = u.Tipo_trabajo === 'Reparacion' || u.Tipo_trabajo === 'Service';
 
-            let unitTotal = uLines.reduce((acc, l) => acc + (parseFloat(billingMode === 'con_iva' ? l.Subtotal_con_IVA : l.Subtotal_ARS) || 0), 0);
+            let unitTotal = uLines.reduce((acc, l) => acc + (parseFloat(l.Subtotal_con_IVA) || 0), 0);
             let measures = (u.Ancho_m && u.Alto_m) ? ` (${u.Ancho_m}m x ${u.Alto_m}m)` : '';
             let cantidadU = parseInt(u.Cantidad) || 1;
             let cantLabel = cantidadU > 1 ? ` x${cantidadU}` : '';
@@ -3192,7 +3192,7 @@ async function generarPDF(presId) {
             let unitTotalBase = unitTotal;
             if (cantidadU > 1) unitTotal = unitTotalBase * cantidadU;
 
-            if (!isRepair && u.Pct_instalacion > 0) {
+            if (u.Pct_instalacion > 0) {
                 let instMonto = unitTotal * (u.Pct_instalacion / 100);
                 html += `<li style="margin-bottom: 4px;">Instalación: ${fmt(instMonto)}</li>`;
                 unitTotal += instMonto;
@@ -3427,7 +3427,7 @@ async function viewPresupuesto(presId) {
         let unitTotalBase = unitTotal;
         if (cantidadV > 1) unitTotal = unitTotalBase * cantidadV;
 
-        if (!isRepair && u.Pct_instalacion > 0) {
+        if (u.Pct_instalacion > 0) {
             let instMonto = unitTotal * (u.Pct_instalacion / 100);
             html += `<li style="margin-bottom:2px">Instalación: ${fmt(instMonto)}</li>`;
             unitTotal += instMonto;
