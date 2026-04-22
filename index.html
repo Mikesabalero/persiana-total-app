@@ -976,6 +976,7 @@
                 <button class="crm-tab" onclick="showCrmTab('historial',this)">Historial</button>
                 <button class="crm-tab" onclick="showCrmTab('propiedades',this)">Propiedades</button>
                 <button class="crm-tab" onclick="showCrmTab('presupuestos',this)">Presupuestos</button>
+                <button class="crm-tab" id="crm-tab-btn-whatsapp" style="display:none" onclick="showCrmTab('whatsapp',this)">WhatsApp</button>
             </div>
             <!-- Tab contents -->
             <div style="overflow-y:auto;flex:1;padding-top:16px">
@@ -1027,6 +1028,10 @@
                     <div id="crm-no-pres" style="text-align:center;padding:20px;color:var(--text-light);display:none">
                         Sin presupuestos registrados.
                     </div>
+                </div>
+                <div id="crm-tab-whatsapp" class="crm-tab-content">
+                    <div id="crm-wa-list" style="max-height:420px;overflow-y:auto;padding:8px;background:#f5f5f5;border-radius:8px;border:1px solid var(--border)"></div>
+                    <div id="crm-no-wa" style="text-align:center;padding:20px;color:var(--text-light);display:none">Sin mensajes de WhatsApp.</div>
                 </div>
             </div>
         </div>
