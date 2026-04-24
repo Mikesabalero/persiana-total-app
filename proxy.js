@@ -189,7 +189,7 @@ const server = http.createServer(async (req, res) => {
     proxyReq.end();
 });
 
-server.listen(PORT, '127.0.0.1', () => {
-    console.log(`[proxy] Escuchando en 127.0.0.1:${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`[proxy] Escuchando en 0.0.0.0:${PORT}`);
     console.log(`[proxy] Reenviando a NocoDB en ${NOCODB_HOST}:${NOCODB_PORT}`);
 });
