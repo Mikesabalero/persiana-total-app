@@ -7,11 +7,12 @@
 - **Auth**: Firebase Auth | **Infra**: Nginx + Docker | **Prod**: `https://app.srv1323649.hstgr.cloud/`
 - **Servidor**: `ssh root@srv1323649.hstgr.cloud` | archivos en `/root/persiana-app/`
 
-## Estado actual (2026-04-13) — HEAD: f182260
+## Estado actual (2026-04-24) — HEAD: c848cd5
 - **CRM en producción** ✅ — módulo CRM mergeado a main y deployado
-- **Fix cascade delete** ✅ — campo Presupuestos_id eliminado de tabla Propiedades en NocoDB
-- **Chatbot web** ✅ — "Cargar Cliente IA" funcionando en prod
-- **WhatsApp bot (lógica)** ✅ — WF-WA-Agent testeado, pendiente integración yCloud
+- **WhatsApp completo** ✅ — Fases 1/2/3 done: yCloud gateway, tab CRM, botón Tomar/Soltar, bot Anthropic
+- **Bot WA en Anthropic** ✅ — claude-haiku-4-5-20251001, fixes: phone injection, JSON, horario, PLACEHOLDER_ID, logs
+- **Tab WA en CRM** ✅ — app.js busca wa_messages por cliente_id OR phone (fix para msgs pre-cliente)
+- **proxy.js fix** ✅ — escucha en 0.0.0.0:3001 (antes 127.0.0.1, rompía conexión Docker)
 - **feature/crm** — rama obsoleta, el CRM ya está en main
 
 ## ⚠️ REGLAS DE GIT — CRÍTICAS (aprendidas por errores)
@@ -61,7 +62,9 @@ const WEBHOOK_ORQUESTADOR = 'https://n8n.srv1323649.hstgr.cloud/webhook/f2989923
 const WEBHOOK_CHATBOT     = 'https://n8n.srv1323649.hstgr.cloud/webhook/chat-app';
 const TBL = { clientes:'mwby85581fhjy27', propiedades:'m0dwlr7ccoim1kf', historial:'mimh9lp8bkew4t0', presupuestos:'mn1yyjyovvoyxme', wa_messages:'mt0hgi00vq6cgok' };
 // NocoDB token: xc-token: dZMS2te8v6cf47Jlmlnk3S3ft9LT_QO8bjNdOcZZ
-// n8n API key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...b_bmf4nVMs5wDEd_mhhe_0IVMqrzkaBdSsWbvvpXpJU
+// n8n API key (2026-04-24): eyJ...REDACTED
+// Anthropic API key: sk-ant-api03-REDACTED
+// Anthropic model WA bot: claude-haiku-4-5-20251001 (Claude 3 deprecated en la cuenta)
 ```
 
 ## Workflows n8n
@@ -83,11 +86,14 @@ const TBL = { clientes:'mwby85581fhjy27', propiedades:'m0dwlr7ccoim1kf', histori
 - `submitChatInput`: rutea por sessionId — `crm_*` → WEBHOOK_ORQUESTADOR, resto → WEBHOOK_CHATBOT
 - ⚠️ Pendiente verificar: flujos de chat en n8n (CRM Admin + Chatbot)
 
-## WhatsApp — Estado y plan
+## WhatsApp — Estado ✅ COMPLETO
 - **Fase 1** ✅: WF-WA-Agent testeado 9/9, tabla wa_messages activa
-- **Fase 2** ❌: integrar yCloud (requiere número WhatsApp Business)
-- **Fase 3** ❌: UI pestaña WhatsApp en CRM
-- **Plan acordado**: `const WHATSAPP_ENABLED = false` en app.js — UI oculta hasta activar
+- **Fase 2** ✅: yCloud gateway integrado, número WhatsApp Business activo
+- **Fase 3** ✅: Tab WhatsApp en CRM modal 360°, botón Tomar/Soltar, flag WHATSAPP_ENABLED=true
+- **Bot** ✅: Anthropic claude-haiku-4-5-20251001, system prompt con DATOS DE SESIÓN inyectados
+- **WF-WA-Agent** (n8n `SCbkZ8wUnUUvShIi`): toolsAgent typeVersion 1.7, Window Buffer Memory (_v2 session key)
+- **Logs**: wa_messages tabla `mt0hgi00vq6cgok`, Log Outgoing con `=` prefix y cliente_id dinámico
+- **Tab CRM**: app.js busca por `cliente_id OR phone` (para msgs pre-cliente con cliente_id=0)
 
 ## NocoDB — Cambios de esquema
 - **2026-04-13**: Eliminado `Presupuestos_id` (FK `ce6dgh4sodvmo3b`) y link virtual `Presupuestos` (`c9pkiok73yxowj5`) de tabla Propiedades. Fix cascade delete. Columna Presupuestos→Propiedades (`cpf764utp1w7yj0`) intacta.
@@ -122,9 +128,20 @@ node dev-server.js
 # App en http://localhost:3000
 ```
 
+## Arquitectura del servidor (infra clave)
+```
+Usuario → Traefik (Docker, puerto 443) → persiana-app container (nginx, puerto 80)
+nginx en container:
+  - Sirve estáticos desde /root/persiana-app (bind mount ro)
+  - Proxy /api/* → http://host.docker.internal:3001
+host:3001 → proxy.js (PM2 "persiana-proxy") → NocoDB (127.0.0.1:32770, Docker)
+
+Containers: n8n-traefik-1 | persiana-app | nocodb-4xnv-nocodb-1 | redis-redis-1 | n8n-n8n-1
+⚠️ proxy.js DEBE escuchar en 0.0.0.0:3001 (no 127.0.0.1) para que Docker lo alcance
+```
+
 ## Próximas tareas
-1. Verificar flujos de chat en n8n (CRM Admin + Chatbot) — detalles pendientes
-2. WhatsApp Fase 2: yCloud como gateway real
-3. WhatsApp Fase 3: UI pestaña en CRM + flag WHATSAPP_ENABLED
-4. Productos P3: lógica IDs 33-36
-5. Fix `Margen_default ?? 40`
+1. Test E2E bot WA con cliente nuevo — verificar tab WhatsApp en CRM muestra la conv completa
+2. Verificar flujos de chat n8n (CRM Admin + Chatbot web) — detalles pendientes
+3. Productos P3: lógica IDs 33-36 (Cajón Exterior, Sistema Dual, Bandas Verticales)
+4. Fix `Margen_default ?? 40` en `compSelected` (~L2607) y `addCompRowWithData` (~L2560)

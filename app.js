@@ -3704,7 +3704,13 @@ async function openCrmDetail(clientId) {
     // WhatsApp — solo si flag activa
     let waMsgs = [];
     if (WHATSAPP_ENABLED) {
-        try { waMsgs = await apiGet(TBL.wa_messages, '&where=(cliente_id,eq,' + clientId + ')&sort=CreatedAt'); }
+        try {
+            const cPhone = (c.Telefono || '').replace(/\D/g, '').slice(-10);
+            const waWhere = cPhone
+                ? '(cliente_id,eq,' + clientId + ')~or(phone,like,' + encodeURIComponent('%' + cPhone + '%') + ')'
+                : '(cliente_id,eq,' + clientId + ')';
+            waMsgs = await apiGet(TBL.wa_messages, '&where=' + waWhere + '&sort=CreatedAt&limit=200');
+        }
         catch(e) { waMsgs = []; }
     }
 
@@ -3789,7 +3795,7 @@ async function openCrmDetail(clientId) {
     renderCrmTimeline(clientHist, clientPres);
 
     // --- Render Tab: WhatsApp ---
-    renderWhatsAppTab(waMsgs);
+    renderWhatsAppTab(waMsgs, !!c.Requiere_humano, clientId);
     let waBtn = document.getElementById('crm-tab-btn-whatsapp');
     if (waBtn) waBtn.style.display = WHATSAPP_ENABLED ? '' : 'none';
 
@@ -3798,7 +3804,35 @@ async function openCrmDetail(clientId) {
     document.getElementById('modal-crm-detail').classList.add('show');
 }
 
-function renderWhatsAppTab(msgs) {
+function _waHandoffBarHtml(clientId, requiereHumano) {
+    if (requiereHumano) {
+        return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff3cd;border:1px solid #ffc107;border-radius:6px;margin-bottom:8px">'
+            + '<span style="flex:1;color:#856404;font-size:0.85em">Bot en pausa — conversación tomada por asesor</span>'
+            + '<button class="btn btn-sm btn-success" onclick="toggleBotHandoff(' + clientId + ', true)">Soltar bot</button>'
+            + '</div>';
+    }
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#d1e7dd;border:1px solid #a3cfbb;border-radius:6px;margin-bottom:8px">'
+        + '<span style="flex:1;color:#0f5132;font-size:0.85em">Bot activo — respondiendo automáticamente</span>'
+        + '<button class="btn btn-sm btn-warning" onclick="toggleBotHandoff(' + clientId + ', false)">Tomar conversación</button>'
+        + '</div>';
+}
+
+async function toggleBotHandoff(clientId, currentState) {
+    const newState = !currentState;
+    try {
+        await apiPatch(TBL.clientes, { Id: clientId, Requiere_humano: newState });
+        const c = DATA.clientes.find(x => x.Id == clientId);
+        if (c) c.Requiere_humano = newState;
+        const bar = document.getElementById('crm-wa-handoff-bar');
+        if (bar) bar.innerHTML = _waHandoffBarHtml(clientId, newState);
+    } catch(e) {
+        alert('Error al cambiar estado del bot. Intentá de nuevo.');
+    }
+}
+
+function renderWhatsAppTab(msgs, requiereHumano, clientId) {
+    const bar = document.getElementById('crm-wa-handoff-bar');
+    if (bar && WHATSAPP_ENABLED) bar.innerHTML = _waHandoffBarHtml(clientId, requiereHumano);
     const box = document.getElementById('crm-wa-list');
     const empty = document.getElementById('crm-no-wa');
     if (!box || !empty) return;
