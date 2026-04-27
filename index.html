@@ -418,6 +418,24 @@
                 </div>
                 <button class="btn btn-primary" onclick="openCrmChat()">+ Nueva Conversacion</button>
             </div>
+            <!-- CRM Dashboard -->
+            <div id="crm-dashboard" style="margin-bottom:20px">
+                <div id="crm-kpi-row" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px"></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div class="card" style="padding:16px">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                            <h3 style="margin:0;font-size:14px;font-weight:600;color:#e53935">&#9888;&#65039; Requieren atención</h3>
+                            <span id="crm-handoff-count" style="font-size:12px;color:var(--text-light)"></span>
+                        </div>
+                        <div id="crm-handoff-list" style="max-height:220px;overflow-y:auto"></div>
+                    </div>
+                    <div class="card" style="padding:16px">
+                        <h3 style="margin:0 0 10px;font-size:14px;font-weight:600">&#128336; Actividad reciente</h3>
+                        <div id="crm-activity-list" style="max-height:220px;overflow-y:auto"></div>
+                    </div>
+                </div>
+            </div>
+            <!-- Filtros + Tabla -->
             <div class="filters" style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
                 <input type="text" id="crm-search" placeholder="Buscar por nombre o telefono..." oninput="filterCRM()" style="flex:1;min-width:200px;padding:8px 12px;border:1px solid var(--border);border-radius:8px">
                 <select id="crm-filter-tipo" onchange="filterCRM()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px">

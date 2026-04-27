@@ -3591,10 +3591,94 @@ function _buildHistorialByClient() {
     return map;
 }
 
+function renderCrmDashboard() {
+    const kpiRow = document.getElementById('crm-kpi-row');
+    if (!kpiRow) return;
+
+    const totalClientes = Object.keys(CLIENT_MAP).length;
+    const enHandoff = DATA.clientes.filter(c => c.Requiere_humano).length;
+    const totalPres = (DATA._presupuestosAll || DATA.presupuestos).length;
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const actSemana = DATA.historial.filter(h => new Date(h.fecha || h.Fecha || 0).getTime() >= weekAgo).length;
+
+    kpiRow.innerHTML = [
+        { label: 'Total clientes', value: totalClientes, color: 'var(--primary)', icon: '&#128101;' },
+        { label: 'En handoff',     value: enHandoff,     color: enHandoff > 0 ? '#e53935' : '#43a047', icon: '&#128276;' },
+        { label: 'Presupuestos',   value: totalPres,     color: 'var(--primary)', icon: '&#128203;' },
+        { label: 'Conv. (7 días)', value: actSemana,     color: '#43a047', icon: '&#128172;' },
+    ].map(k => `
+        <div class="card" style="padding:16px;text-align:center;cursor:default">
+            <div style="font-size:22px;margin-bottom:4px">${k.icon}</div>
+            <div style="font-size:30px;font-weight:700;color:${k.color};line-height:1">${k.value}</div>
+            <div style="font-size:11px;color:var(--text-light);margin-top:6px;text-transform:uppercase;letter-spacing:.5px">${k.label}</div>
+        </div>
+    `).join('');
+
+    const handoffCount = document.getElementById('crm-handoff-count');
+    const handoffList  = document.getElementById('crm-handoff-list');
+    const histByClient = _buildHistorialByClient();
+    const handoffClients = DATA.clientes
+        .filter(c => c.Requiere_humano)
+        .map(c => {
+            const hist = histByClient[c.Id] || [];
+            const lastTs = hist.length
+                ? Math.max(...hist.map(h => new Date(h.fecha || h.Fecha || 0).getTime()))
+                : 0;
+            return { ...c, lastTs };
+        })
+        .sort((a, b) => b.lastTs - a.lastTs)
+        .slice(0, 10);
+
+    if (handoffCount) handoffCount.textContent = handoffClients.length ? handoffClients.length + ' pendiente' + (handoffClients.length > 1 ? 's' : '') : '';
+    if (handoffList) {
+        if (handoffClients.length === 0) {
+            handoffList.innerHTML = '<p style="color:var(--text-light);font-size:13px;text-align:center;padding:20px 0">Sin clientes en handoff ✓</p>';
+        } else {
+            handoffList.innerHTML = handoffClients.map(c => {
+                const lastFmt = c.lastTs ? new Date(c.lastTs).toLocaleDateString('es-AR') : 'Sin actividad';
+                return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">'
+                    + '<div style="min-width:0;flex:1;margin-right:8px">'
+                    + '<div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + cleanLabel(c.Nombre || '-') + '</div>'
+                    + '<div style="font-size:11px;color:var(--text-light)">' + (c.Telefono || '') + ' · ' + lastFmt + '</div>'
+                    + '</div>'
+                    + '<button class="btn btn-sm btn-primary" onclick="openCrmDetail(' + c.Id + ')">Ver</button>'
+                    + '</div>';
+            }).join('');
+        }
+    }
+
+    const activityList = document.getElementById('crm-activity-list');
+    if (activityList) {
+        const recent = [...DATA.historial]
+            .sort((a, b) => new Date(b.fecha || b.Fecha || 0) - new Date(a.fecha || a.Fecha || 0))
+            .slice(0, 10);
+        if (recent.length === 0) {
+            activityList.innerHTML = '<p style="color:var(--text-light);font-size:13px;text-align:center;padding:20px 0">Sin actividad registrada</p>';
+        } else {
+            activityList.innerHTML = recent.map(h => {
+                const link = resolveLink(h, 'Cliente');
+                const cid  = link ? (link.Id || link.id) : (h.Cliente_id || h.Clientes_id);
+                const nombre = cid ? cleanLabel(CLIENT_MAP[cid] && CLIENT_MAP[cid].Nombre ? CLIENT_MAP[cid].Nombre : '#' + cid) : 'Desconocido';
+                const fecha  = new Date(h.fecha || h.Fecha || 0).toLocaleDateString('es-AR');
+                const intent = h.intencion || h.Intencion || '-';
+                const prod   = h.producto  || h.Producto  || '';
+                return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">'
+                    + '<div style="min-width:0;flex:1;margin-right:8px">'
+                    + '<div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + nombre + '</div>'
+                    + '<div style="font-size:11px;color:var(--text-light)">' + intent + (prod ? ' · ' + prod : '') + ' · ' + fecha + '</div>'
+                    + '</div>'
+                    + (cid ? '<button class="btn btn-sm" style="background:var(--bg);border:1px solid var(--border);white-space:nowrap" onclick="openCrmDetail(' + cid + ')">Ver</button>' : '')
+                    + '</div>';
+            }).join('');
+        }
+    }
+}
+
 function renderCRM() {
     let search = (document.getElementById('crm-search')?.value || '').toLowerCase();
     let tipoFilter = document.getElementById('crm-filter-tipo')?.value || '';
     let histMap = _buildHistorialByClient();
+    renderCrmDashboard();
 
     // Build client list with metrics
     let clients = [];
