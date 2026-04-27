@@ -3676,9 +3676,16 @@ async function openCrmDetail(clientId) {
     }
     if (!c) { alert('Cliente no encontrado'); return; }
 
-    document.getElementById('crm-det-nombre').textContent = cleanLabel(c.Nombre || '-');
-    document.getElementById('crm-det-telefono').textContent = c.Telefono || '-';
-    document.getElementById('crm-det-tipo').textContent = cleanLabel(c.Tipo || 'Particular');
+    // Fetch full client record (Email, Direccion, Tipo, Requiere_humano, etc.)
+    let cFull = c;
+    try {
+        const rows = await apiGet(TBL.clientes, '&where=(Id,eq,' + clientId + ')&limit=1');
+        if (rows && rows.length > 0) cFull = rows[0];
+    } catch(e) {}
+
+    document.getElementById('crm-det-nombre').textContent = cleanLabel(cFull.Nombre || '-');
+    document.getElementById('crm-det-telefono').textContent = cFull.Telefono || '-';
+    document.getElementById('crm-det-tipo').textContent = cleanLabel(cFull.Tipo || 'Particular');
 
     // Load historial for this client
     let histMap = _buildHistorialByClient();
@@ -3791,11 +3798,12 @@ async function openCrmDetail(clientId) {
         prtb.innerHTML = '';
     }
 
-    // --- Render Tab: Resumen (timeline) ---
+    // --- Render Tab: Resumen (card + timeline) ---
+    renderCrmResumenCard(cFull, clientHist, clientPres, waMsgs);
     renderCrmTimeline(clientHist, clientPres);
 
     // --- Render Tab: WhatsApp ---
-    renderWhatsAppTab(waMsgs, !!c.Requiere_humano, clientId);
+    renderWhatsAppTab(waMsgs, !!cFull.Requiere_humano, clientId);
     let waBtn = document.getElementById('crm-tab-btn-whatsapp');
     if (waBtn) waBtn.style.display = WHATSAPP_ENABLED ? '' : 'none';
 
@@ -3854,6 +3862,48 @@ function showCrmTab(tabName, btn) {
     let tab = document.getElementById('crm-tab-' + tabName);
     if (tab) tab.classList.add('active');
     if (btn) btn.classList.add('active');
+}
+
+function renderCrmResumenCard(cliente, historial, presupuestos, waMsgs) {
+    const card = document.getElementById('crm-resumen-card');
+    if (!card) return;
+
+    const totalPres = presupuestos.reduce((s, p) => s + (p.Total_con_IVA || p.Total || 0), 0);
+    const ultimaAct = historial[0]?.fecha || historial[0]?.Fecha || presupuestos[0]?.Fecha || null;
+    const ultimaFmt = ultimaAct ? new Date(ultimaAct).toLocaleDateString('es-AR') : '—';
+    const email = cliente.Email || '';
+    const dir = cliente.Direccion || '';
+    const requiereHumano = !!cliente.Requiere_humano;
+
+    const kpiChip = (val, label, bg, color) =>
+        `<div style="background:${bg};border-radius:8px;padding:8px 14px;text-align:center;min-width:72px">
+            <div style="font-size:1.25em;font-weight:700;color:${color}">${val}</div>
+            <div style="font-size:0.72em;color:#555;margin-top:2px">${label}</div>
+        </div>`;
+
+    const infoRow = (icon, text) => text
+        ? `<div style="font-size:0.88em;margin-bottom:5px">${icon} ${text}</div>`
+        : '';
+
+    card.innerHTML = `
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px;align-items:flex-start">
+            <div style="flex:1;min-width:180px;background:var(--bg-light,#f8f9fa);border-radius:8px;padding:12px 14px;border:1px solid var(--border)">
+                <div style="font-size:0.7em;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;font-weight:600">Datos del cliente</div>
+                ${infoRow('✉️', email)}
+                ${infoRow('📍', dir)}
+                <div style="font-size:0.88em;margin-top:4px">${requiereHumano
+                    ? '<span style=\"color:#856404\">🔴 Bot en pausa — asesor activo</span>'
+                    : '<span style=\"color:#0f5132\">🟢 Bot activo</span>'
+                }</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;padding-top:2px">
+                ${kpiChip(waMsgs.length, 'msgs WA', '#e3f2fd', '#1565c0')}
+                ${kpiChip(historial.length, 'conversaciones', '#e8f5e9', '#2e7d32')}
+                ${kpiChip(presupuestos.length, 'presupuestos', '#fff3e0', '#e65100')}
+                ${totalPres > 0 ? kpiChip(fmt(totalPres), 'presupuestado', '#f3e5f5', '#6a1b9a') : ''}
+                ${kpiChip(ultimaFmt, 'última actividad', '#f5f5f5', '#333')}
+            </div>
+        </div>`;
 }
 
 function renderCrmTimeline(historial, presupuestos) {
