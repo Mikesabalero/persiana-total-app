@@ -985,21 +985,26 @@
                     <div id="crm-timeline" class="crm-timeline"></div>
                 </div>
                 <div id="crm-tab-historial" class="crm-tab-content">
+                    <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+                        <button class="btn btn-sm" style="font-size:0.8em" onclick="refreshCrmHistorial(window._crmDetailClientId)">↻ Recargar</button>
+                    </div>
+                    <div style="overflow-x:auto">
                     <table class="table" style="font-size:0.9em">
                         <thead>
                             <tr>
                                 <th>Fecha</th>
-                                <th>Intencion</th>
+                                <th>Intención</th>
                                 <th>Resumen</th>
                                 <th>Resultado</th>
                                 <th>Producto</th>
                                 <th>Medidas</th>
                                 <th>Monto</th>
-                                <th>Acciones</th>
+                                <th></th>
                             </tr>
                         </thead>
                         <tbody id="crm-historial-table"></tbody>
                     </table>
+                    </div>
                     <div id="crm-no-historial" style="text-align:center;padding:20px;color:var(--text-light);display:none">
                         Este cliente no tiene conversaciones registradas.
                     </div>

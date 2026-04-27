@@ -3722,39 +3722,7 @@ async function openCrmDetail(clientId) {
     }
 
     // --- Render Tab: Historial ---
-    let htb = document.getElementById('crm-historial-table');
-    let noHist = document.getElementById('crm-no-historial');
-    if (clientHist.length > 0) {
-        noHist.style.display = 'none';
-        htb.innerHTML = clientHist.map(h => {
-            let fecha = h.fecha || h.Fecha || '-';
-            let intencion = cleanLabel(h.intencion || h.Intencion || '-');
-            let resumen = (h.resumen || h.Resumen || '-');
-            if (resumen.length > 80) resumen = resumen.substring(0, 80) + '...';
-            let resultado = h.resultado || h.Resultado || '-';
-            let producto = h.producto || h.Producto || '';
-            let ancho = h.ancho || h.Ancho || 0;
-            let alto = h.alto || h.Alto || 0;
-            let monto = h.presupuesto_monto || h.Presupuesto_monto || 0;
-            let medidas = (ancho && alto) ? ancho + 'x' + alto + 'm' : '-';
-            let resultBadge = _crmResultadoBadge(resultado);
-            let presBtn = (producto && ancho && alto) ?
-                `<button class="btn btn-sm btn-primary" onclick="crearPresDesdeHistorial(${JSON.stringify(h).replace(/"/g, '&quot;')}, ${clientId})">Crear Pres.</button>` : '';
-            return `<tr>
-                <td>${fecha}</td>
-                <td>${intencion}</td>
-                <td title="${(h.resumen || h.Resumen || '').replace(/"/g, '&quot;')}">${resumen}</td>
-                <td>${resultBadge}</td>
-                <td>${cleanLabel(producto) || '-'}</td>
-                <td>${medidas}</td>
-                <td>${monto ? fmt(monto) : '-'}</td>
-                <td>${presBtn}</td>
-            </tr>`;
-        }).join('');
-    } else {
-        noHist.style.display = 'block';
-        htb.innerHTML = '';
-    }
+    renderCrmHistorial(clientHist, clientId);
 
     // --- Render Tab: Propiedades ---
     let ptb = document.getElementById('crm-prop-table');
@@ -3873,6 +3841,7 @@ function renderCrmResumenCard(cliente, historial, presupuestos, waMsgs) {
     const ultimaFmt = ultimaAct ? new Date(ultimaAct).toLocaleDateString('es-AR') : '—';
     const email = cliente.Email || '';
     const dir = cliente.Direccion || '';
+    const tipo = cliente.Tipo || '';
     const requiereHumano = !!cliente.Requiere_humano;
 
     const kpiChip = (val, label, bg, color) =>
@@ -3885,12 +3854,38 @@ function renderCrmResumenCard(cliente, historial, presupuestos, waMsgs) {
         ? `<div style="font-size:0.88em;margin-bottom:5px">${icon} ${text}</div>`
         : '';
 
+    // Última conversación box
+    let lastConvHtml = '';
+    if (historial.length > 0) {
+        const h = historial[0];
+        const hFecha = (h.fecha || h.Fecha) ? new Date(h.fecha || h.Fecha).toLocaleDateString('es-AR') : '—';
+        const hIntencion = cleanLabel(h.intencion || h.Intencion || '—');
+        const hResumen = h.resumen || h.Resumen || '';
+        const hResultado = h.resultado || h.Resultado || '';
+        const hProducto = cleanLabel(h.producto || h.Producto || '');
+        lastConvHtml = `
+        <div style="background:var(--bg-light,#f8f9fa);border-radius:8px;padding:12px 14px;border:1px solid var(--border);margin-bottom:14px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                <div style="font-size:0.7em;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px;font-weight:600">Última conversación</div>
+                <span style="font-size:0.75em;color:#888">${hFecha}</span>
+                ${_crmResultadoBadge(hResultado)}
+            </div>
+            <div style="font-size:0.85em;display:flex;gap:16px;flex-wrap:wrap;margin-bottom:6px">
+                ${hIntencion !== '—' ? `<span><strong>Intención:</strong> ${hIntencion}</span>` : ''}
+                ${hProducto ? `<span><strong>Producto:</strong> ${hProducto}</span>` : ''}
+            </div>
+            ${hResumen ? `<div style="font-size:0.85em;color:#555;line-height:1.4">${hResumen}</div>` : ''}
+        </div>`;
+    }
+
     card.innerHTML = `
+        ${lastConvHtml}
         <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px;align-items:flex-start">
             <div style="flex:1;min-width:180px;background:var(--bg-light,#f8f9fa);border-radius:8px;padding:12px 14px;border:1px solid var(--border)">
                 <div style="font-size:0.7em;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;font-weight:600">Datos del cliente</div>
                 ${infoRow('✉️', email)}
                 ${infoRow('📍', dir)}
+                ${infoRow('🏷️', tipo ? cleanLabel(tipo) : '')}
                 <div style="font-size:0.88em;margin-top:4px">${requiereHumano
                     ? '<span style=\"color:#856404\">🔴 Bot en pausa — asesor activo</span>'
                     : '<span style=\"color:#0f5132\">🟢 Bot activo</span>'
@@ -3971,6 +3966,69 @@ function _crmResultadoBadge(resultado) {
     };
     let cls = colors[resultado] || 'borrador';
     return '<span class="badge badge-' + cls + '">' + cleanLabel(resultado || '-') + '</span>';
+}
+
+function renderCrmHistorial(hist, clientId) {
+    const htb = document.getElementById('crm-historial-table');
+    const noHist = document.getElementById('crm-no-historial');
+    if (!htb) return;
+    if (hist.length === 0) {
+        noHist.style.display = 'block';
+        htb.innerHTML = '';
+        return;
+    }
+    noHist.style.display = 'none';
+    htb.innerHTML = hist.map(h => {
+        const rawFecha = h.fecha || h.Fecha || '';
+        const fecha = rawFecha ? new Date(rawFecha).toLocaleDateString('es-AR') : '-';
+        const intencion = cleanLabel(h.intencion || h.Intencion || '-');
+        const resumenFull = (h.resumen || h.Resumen || '').replace(/'/g, '&#39;');
+        const resumenShort = resumenFull.length > 80 ? resumenFull.substring(0, 80) + '…' : resumenFull;
+        const resumenHtml = resumenFull
+            ? `<span style="cursor:pointer;color:inherit" title="Click para expandir"
+                 data-full="${resumenFull}" data-short="${resumenShort}"
+                 onclick="var s=this.dataset;var exp=this.getAttribute('data-expanded');this.textContent=exp?s.short:s.full;exp?this.removeAttribute('data-expanded'):this.setAttribute('data-expanded','1')"
+               >${resumenShort}</span>`
+            : '-';
+        const resultado = h.resultado || h.Resultado || '-';
+        const producto = cleanLabel(h.producto || h.Producto || '') || '-';
+        const ancho = h.ancho || h.Ancho || 0;
+        const alto = h.alto || h.Alto || 0;
+        const monto = h.presupuesto_monto || h.Presupuesto_monto || 0;
+        const medidas = (ancho && alto) ? ancho + 'x' + alto + 'm' : '-';
+        const presBtn = (h.producto || h.Producto) && ancho && alto
+            ? `<button class="btn btn-sm btn-primary" onclick="crearPresDesdeHistorial(${JSON.stringify(h).replace(/"/g, '&quot;')}, ${clientId})">Crear Pres.</button>`
+            : '';
+        return `<tr>
+            <td style="white-space:nowrap">${fecha}</td>
+            <td>${intencion}</td>
+            <td style="max-width:220px">${resumenHtml}</td>
+            <td>${_crmResultadoBadge(resultado)}</td>
+            <td>${producto}</td>
+            <td style="white-space:nowrap">${medidas}</td>
+            <td style="white-space:nowrap">${monto ? fmt(monto) : '-'}</td>
+            <td>${presBtn}</td>
+        </tr>`;
+    }).join('');
+}
+
+async function refreshCrmHistorial(clientId) {
+    if (!clientId) return;
+    try {
+        const fresh = await apiGet(TBL.historial, '&where=(Clientes_id,eq,' + clientId + ')&sort=-fecha&limit=100');
+        if (fresh && fresh.length > 0) {
+            // Update DATA.historial entries for this client
+            DATA.historial = DATA.historial.filter(h => {
+                const link = resolveLink(h, 'Cliente');
+                return !(link && (link.Id == clientId || link.id == clientId)) && h.Clientes_id != clientId;
+            });
+            DATA.historial.push(...fresh);
+        }
+        const sorted = (fresh || []).sort((a, b) => new Date(b.fecha || b.Fecha || 0) - new Date(a.fecha || a.Fecha || 0));
+        renderCrmHistorial(sorted, clientId);
+    } catch(e) {
+        console.error('[CRM] refreshCrmHistorial error:', e);
+    }
 }
 
 function crearPresDesdeHistorial(histData, clientId) {
